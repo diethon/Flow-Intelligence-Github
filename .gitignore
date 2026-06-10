@@ -1,0 +1,27 @@
+# dependencies
+node_modules/
+/.venv
+# build
+dist/
+build/
+.next/
+.expo/
+
+# env
+.env
+.env.*
+
+# logs
+logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# vscode
+.vscode/
+
+# generated
+coverage/
