@@ -1,0 +1,12 @@
+{
+  "totalRows": 5,
+  "successCount": 4,
+  "errorCount": 1,
+  "errors": [
+    {
+      "row": 3,
+      "field": "githubPrId",
+      "message": "required field missing"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+[
+  {
+    "repositoryId": "507f1f77bcf86cd799439000",
+    "githubPrId": 1001,
+    "number": 42,
+    "title": "feat: add user authentication",
+    "state": "merged",
+    "isDraft": false,
+    "authorId": "507f1f77bcf86cd799439010",
+    "createdAt": "2026-06-01T08:00:00Z",
+    "readyForReviewAt": "2026-06-01T09:00:00Z",
+    "mergedAt": "2026-06-03T14:30:00Z",
+    "closedAt": "2026-06-03T14:30:00Z",
+    "additions": 320,
+    "deletions": 45,
+    "changedFiles": 12
+  },
+  {
+    "repositoryId": "507f1f77bcf86cd799439000",
+    "githubPrId": 1002,
+    "number": 43,
+    "title": "fix: resolve null pointer in payment flow",
+    "state": "open",
+    "isDraft": false,
+    "authorId": "507f1f77bcf86cd799439010",
+    "createdAt": "2026-06-07T10:00:00Z",
+    "readyForReviewAt": "2026-06-07T10:30:00Z",
+    "mergedAt": null,
+    "closedAt": null,
+    "additions": 15,
+    "deletions": 8,
+    "changedFiles": 3
+  }
+]

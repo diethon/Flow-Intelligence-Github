@@ -1,0 +1,39 @@
+[
+  {
+    "_id": "507f1f77bcf86cd799439011",
+    "repositoryId": "507f1f77bcf86cd799439000",
+    "riskEventId": "507f1f77bcf86cd799439002",
+    "predictionId": null,
+    "sourceType": "rule",
+    "title": "Stale Pull Request",
+    "severity": "high",
+    "summary": "14 PRs have been open for more than 7 days",
+    "evidence": [
+      { "label": "Open PRs > 7 days", "value": 14 },
+      { "label": "Oldest PR", "value": "12 days" }
+    ],
+    "confidence": "high",
+    "limitation": "Does not account for WIP PRs or paused development",
+    "suggestedAction": "Review and close or reprioritize stale PRs",
+    "createdAt": "2026-06-14T10:00:00Z"
+  },
+  {
+    "_id": "507f1f77bcf86cd799439012",
+    "repositoryId": "507f1f77bcf86cd799439000",
+    "riskEventId": null,
+    "predictionId": "507f1f77bcf86cd799439003",
+    "sourceType": "ml",
+    "title": "High-Risk PR Detected",
+    "severity": "critical",
+    "summary": "ML model predicts 87% probability of merge delay for PR #42",
+    "evidence": [
+      { "label": "Delay probability", "value": 0.87 },
+      { "label": "Changed files", "value": 34 },
+      { "label": "Days since last review", "value": 5 }
+    ],
+    "confidence": 0.87,
+    "limitation": "Model trained on historical data only; does not account for team capacity changes",
+    "suggestedAction": "Assign additional reviewers and break PR into smaller chunks",
+    "createdAt": "2026-06-14T11:00:00Z"
+  }
+]
