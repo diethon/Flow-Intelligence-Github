@@ -18,14 +18,14 @@ export type WebhookEventStatus =
 
 export interface IWebhookEvent extends Document {
   repositoryId: mongoose.Types.ObjectId;
-  /** GitHub delivery ID — used for deduplication */
   githubDeliveryId: string;
-  eventType: WebhookEventType;
+  eventType: string;
+  action?: string;
   status: WebhookEventStatus;
-  /** Minimal payload stored for dedupe/audit — no raw code or sensitive bodies */
   payload: Record<string, unknown>;
   receivedAt: Date;
   processedAt: Date | null;
+  processed?: boolean;
   errorMessage: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -37,17 +37,9 @@ const webhookEventSchema = new Schema<IWebhookEvent>(
     githubDeliveryId: { type: String, required: true },
     eventType: {
       type: String,
-      enum: [
-        "pull_request",
-        "pull_request_review",
-        "pull_request_review_comment",
-        "check_run",
-        "check_suite",
-        "push",
-        "issues",
-      ],
       required: true,
     },
+    action: { type: String },
     status: {
       type: String,
       enum: ["pending", "processed", "duplicate_ignored", "failed", "skipped"],
@@ -56,6 +48,7 @@ const webhookEventSchema = new Schema<IWebhookEvent>(
     payload: { type: Schema.Types.Mixed, default: {} },
     receivedAt: { type: Date, required: true, default: Date.now },
     processedAt: { type: Date, default: null },
+    processed: { type: Boolean, default: false },
     errorMessage: { type: String, default: null },
   },
   { timestamps: true }
@@ -66,7 +59,7 @@ webhookEventSchema.index({ githubDeliveryId: 1 }, { unique: true, sparse: true }
 // Query index per design doc
 webhookEventSchema.index({ repositoryId: 1, eventType: 1, receivedAt: -1 });
 
-export const WebhookEvent = mongoose.model<IWebhookEvent>(
+export const WebhookEvent = mongoose.models.WebhookEvent || mongoose.model<IWebhookEvent>(
   "WebhookEvent",
   webhookEventSchema,
   "webhookEvents"

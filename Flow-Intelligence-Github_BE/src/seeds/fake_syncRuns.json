@@ -1,0 +1,13 @@
+[
+  {
+    "_id": { "$oid": "dddddd000000000000000001" },
+    "repositoryId": { "$oid": "6a302e5040dc9a966cb8dce6" },
+    "type": "initial",
+    "status": "success",
+    "startedAt": { "$date": "2026-06-19T09:00:00.000Z" },
+    "completedAt": { "$date": "2026-06-19T09:15:00.000Z" },
+    "recordsProcessed": 16,
+    "createdAt": { "$date": "2026-06-19T09:00:00.000Z" },
+    "updatedAt": { "$date": "2026-06-19T09:15:00.000Z" }
+  }
+]

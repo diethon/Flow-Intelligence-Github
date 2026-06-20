@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema } from "mongoose";
 
 export type SyncRunStatus = "running" | "success" | "partial" | "failed";
-export type SyncRunType = "initial_backfill" | "polling" | "webhook_triggered" | "manual";
+export type SyncRunType = "initial" | "incremental" | "webhook" | "initial_backfill" | "polling" | "webhook_triggered" | "manual";
 
 export interface ISyncRun extends Document {
   repositoryId: mongoose.Types.ObjectId;
@@ -9,9 +9,10 @@ export interface ISyncRun extends Document {
   status: SyncRunStatus;
   startedAt: Date;
   completedAt: Date | null;
+  finishedAt?: Date | null;
   recordsProcessed: number;
   errorMessage: string | null;
-  /** Number of days back that were fetched */
+  warnings?: string[];
   backfillWindowDays: number | null;
   createdAt: Date;
   updatedAt: Date;
@@ -22,7 +23,7 @@ const syncRunSchema = new Schema<ISyncRun>(
     repositoryId: { type: Schema.Types.ObjectId, ref: "Repository", required: true },
     type: {
       type: String,
-      enum: ["initial_backfill", "polling", "webhook_triggered", "manual"],
+      enum: ["initial", "incremental", "webhook", "initial_backfill", "polling", "webhook_triggered", "manual"],
       required: true,
     },
     status: {
@@ -32,8 +33,10 @@ const syncRunSchema = new Schema<ISyncRun>(
     },
     startedAt: { type: Date, required: true, default: Date.now },
     completedAt: { type: Date, default: null },
+    finishedAt: { type: Date, default: null },
     recordsProcessed: { type: Number, default: 0 },
     errorMessage: { type: String, default: null },
+    warnings: [{ type: String }],
     backfillWindowDays: { type: Number, default: null },
   },
   { timestamps: true }
@@ -42,4 +45,4 @@ const syncRunSchema = new Schema<ISyncRun>(
 // Query index per design doc
 syncRunSchema.index({ repositoryId: 1, startedAt: -1 });
 
-export const SyncRun = mongoose.model<ISyncRun>("SyncRun", syncRunSchema, "syncRuns");
+export const SyncRun = mongoose.models.SyncRun || mongoose.model<ISyncRun>("SyncRun", syncRunSchema, "syncRuns");

@@ -26,14 +26,24 @@ router.get("/repositories", async (_req: Request, res: Response) => {
   }
 });
 
-// ─── GET /api/dashboard/repositories/:repoId ─────────────────────────────────
-// UC-11 + UC-12: Full dashboard summary — KPIs, risk level, bottlenecks
 router.get("/repositories/:repoId", validateRepoId, async (req: Request, res: Response) => {
   try {
     const repoId = String(req.params["repoId"]);
-    const windowDays = Math.min(Math.max(Number(String(req.query["windowDays"] ?? "7")) || 7, 1), 90);
+    const rawWindowDays = Number(String(req.query["windowDays"] ?? "7"));
+    const windowDays = rawWindowDays === 0 ? 0 : Math.min(Math.max(rawWindowDays || 7, 1), 365);
 
-    const dashboard = await buildDashboard(repoId, windowDays);
+    let startDate: Date | undefined;
+    let endDate: Date | undefined;
+    if (req.query["startDate"] && req.query["endDate"]) {
+      const s = new Date(String(req.query["startDate"]));
+      const e = new Date(String(req.query["endDate"]));
+      if (!isNaN(s.getTime()) && !isNaN(e.getTime())) {
+        startDate = s;
+        endDate = e;
+      }
+    }
+
+    const dashboard = await buildDashboard(repoId, windowDays, startDate, endDate);
     res.json({ success: true, data: dashboard });
   } catch (err) {
     res.status(500).json({ error: "Failed to build dashboard", detail: String(err) });

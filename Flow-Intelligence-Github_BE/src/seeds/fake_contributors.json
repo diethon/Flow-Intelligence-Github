@@ -1,0 +1,26 @@
+[
+  {
+    "_id": { "$oid": "6a34ff19bdf6d73288fb350a" },
+    "repositoryId": { "$oid": "6a302e5040dc9a966cb8dce6" },
+    "githubUserId": 161696764,
+    "login": "quannguyen89s",
+    "pseudoLogin": "Contributor A",
+    "displayName": "Quan Nguyen",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/161696764?v=4",
+    "isPseudonymized": false,
+    "createdAt": { "$date": "2026-06-19T09:20:00.000Z" },
+    "updatedAt": { "$date": "2026-06-19T09:20:00.000Z" }
+  },
+  {
+    "_id": { "$oid": "6a34ff19bdf6d73288fb3508" },
+    "repositoryId": { "$oid": "6a302e5040dc9a966cb8dce6" },
+    "githubUserId": 188001952,
+    "login": "diethon",
+    "pseudoLogin": "Contributor B",
+    "displayName": "Diet Hon",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/188001952?v=4",
+    "isPseudonymized": false,
+    "createdAt": { "$date": "2026-06-19T09:20:00.000Z" },
+    "updatedAt": { "$date": "2026-06-19T09:20:00.000Z" }
+  }
+]

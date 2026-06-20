@@ -1,57 +1,105 @@
 import "dotenv/config";
-import express from "express";
-import cors from "cors";
-import helmet from "helmet";
-import morgan from "morgan";
-import { connectDB } from "./config/database.js";
-import metricsRouter   from "./routes/metricsRoutes.js";
-import dashboardRouter  from "./routes/dashboardRoutes.js";
-import riskRouter       from "./routes/riskRoutes.js";
-import seedRouter       from "./routes/seedRoutes.js";
+import express, { Express, Request, Response, NextFunction } from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
 
-const app = express();
-const PORT = Number(process.env.PORT) || 5000;
+import env from './config/env';
+import { connectDatabase } from './config/database';
+import { AppError } from './utils';
+import { GitHubConnectionService, GitHubApiService, SyncService, WebhookService, startSyncWorker } from './modules/github/services';
+import { GitHubController } from './modules/github/controllers/github.controller';
+import { createGitHubRoutes, createWebhookRoutes, createRepositoryRoutes } from './modules/github/routes/github.routes';
+import { authRoutes } from './modules/auth';
+
+import metricsRouter from "./routes/metricsRoutes.js";
+import dashboardRouter from "./routes/dashboardRoutes.js";
+import riskRouter from "./routes/riskRoutes.js";
+import { seedRulebook } from "./seeds/seedRulebook.js";
+
+const app: Express = express();
 
 app.use(helmet());
-
-// In development, allow any localhost origin (handles port changes from Vite)
-const corsOrigin =
-  process.env.NODE_ENV === "production"
-    ? process.env.FRONTEND_URL || false
-    : (origin: string | undefined, cb: (e: Error | null, allow?: boolean) => void) => {
-        if (!origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
-          cb(null, true);
-        } else {
-          cb(new Error(`CORS: origin ${origin} not allowed`));
-        }
-      };
-
-app.use(cors({ origin: corsOrigin, credentials: true }));
-app.use(morgan("dev"));
-app.use(express.json());
+app.use(
+  cors({
+    origin: env.CORS_ORIGIN,
+    credentials: true,
+  })
+);
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use(morgan('dev'));
 
 // Health check
-app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+app.get('/health', (_req: Request, res: Response) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Routes
-app.use("/api/metrics",   metricsRouter);
+app.get('/api/health', (_req: Request, res: Response) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+const githubApiService = new GitHubApiService({ token: 'placeholder_for_webhook' });
+const connectionService = new GitHubConnectionService();
+const syncService = new SyncService(githubApiService);
+const webhookService = new WebhookService(githubApiService);
+
+const githubController = new GitHubController(connectionService, syncService, githubApiService);
+
+// Register routes
+app.use('/api/auth', authRoutes);
+app.use('/api/github', createGitHubRoutes(githubController));
+app.use('/api/repositories', createRepositoryRoutes(githubController));
+app.use('/api/webhooks', createWebhookRoutes(webhookService));
+
+app.use("/api/metrics", metricsRouter);
 app.use("/api/dashboard", dashboardRouter);
-app.use("/api/risk",      riskRouter);
-app.use("/api/seed",      seedRouter);
+app.use("/api/risk", riskRouter);
 
-// Global error handler
-app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error("[Error]", err.message);
-  res.status(500).json({ error: "Internal server error", message: err.message });
-});
-
-connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`[Server] Running on http://localhost:${PORT}`);
-    console.log(`[Server] Environment: ${process.env.NODE_ENV}`);
+// Unhandled route fallback
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({
+    success: false,
+    message: 'Route not found',
   });
 });
+
+// Error handling middleware
+app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('Unhandled error:', error);
+  const statusCode = (error as { statusCode?: number }).statusCode || 500;
+  const message = error.message || 'Internal server error';
+
+  res.status(statusCode).json({
+    success: false,
+    message,
+    ...(env.NODE_ENV === 'development' && { stack: error.stack }),
+  });
+});
+
+const startServer = async (): Promise<void> => {
+  try {
+    await connectDatabase();
+    try {
+      await seedRulebook();
+    } catch (seedErr) {
+      console.warn("Automatic rulebook seeding failed, continuing anyway:", seedErr);
+    }
+
+    await startSyncWorker();
+
+    app.listen(env.PORT, env.HOST, () => {
+      console.log(`Server running on http://${env.HOST}:${env.PORT}`);
+      console.log(`Environment: ${env.NODE_ENV}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+if (require.main === module) {
+  startServer();
+}
 
 export default app;

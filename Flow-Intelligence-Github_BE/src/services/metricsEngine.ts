@@ -82,11 +82,16 @@ export interface UC10MetricsResult {
  */
 export async function calculateUC10Metrics(
   repositoryId: string,
-  windowDays: number = 7
+  windowDays: number = 7,
+  startDate?: Date,
+  endDate?: Date
 ): Promise<UC10MetricsResult> {
   const repoObjectId = new mongoose.Types.ObjectId(repositoryId);
-  const windowEnd = new Date();
-  const windowStart = new Date(windowEnd.getTime() - windowDays * 24 * 60 * 60 * 1000);
+  const windowEnd = endDate || new Date();
+  const windowStart = startDate || new Date(windowEnd.getTime() - windowDays * 24 * 60 * 60 * 1000);
+  const calculatedDays = startDate && endDate
+    ? Math.round(Math.abs(endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+    : windowDays;
 
   const [reviewPickup, reviewTurnaround, reviewLoad, failedCheck] = await Promise.all([
     calcReviewPickupTime(repoObjectId, windowStart, windowEnd),
@@ -99,7 +104,7 @@ export async function calculateUC10Metrics(
     repositoryId,
     windowStart,
     windowEnd,
-    windowDays,
+    windowDays: calculatedDays || 1,
     reviewPickup,
     reviewTurnaround,
     reviewLoadConcentration: reviewLoad,

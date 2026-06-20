@@ -65,4 +65,4 @@ const aiBriefSchema = new Schema<IAiBrief>(
 // Query index per design doc
 aiBriefSchema.index({ repositoryId: 1, createdAt: -1 });
 
-export const AiBrief = mongoose.model<IAiBrief>("AiBrief", aiBriefSchema, "aiBriefs");
+export const AiBrief = mongoose.models.AiBrief || mongoose.model<IAiBrief>("AiBrief", aiBriefSchema, "aiBriefs");

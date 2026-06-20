@@ -1,21 +1,14 @@
-import mongoose from "mongoose";
 
-export async function connectDB(): Promise<void> {
-  const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/flow_intelligence";
+import mongoose from 'mongoose';
+import env from './env';
 
+export const connectDatabase = async (): Promise<void> => {
   try {
-    await mongoose.connect(uri);
-    console.log(`[MongoDB] Connected: ${uri}`);
-  } catch (err) {
-    console.error("[MongoDB] Connection error:", err);
-    process.exit(1);
+    await mongoose.connect(env.MONGODB_URI);
+    console.log('MongoDB connected successfully');
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    throw error;
   }
+};
 
-  mongoose.connection.on("disconnected", () => {
-    console.warn("[MongoDB] Disconnected");
-  });
-
-  mongoose.connection.on("error", (err) => {
-    console.error("[MongoDB] Error:", err);
-  });
-}

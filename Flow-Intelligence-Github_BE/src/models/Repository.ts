@@ -9,6 +9,8 @@ export interface IRepository extends Document {
   defaultBranch: string;
   isPrivate: boolean;
   lastSyncedAt: Date | null;
+  webhookId?: number | null;
+  webhookUrl?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +25,8 @@ const repositorySchema = new Schema<IRepository>(
     defaultBranch: { type: String, default: "main" },
     isPrivate: { type: Boolean, default: false },
     lastSyncedAt: { type: Date, default: null },
+    webhookId: { type: Number, default: null },
+    webhookUrl: { type: String, default: null },
   },
   { timestamps: true }
 );
@@ -30,4 +34,4 @@ const repositorySchema = new Schema<IRepository>(
 // Query index: look up repos by connection
 repositorySchema.index({ connectionId: 1 });
 
-export const Repository = mongoose.model<IRepository>("Repository", repositorySchema, "repositories");
+export const Repository = mongoose.models.Repository || mongoose.model<IRepository>("Repository", repositorySchema, "repositories");

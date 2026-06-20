@@ -32,7 +32,8 @@ router.get("/repositories", async (_req: Request, res: Response) => {
 router.get("/repositories/:repoId/review-ci", validateRepoId, async (req: Request, res: Response) => {
   try {
     const repoId = String(req.params["repoId"]);
-    const windowDays = Math.min(Math.max(Number(String(req.query["windowDays"] ?? "7")) || 7, 1), 90);
+    const rawWindowDays = Number(String(req.query["windowDays"] ?? "7"));
+    const windowDays = rawWindowDays === 0 ? 0 : Math.min(Math.max(rawWindowDays || 7, 1), 365);
 
     const repo = await Repository.findById(repoId).lean();
     if (!repo) {
@@ -40,7 +41,18 @@ router.get("/repositories/:repoId/review-ci", validateRepoId, async (req: Reques
       return;
     }
 
-    const metrics = await calculateUC10Metrics(repoId, windowDays);
+    let startDate: Date | undefined;
+    let endDate: Date | undefined;
+    if (req.query["startDate"] && req.query["endDate"]) {
+      const s = new Date(String(req.query["startDate"]));
+      const e = new Date(String(req.query["endDate"]));
+      if (!isNaN(s.getTime()) && !isNaN(e.getTime())) {
+        startDate = s;
+        endDate = e;
+      }
+    }
+
+    const metrics = await calculateUC10Metrics(repoId, windowDays, startDate, endDate);
     res.json({ success: true, data: metrics });
   } catch (err) {
     res.status(500).json({ error: "Failed to calculate metrics", detail: String(err) });
@@ -52,7 +64,8 @@ router.get("/repositories/:repoId/review-ci", validateRepoId, async (req: Reques
 router.post("/repositories/:repoId/review-ci/calculate", validateRepoId, async (req: Request, res: Response) => {
   try {
     const repoId = String(req.params["repoId"]);
-    const windowDays = Math.min(Math.max(Number(req.body?.windowDays) || 7, 1), 90);
+    const rawWindowDays = Number(req.body?.windowDays ?? 7);
+    const windowDays = rawWindowDays === 0 ? 0 : Math.min(Math.max(rawWindowDays || 7, 1), 365);
 
     const repo = await Repository.findById(repoId).lean();
     if (!repo) {
@@ -60,7 +73,18 @@ router.post("/repositories/:repoId/review-ci/calculate", validateRepoId, async (
       return;
     }
 
-    const metrics = await calculateUC10Metrics(repoId, windowDays);
+    let startDate: Date | undefined;
+    let endDate: Date | undefined;
+    if (req.body?.startDate && req.body?.endDate) {
+      const s = new Date(String(req.body.startDate));
+      const e = new Date(String(req.body.endDate));
+      if (!isNaN(s.getTime()) && !isNaN(e.getTime())) {
+        startDate = s;
+        endDate = e;
+      }
+    }
+
+    const metrics = await calculateUC10Metrics(repoId, windowDays, startDate, endDate);
     await persistUC10Snapshots(metrics);
 
     // Update last synced
@@ -101,7 +125,8 @@ router.get("/repositories/:repoId/snapshots", validateRepoId, async (req: Reques
 router.get("/repositories/:repoId/review-ci/comparison", validateRepoId, async (req: Request, res: Response) => {
   try {
     const repoId = String(req.params["repoId"]);
-    const windowDays = Math.min(Math.max(Number(String(req.query["windowDays"] ?? "7")) || 7, 1), 30);
+    const rawWindowDays = Number(String(req.query["windowDays"] ?? "7"));
+    const windowDays = rawWindowDays === 0 ? 0 : Math.min(Math.max(rawWindowDays || 7, 1), 365);
 
     const repo = await Repository.findById(repoId).lean();
     if (!repo) {
@@ -109,9 +134,26 @@ router.get("/repositories/:repoId/review-ci/comparison", validateRepoId, async (
       return;
     }
 
+    let startDate: Date | undefined;
+    let endDate: Date | undefined;
+    let prevStartDate: Date | undefined;
+    let prevEndDate: Date | undefined;
+
+    if (req.query["startDate"] && req.query["endDate"]) {
+      const s = new Date(String(req.query["startDate"]));
+      const e = new Date(String(req.query["endDate"]));
+      if (!isNaN(s.getTime()) && !isNaN(e.getTime())) {
+        startDate = s;
+        endDate = e;
+        const diffMs = e.getTime() - s.getTime();
+        prevEndDate = s;
+        prevStartDate = new Date(s.getTime() - diffMs);
+      }
+    }
+
     const [current, previous] = await Promise.all([
-      calculateUC10Metrics(repoId, windowDays),
-      calculateUC10MetricsPrev(repoId, windowDays),
+      calculateUC10Metrics(repoId, windowDays, startDate, endDate),
+      calculateUC10MetricsPrev(repoId, windowDays, prevStartDate, prevEndDate),
     ]);
 
     const comparison = buildComparison(current, previous);
@@ -125,7 +167,9 @@ router.get("/repositories/:repoId/review-ci/comparison", validateRepoId, async (
 
 async function calculateUC10MetricsPrev(
   repositoryId: string,
-  windowDays: number
+  windowDays: number,
+  startDate?: Date,
+  endDate?: Date
 ): Promise<ReturnType<typeof calculateUC10Metrics> extends Promise<infer T> ? T : never> {
   // Shift window back by windowDays to get the previous period
   // We temporarily override the window by manipulating dates in the service
@@ -139,8 +183,8 @@ async function calculateUC10MetricsPrev(
   const { CheckRun: CR } = await import("../models/CheckRun.js");
 
   const repoObjectId = new mongoose.Types.ObjectId(repositoryId);
-  const prevWindowEnd = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
-  const prevWindowStart = new Date(prevWindowEnd.getTime() - windowDays * 24 * 60 * 60 * 1000);
+  const prevWindowEnd = endDate || new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
+  const prevWindowStart = startDate || new Date(prevWindowEnd.getTime() - windowDays * 24 * 60 * 60 * 1000);
 
   // For the comparison we return a simplified version
   const [prCount, reviewCount, checkCount] = await Promise.all([
@@ -149,9 +193,11 @@ async function calculateUC10MetricsPrev(
     CR.countDocuments({ repositoryId: repoObjectId, completedAt: { $gte: prevWindowStart, $lte: prevWindowEnd }, status: "completed" }),
   ]);
 
+  const durationDays = Math.round((prevWindowEnd.getTime() - prevWindowStart.getTime()) / (1000 * 60 * 60 * 24)) || windowDays;
+
   // Create a dummy previous period result using the calc function with shifted dates
   // This is a best-effort since we can't easily shift dates without refactoring
-  return calc(repositoryId, windowDays * 2).then((doubled) => ({
+  return calc(repositoryId, durationDays, prevWindowStart, prevWindowEnd).then((doubled) => ({
     ...doubled,
     windowStart: prevWindowStart,
     windowEnd: prevWindowEnd,

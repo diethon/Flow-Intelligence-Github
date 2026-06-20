@@ -1,29 +1,178 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { DesktopSidebar, MobileNav } from "./components/AppLayout.js";
-import { DashboardPage }       from "./pages/DashboardPage.js";
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
+import { DashboardPage, ConnectRepositoryPage, SyncStatusPage, LoginPage, PullRequestsPage } from './pages';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { Layout } from './components/Layout';
+import { AppLayout } from './components/AppLayout.js';
 import { ReviewCIMetricsPage } from "./pages/ReviewCIMetricsPage.js";
-import { RulebookPage }        from "./pages/RulebookPage.js";
-import { RiskPage }            from "./pages/RiskPage.js";
-import { ComingSoon }          from "./pages/ComingSoon.js";
+import { RulebookPage } from "./pages/RulebookPage.js";
+import { RiskPage } from "./pages/RiskPage.js";
+import { ComingSoon } from "./pages/ComingSoon.js";
 
-export default function App() {
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+const AuthCallback = () => {
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token');
+  const error = searchParams.get('error');
+
+  useEffect(() => {
+    if (token) {
+      localStorage.setItem('accessToken', token);
+      window.location.href = '/repositories/connect';
+    } else if (error) {
+      console.error('Auth error:', error);
+      window.location.href = '/login';
+    }
+  }, [token, error]);
+
   return (
-    <BrowserRouter>
-      <div className="flex bg-slate-950">
-        <DesktopSidebar />
-        <MobileNav />
-        <main className="flex-1 lg:ml-60 min-h-screen pt-14 lg:pt-0">
-          <Routes>
-            <Route path="/"          element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/review-ci" element={<ReviewCIMetricsPage />} />
-            <Route path="/rulebook"  element={<RulebookPage />} />
-            <Route path="/risk"      element={<RiskPage />} />
-            <Route path="/brief"     element={<ComingSoon title="AI Weekly Brief"  owner="Anh Quân" />} />
-            <Route path="/privacy"   element={<ComingSoon title="Privacy Settings" owner="Anh Quân" />} />
-          </Routes>
-        </main>
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent mx-auto mb-4" />
+        <p className="text-slate-600 font-medium">Authenticating...</p>
       </div>
-    </BrowserRouter>
+    </div>
+  );
+};
+
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const token = localStorage.getItem('accessToken');
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
+};
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route
+            path="/repositories/connect"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ConnectRepositoryPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/repositories/:id/sync-status"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <div className="px-4 sm:px-6 py-5 sm:py-8">
+                    <SyncStatusPageWrapper />
+                  </div>
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/repositories/:id/pull-requests"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <div className="px-4 sm:px-6 py-5 sm:py-8">
+                    <PullRequestsPageWrapper />
+                  </div>
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <DashboardPage />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/review-ci"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <ReviewCIMetricsPage />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/rulebook"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <RulebookPage />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/risk"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <RiskPage />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/brief"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <ComingSoon title="AI Weekly Brief" owner="Anh Quân" />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/privacy"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <ComingSoon title="Privacy Settings" owner="Anh Quân" />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </Router>
+    </QueryClientProvider>
   );
 }
+
+const SyncStatusPageWrapper = () => {
+  const { id } = useParams<{ id: string }>();
+  if (!id) {
+    return <Navigate to="/repositories/connect" replace />;
+  }
+  return <SyncStatusPage repositoryId={id} />;
+};
+
+const PullRequestsPageWrapper = () => {
+  const { id } = useParams<{ id: string }>();
+  if (!id) {
+    return <Navigate to="/repositories/connect" replace />;
+  }
+  return <PullRequestsPage />;
+};
+
+export default App;

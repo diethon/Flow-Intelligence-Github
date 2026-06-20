@@ -11,8 +11,21 @@ const router = Router();
 router.get("/repositories/:repoId/events", async (req: Request, res: Response) => {
   try {
     const repoId     = String(req.params["repoId"]);
-    const windowDays = Number(req.query["windowDays"]) || 7;
-    const result     = await getLatestRiskEvents(repoId, windowDays);
+    const rawWindowDays = Number(req.query["windowDays"]);
+    const windowDays = rawWindowDays === 0 ? 0 : (rawWindowDays || 7);
+
+    let startDate: Date | undefined;
+    let endDate: Date | undefined;
+    if (req.query["startDate"] && req.query["endDate"]) {
+      const s = new Date(String(req.query["startDate"]));
+      const e = new Date(String(req.query["endDate"]));
+      if (!isNaN(s.getTime()) && !isNaN(e.getTime())) {
+        startDate = s;
+        endDate = e;
+      }
+    }
+
+    const result     = await getLatestRiskEvents(repoId, windowDays, startDate, endDate);
     if (!result) {
       return res.json({
         success: true,
@@ -34,12 +47,24 @@ router.get("/repositories/:repoId/events", async (req: Request, res: Response) =
 router.post("/repositories/:repoId/evaluate", async (req: Request, res: Response) => {
   try {
     const repoId     = String(req.params["repoId"]);
-    const windowDays = Number(req.body?.windowDays ?? req.query["windowDays"]) || 7;
+    const rawWindowDays = Number(req.body?.windowDays ?? req.query["windowDays"]);
+    const windowDays = rawWindowDays === 0 ? 0 : (rawWindowDays || 7);
 
     const repo = await Repository.findById(repoId);
     if (!repo) return res.status(404).json({ error: "Repository not found" });
 
-    const result = await evaluateRiskRules(repoId, windowDays);
+    let startDate: Date | undefined;
+    let endDate: Date | undefined;
+    if (req.body?.startDate && req.body?.endDate) {
+      const s = new Date(String(req.body.startDate));
+      const e = new Date(String(req.body.endDate));
+      if (!isNaN(s.getTime()) && !isNaN(e.getTime())) {
+        startDate = s;
+        endDate = e;
+      }
+    }
+
+    const result = await evaluateRiskRules(repoId, windowDays, startDate, endDate);
     return res.json({ success: true, data: result });
   } catch (err) {
     return res.status(500).json({ error: "Risk evaluation failed", detail: String(err) });

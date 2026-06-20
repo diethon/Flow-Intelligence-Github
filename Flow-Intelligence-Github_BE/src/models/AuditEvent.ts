@@ -43,4 +43,4 @@ const auditEventSchema = new Schema<IAuditEvent>(
 auditEventSchema.index({ repositoryId: 1, createdAt: -1 });
 auditEventSchema.index({ userId: 1, createdAt: -1 });
 
-export const AuditEvent = mongoose.model<IAuditEvent>("AuditEvent", auditEventSchema, "auditEvents");
+export const AuditEvent = mongoose.models.AuditEvent || mongoose.model<IAuditEvent>("AuditEvent", auditEventSchema, "auditEvents");

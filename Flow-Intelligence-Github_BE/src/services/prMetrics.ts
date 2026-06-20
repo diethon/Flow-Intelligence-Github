@@ -45,15 +45,20 @@ const OVERSIZED_THRESHOLD_LINES = 500;
 
 export async function calculatePRMetrics(
   repositoryId: string,
-  windowDays: number = 7
+  windowDays: number = 7,
+  startDate?: Date,
+  endDate?: Date
 ): Promise<PRMetricsResult> {
   const repoId = new mongoose.Types.ObjectId(repositoryId);
-  const windowEnd = new Date();
-  const windowStart = new Date(windowEnd.getTime() - windowDays * 24 * 60 * 60 * 1000);
+  const windowEnd = endDate || new Date();
+  const windowStart = startDate || new Date(windowEnd.getTime() - windowDays * 24 * 60 * 60 * 1000);
 
   const prs = await PullRequest.find({
     repositoryId: repoId,
-    createdAt: { $gte: windowStart, $lte: windowEnd },
+    $or: [
+      { createdAt: { $gte: windowStart, $lte: windowEnd } },
+      { state: "open" }
+    ]
   }).lean();
 
   const now = new Date();

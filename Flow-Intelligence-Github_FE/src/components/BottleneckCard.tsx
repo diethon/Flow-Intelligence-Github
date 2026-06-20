@@ -6,11 +6,11 @@ const RULE_ICONS: Record<string, string> = {
 };
 
 const RULE_ACCENT: Record<string, { triggered: string; ok: string; bar: string; badge: string }> = {
-  R1: { triggered: "border-rose-500/40 bg-rose-500/8",    ok: "border-slate-700/60 bg-slate-900/40", bar: "bg-rose-500",   badge: "bg-rose-500/20 text-rose-300 border-rose-500/40"   },
-  R2: { triggered: "border-amber-500/40 bg-amber-500/8",  ok: "border-slate-700/60 bg-slate-900/40", bar: "bg-amber-500",  badge: "bg-amber-500/20 text-amber-300 border-amber-500/40"  },
-  R3: { triggered: "border-amber-500/40 bg-amber-500/8",  ok: "border-slate-700/60 bg-slate-900/40", bar: "bg-amber-500",  badge: "bg-amber-500/20 text-amber-300 border-amber-500/40"  },
-  R4: { triggered: "border-rose-500/40 bg-rose-500/8",    ok: "border-slate-700/60 bg-slate-900/40", bar: "bg-rose-500",   badge: "bg-rose-500/20 text-rose-300 border-rose-500/40"   },
-  R5: { triggered: "border-orange-500/40 bg-orange-500/8",ok: "border-slate-700/60 bg-slate-900/40", bar: "bg-orange-500", badge: "bg-orange-500/20 text-orange-300 border-orange-500/40" },
+  R1: { triggered: "border-rose-200 bg-rose-50/50",    ok: "border-slate-200 bg-white", bar: "bg-rose-500",   badge: "bg-rose-50 text-rose-700 border-rose-200/60"   },
+  R2: { triggered: "border-amber-200 bg-amber-50/50",  ok: "border-slate-200 bg-white", bar: "bg-amber-500",  badge: "bg-amber-50 text-amber-700 border-amber-200/60"  },
+  R3: { triggered: "border-amber-200 bg-amber-50/50",  ok: "border-slate-200 bg-white", bar: "bg-amber-500",  badge: "bg-amber-50 text-amber-700 border-amber-200/60"  },
+  R4: { triggered: "border-rose-200 bg-rose-50/50",    ok: "border-slate-200 bg-white", bar: "bg-rose-500",   badge: "bg-rose-50 text-rose-700 border-rose-200/60"   },
+  R5: { triggered: "border-orange-200 bg-orange-50/50",ok: "border-slate-200 bg-white", bar: "bg-orange-500", badge: "bg-orange-50 text-orange-700 border-orange-200/60" },
 };
 
 interface Props {
@@ -39,16 +39,16 @@ export function BottleneckCard({ card, onDrillDown }: Props) {
     : 0;
 
   return (
-    <div className={`rounded-2xl border overflow-hidden transition-all ${cls}`}>
+    <div className={`rounded-2xl border overflow-hidden shadow-sm transition-all hover:shadow-md ${cls}`}>
       <div className="flex">
         {/* Left accent stripe */}
-        <div className={`w-1 flex-shrink-0 ${card.isTriggered ? acc.bar : "bg-slate-800"}`} />
+        <div className={`w-1.5 flex-shrink-0 ${card.isTriggered ? acc.bar : "bg-slate-200"}`} />
 
         <div className="flex-1 p-5">
           {/* Main row */}
           <div className="flex items-center gap-3 sm:gap-4">
             {/* Icon */}
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-slate-800 flex items-center justify-center text-lg sm:text-xl flex-shrink-0">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-slate-100 flex items-center justify-center text-lg sm:text-xl flex-shrink-0">
               {RULE_ICONS[card.ruleCode] ?? "⚠️"}
             </div>
 
@@ -58,34 +58,34 @@ export function BottleneckCard({ card, onDrillDown }: Props) {
                 <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded-lg border ${acc.badge}`}>
                   {card.ruleCode}
                 </span>
-                <span className="text-sm font-semibold text-white truncate">{card.ruleName}</span>
+                <span className="text-sm font-semibold text-slate-800 truncate">{card.ruleName}</span>
                 {card.isTriggered
-                  ? <span className="text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 px-2.5 py-0.5 rounded-lg">⚡ Triggered</span>
-                  : <span className="text-xs font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/35 px-2.5 py-0.5 rounded-lg">✓ OK</span>
+                  ? <span className="text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200/60 px-2.5 py-0.5 rounded-lg">⚡ Triggered</span>
+                  : <span className="text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/65 px-2.5 py-0.5 rounded-lg">✓ OK</span>
                 }
               </div>
               {/* Metric (shown inline on mobile) */}
               <div className="flex items-center gap-1.5 mt-1 sm:hidden text-xs">
-                <span className={`font-bold tabular-nums ${card.isTriggered ? "text-rose-400" : "text-emerald-400"}`}>{metricFmt}</span>
-                <span className="text-slate-600">/</span>
+                <span className={`font-bold tabular-nums ${card.isTriggered ? "text-rose-600" : "text-emerald-600"}`}>{metricFmt}</span>
+                <span className="text-slate-400">/</span>
                 <span className="text-slate-500">{thresholdFmt}</span>
               </div>
             </div>
 
-            {/* Metric vs threshold — hidden on mobile (shown inline above) */}
+            {/* Metric vs threshold — hidden on mobile */}
             <div className="hidden sm:flex items-center gap-3 flex-shrink-0 text-sm">
-              <span className={`text-lg font-bold tabular-nums ${card.isTriggered ? "text-rose-400" : "text-emerald-400"}`}>
+              <span className={`text-lg font-bold tabular-nums ${card.isTriggered ? "text-rose-600" : "text-emerald-600"}`}>
                 {metricFmt}
               </span>
-              <span className="text-slate-600">/</span>
-              <span className="text-slate-400">{thresholdFmt}</span>
+              <span className="text-slate-300">/</span>
+              <span className="text-slate-500">{thresholdFmt}</span>
             </div>
 
             {/* Actions */}
             <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
               <button
                 onClick={() => setExpanded((v) => !v)}
-                className="text-xs text-slate-500 hover:text-slate-200 px-2.5 sm:px-3 py-1.5 rounded-lg hover:bg-slate-700 transition-colors border border-slate-700 hover:border-slate-600"
+                className="text-xs text-slate-600 hover:text-slate-900 px-2.5 sm:px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors border border-slate-200 hover:border-slate-300 bg-white"
               >
                 {expanded ? "▲" : "▼"}
                 <span className="hidden sm:inline"> {expanded ? "Less" : "Details"}</span>
@@ -93,7 +93,7 @@ export function BottleneckCard({ card, onDrillDown }: Props) {
               {onDrillDown && card.isTriggered && (
                 <button
                   onClick={() => onDrillDown(card.ruleCode)}
-                  className="text-xs bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 px-2.5 sm:px-3 py-1.5 rounded-lg border border-indigo-500/40 transition-colors"
+                  className="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2.5 sm:px-3 py-1.5 rounded-lg border border-indigo-200 transition-colors"
                 >
                   <span className="hidden sm:inline">Evidence </span>→
                 </button>
@@ -104,7 +104,7 @@ export function BottleneckCard({ card, onDrillDown }: Props) {
           {/* Progress bar */}
           {card.metricValue !== null && (
             <div className="mt-3 mx-0">
-              <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+              <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
                 <div
                   className={`h-full rounded-full ${card.isTriggered ? acc.bar : "bg-emerald-500"}`}
                   style={{ width: `${progress}%` }}
@@ -115,7 +115,7 @@ export function BottleneckCard({ card, onDrillDown }: Props) {
 
           {/* Expanded */}
           {expanded && (
-            <div className="mt-4 pt-4 border-t border-white/6 space-y-3">
+            <div className="mt-4 pt-4 border-t border-slate-100 space-y-3">
               {card.affectedItems.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-slate-400 mb-2">
@@ -123,17 +123,17 @@ export function BottleneckCard({ card, onDrillDown }: Props) {
                   </p>
                   <ul className="space-y-1">
                     {card.affectedItems.map((item, i) => (
-                      <li key={i} className="text-sm text-slate-400 flex items-start gap-2">
-                        <span className="text-slate-600 mt-0.5 flex-shrink-0">•</span>
+                      <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
+                        <span className="text-slate-300 mt-0.5 flex-shrink-0">•</span>
                         {item.label}
                       </li>
                     ))}
                   </ul>
                 </div>
               )}
-              <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 px-4 py-3">
-                <p className="text-xs font-semibold text-indigo-400 mb-1">💡 Suggested Action</p>
-                <p className="text-sm text-slate-300 leading-relaxed">{card.suggestedAction}</p>
+              <div className="rounded-xl bg-indigo-50/50 border border-indigo-100/50 px-4 py-3">
+                <p className="text-xs font-semibold text-indigo-700 mb-1">💡 Suggested Action</p>
+                <p className="text-sm text-slate-600 leading-relaxed">{card.suggestedAction}</p>
               </div>
             </div>
           )}

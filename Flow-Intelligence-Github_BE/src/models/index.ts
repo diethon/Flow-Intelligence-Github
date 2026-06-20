@@ -1,3 +1,7 @@
+import mongoose, { Schema, Model, Types } from 'mongoose';
+
+
+
 /**
  * Central barrel export for all Mongoose models.
  * Import from here instead of individual files:

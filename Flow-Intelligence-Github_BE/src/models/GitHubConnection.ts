@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema } from "mongoose";
 
 export type ConnectionStatus = "active" | "inactive" | "revoked" | "error";
-export type ProviderType = "github_app" | "oauth" | "token";
+export type ProviderType = "github_app" | "oauth" | "token" | "github";
 
 export interface IGitHubConnection extends Document {
   userId: mongoose.Types.ObjectId;
@@ -21,7 +21,7 @@ const gitHubConnectionSchema = new Schema<IGitHubConnection>(
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     providerType: {
       type: String,
-      enum: ["github_app", "oauth", "token"],
+      enum: ["github_app", "oauth", "token", "github"],
       required: true,
     },
     installationId: { type: String, default: null },
@@ -39,7 +39,7 @@ const gitHubConnectionSchema = new Schema<IGitHubConnection>(
 // Query index per design doc
 gitHubConnectionSchema.index({ userId: 1, status: 1 });
 
-export const GitHubConnection = mongoose.model<IGitHubConnection>(
+export const GitHubConnection = mongoose.models.GitHubConnection || mongoose.model<IGitHubConnection>(
   "GitHubConnection",
   gitHubConnectionSchema,
   "githubConnections"

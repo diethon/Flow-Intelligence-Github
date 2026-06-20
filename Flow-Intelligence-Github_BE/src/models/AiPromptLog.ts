@@ -33,4 +33,4 @@ const aiPromptLogSchema = new Schema<IAiPromptLog>(
 // Query index per design doc
 aiPromptLogSchema.index({ briefId: 1 });
 
-export const AiPromptLog = mongoose.model<IAiPromptLog>("AiPromptLog", aiPromptLogSchema, "aiPromptLogs");
+export const AiPromptLog = mongoose.models.AiPromptLog || mongoose.model<IAiPromptLog>("AiPromptLog", aiPromptLogSchema, "aiPromptLogs");

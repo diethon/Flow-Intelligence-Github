@@ -15,6 +15,8 @@ export interface IRiskEvent extends Document {
   thresholdValue: number;
   windowStart: Date;
   windowEnd: Date;
+  affectedEntityRefs?: mongoose.Types.ObjectId[];
+  limitation?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,6 +35,8 @@ const riskEventSchema = new Schema<IRiskEvent>(
     thresholdValue: { type: Number, required: true },
     windowStart: { type: Date, required: true },
     windowEnd: { type: Date, required: true },
+    affectedEntityRefs: [{ type: Schema.Types.ObjectId }],
+    limitation: { type: String, default: "" },
   },
   { timestamps: true }
 );

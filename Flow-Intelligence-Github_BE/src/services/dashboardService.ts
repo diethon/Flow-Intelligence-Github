@@ -73,7 +73,9 @@ const RULE_CONFIG = {
 
 export async function buildDashboard(
   repositoryId: string,
-  windowDays: number = 7
+  windowDays: number = 7,
+  startDate?: Date,
+  endDate?: Date
 ): Promise<DashboardSummary> {
   const repoId = new mongoose.Types.ObjectId(repositoryId);
 
@@ -83,8 +85,8 @@ export async function buildDashboard(
 
   // Calculate fresh metrics in parallel
   const [uc10, prMetrics] = await Promise.all([
-    calculateUC10Metrics(repositoryId, windowDays),
-    calculatePRMetrics(repositoryId, windowDays),
+    calculateUC10Metrics(repositoryId, windowDays, startDate, endDate),
+    calculatePRMetrics(repositoryId, windowDays, startDate, endDate),
   ]);
 
   // Persist snapshots in background (fire-and-forget)
@@ -401,8 +403,10 @@ export interface RulebookEntry {
 }
 
 export async function getRulebook(): Promise<RulebookEntry[]> {
+  // Fetch ALL rules (active + inactive) so the frontend can correctly
+  // compute "Active" vs "Inactive" counts in the StatsBar.
   const [rules, recommendations] = await Promise.all([
-    FlowRule.find({ isActive: true }).sort({ ruleCode: 1 }).lean(),
+    FlowRule.find().sort({ ruleCode: 1 }).lean(),
     Recommendation.find().lean(),
   ]);
 

@@ -1,23 +1,31 @@
-import axios from "axios";
+import apiClient from "../services/axiosClient.js";
 import type { RiskEvaluationResult } from "../types/risk.js";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-const api = axios.create({ baseURL: BASE_URL, timeout: 30000 });
-
 /** POST — Run full R1–R5 evaluation, persist events, return result */
-export async function evaluateRisk(repoId: string, windowDays: number): Promise<RiskEvaluationResult> {
-  const res = await api.post<{ success: boolean; data: RiskEvaluationResult }>(
+export async function evaluateRisk(
+  repoId: string,
+  windowDays: number,
+  startDate?: string,
+  endDate?: string
+): Promise<RiskEvaluationResult> {
+  const res = await apiClient.post<{ success: boolean; data: RiskEvaluationResult }>(
     `/risk/repositories/${repoId}/evaluate`,
-    { windowDays }
+    { windowDays, startDate, endDate }
   );
   return res.data.data;
 }
 
 /** GET — Return previously stored risk events (no recalculation) */
-export async function fetchRiskEvents(repoId: string, windowDays: number): Promise<RiskEvaluationResult | null> {
-  const res = await api.get<{ success: boolean; data: RiskEvaluationResult | null }>(
+export async function fetchRiskEvents(
+  repoId: string,
+  windowDays: number,
+  startDate?: string,
+  endDate?: string
+): Promise<RiskEvaluationResult | null> {
+  const res = await apiClient.get<{ success: boolean; data: RiskEvaluationResult | null }>(
     `/risk/repositories/${repoId}/events`,
-    { params: { windowDays } }
+    { params: { windowDays, startDate, endDate } }
   );
   return res.data.data;
 }
+

@@ -1,265 +1,419 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import type { Repository, DashboardSummary, RiskLevel, DataQualityLevel } from "../types/dashboard.js";
-import { fetchDashboardRepositories, fetchDashboard, seedAndFetchRepo } from "../api/dashboardApi.js";
-import { RiskBadge } from "../components/RiskBadge.js";
+import { fetchDashboardRepositories, fetchDashboard } from "../api/dashboardApi.js";
+import type { DashboardSummary, Repository, RiskLevel } from "../types/dashboard.js";
 import { DashboardKPICard } from "../components/DashboardKPICard.js";
-import { BottleneckCard }   from "../components/BottleneckCard.js";
+import { BottleneckCard } from "../components/BottleneckCard.js";
 import {
-  PageShell, Tabs, SectionHeading,
-  GhostBtn, PrimaryBtn, ErrorAlert, EmptyState,
-  WindowSelector, RepoSelect,
+  PageShell, SectionHeading,
+  RepoSelect,
+  ErrorAlert, EmptyState,
+  PrimaryBtn, GhostBtn
 } from "../components/PageShell.js";
+import { RiskBadge } from "../components/RiskBadge.js";
 
-type Tab = "kpis" | "bottlenecks";
-
-// ─── Overall risk hero ────────────────────────────────────────────────────────
-
-const RISK_BG: Record<RiskLevel, string> = {
-  high:   "from-rose-500/15 via-rose-500/5   to-transparent border-rose-500/30",
-  medium: "from-amber-500/15 via-amber-500/5 to-transparent border-amber-500/30",
-  low:    "from-yellow-500/15 via-yellow-500/5 to-transparent border-yellow-500/30",
-  good:   "from-emerald-500/15 via-emerald-500/5 to-transparent border-emerald-500/30",
+// Overall risk layout styles for Light Mode
+const OVERALL_CARD_THEME: Record<RiskLevel, { border: string; bg: string; text: string; glow: string }> = {
+  high: {
+    border: "border-rose-200",
+    bg: "bg-gradient-to-r from-rose-100/50 via-rose-50/20 to-transparent",
+    text: "text-rose-800",
+    glow: "shadow-rose-100/20"
+  },
+  medium: {
+    border: "border-amber-200",
+    bg: "bg-gradient-to-r from-amber-100/50 via-amber-50/20 to-transparent",
+    text: "text-amber-800",
+    glow: "shadow-amber-100/20"
+  },
+  low: {
+    border: "border-yellow-200",
+    bg: "bg-gradient-to-r from-yellow-100/50 via-yellow-50/20 to-transparent",
+    text: "text-yellow-800",
+    glow: "shadow-yellow-100/20"
+  },
+  good: {
+    border: "border-emerald-200",
+    bg: "bg-gradient-to-r from-emerald-100/50 via-emerald-50/20 to-transparent",
+    text: "text-emerald-800",
+    glow: "shadow-emerald-100/20"
+  }
 };
 
-const RISK_MSG: Record<RiskLevel, string> = {
-  high:   "Multiple rules triggered. Bottlenecks detected that may impact delivery.",
-  medium: "Some rules triggered. Review and plan a response soon.",
-  low:    "Minor issues detected. Monitor and address when convenient.",
-  good:   "No risk rules triggered. Delivery flow looks healthy! 🎉",
+const OVERALL_STATUS_MESSAGES: Record<RiskLevel, string> = {
+  high: "Multiple delivery bottlenecks detected. Immediate intervention is highly recommended to improve flow and resolve friction.",
+  medium: "Some flow risk rules have exceeded their thresholds. Plan a review with the team to identify areas of review or CI improvement.",
+  low: "Minor risks detected. Workflow metrics are mostly stable. Monitor the situation to prevent further delays.",
+  good: "All delivery metrics are well within healthy thresholds. The development pipeline is flowing smoothly. 🎉"
 };
 
-function HeroRisk({ level, triggeredCount, windowDays }: { level: RiskLevel; triggeredCount: number; windowDays: number }) {
-  return (
-    <div className={`rounded-2xl border bg-gradient-to-r p-7 ${RISK_BG[level]}`}>
-      <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-        {/* Badge + count */}
-        <div className="flex items-center gap-5">
-          <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
-              Delivery Flow Risk · {windowDays}d window
-            </p>
-            <RiskBadge level={level} size="lg" />
-          </div>
-          {triggeredCount > 0 && (
-            <div className="text-center border-l border-white/10 pl-5">
-              <p className="text-4xl font-bold text-rose-400 tabular-nums">{triggeredCount}</p>
-              <p className="text-xs text-slate-500 mt-1">rule{triggeredCount !== 1 ? "s" : ""} triggered</p>
-            </div>
-          )}
-        </div>
-        {/* Message */}
-        <div className="sm:border-l sm:border-white/10 sm:pl-5 flex-1">
-          <p className="text-base text-slate-300 leading-relaxed">{RISK_MSG[level]}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Data quality strip ───────────────────────────────────────────────────────
-
-const DQ_CFG: Record<DataQualityLevel, { pill: string; icon: string; label: string }> = {
-  good:    { pill: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40", icon: "✓", label: "Data quality: Good"    },
-  partial: { pill: "bg-amber-500/20   text-amber-300   border-amber-500/40",   icon: "!", label: "Data quality: Partial" },
-  poor:    { pill: "bg-rose-500/20    text-rose-300    border-rose-500/40",    icon: "✕", label: "Data quality: Poor"    },
-};
-
-function DataQualityStrip({ level, warnings, lastSynced }: {
-  level: DataQualityLevel;
-  warnings: { code: string; severity: string; message: string }[];
-  lastSynced: string | null;
-}) {
-  const [open, setOpen] = useState(false);
-  const cfg = DQ_CFG[level];
-  const syncLabel = lastSynced
-    ? `Last sync: ${new Date(lastSynced).toLocaleString()}`
-    : "Never synced";
-
-  return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-5 py-3">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3">
-          <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${cfg.pill}`}>
-            {cfg.icon} {cfg.label}
-          </span>
-          <span className="text-sm text-slate-500">{syncLabel}</span>
-        </div>
-        {warnings.length > 0 && (
-          <button onClick={() => setOpen((v) => !v)} className="text-sm text-slate-500 hover:text-slate-300 transition-colors">
-            {warnings.length} warning{warnings.length > 1 ? "s" : ""} {open ? "▲" : "▼"}
-          </button>
-        )}
-      </div>
-      {open && warnings.length > 0 && (
-        <ul className="mt-3 space-y-2 border-t border-white/5 pt-3">
-          {warnings.map((w, i) => (
-            <li key={i} className="flex items-start gap-2.5 text-sm text-slate-400">
-              <span className={w.severity === "error" ? "text-rose-400" : "text-amber-400"}>{w.severity === "error" ? "✕" : "!"}</span>
-              {w.message}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-// ─── KPI Skeletons ────────────────────────────────────────────────────────────
-
-function KPISkeletons() {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="h-44 rounded-2xl bg-slate-900/60 animate-pulse" />
-      ))}
-    </div>
-  );
-}
-
-// ─── Main page ────────────────────────────────────────────────────────────────
-
-export function DashboardPage() {
+export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
-  const [repos, setRepos]               = useState<Repository[]>([]);
+  const [repos, setRepos] = useState<Repository[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState("");
-  const [windowDays, setWindowDays]     = useState(7);
-  const [dashboard, setDashboard]       = useState<DashboardSummary | null>(null);
-  const [loading, setLoading]           = useState(false);
-  const [seeding, setSeeding]           = useState(false);
-  const [error, setError]               = useState<string | null>(null);
-  const [tab, setTab]                   = useState<Tab>("kpis");
+  const [windowDays, setWindowDays] = useState(() => {
+    const cached = localStorage.getItem("selectedWindowDays");
+    return cached ? parseInt(cached, 10) : 7;
+  });
+  const [startDate, setStartDate] = useState(() => {
+    const cachedDays = localStorage.getItem("selectedWindowDays");
+    const days = cachedDays ? parseInt(cachedDays, 10) : 7;
+    if (days > 0) {
+      const end = new Date();
+      const start = new Date();
+      start.setDate(end.getDate() - days);
+      const val = start.toISOString().split("T")[0];
+      localStorage.setItem("selectedStartDate", val);
+      return val;
+    }
+    const cachedStart = localStorage.getItem("selectedStartDate");
+    if (cachedStart) return cachedStart;
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - 7);
+    const val = start.toISOString().split("T")[0];
+    localStorage.setItem("selectedStartDate", val);
+    return val;
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const cachedDays = localStorage.getItem("selectedWindowDays");
+    const days = cachedDays ? parseInt(cachedDays, 10) : 7;
+    if (days > 0) {
+      const val = new Date().toISOString().split("T")[0];
+      localStorage.setItem("selectedEndDate", val);
+      return val;
+    }
+    const cachedEnd = localStorage.getItem("selectedEndDate");
+    if (cachedEnd) return cachedEnd;
+    const val = new Date().toISOString().split("T")[0];
+    localStorage.setItem("selectedEndDate", val);
+    return val;
+  });
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // Load repository options and check localStorage cache
   useEffect(() => {
     fetchDashboardRepositories()
-      .then((data) => { setRepos(data); if (data.length > 0) setSelectedRepoId(data[0]._id); })
-      .catch(() => setError("Could not reach backend. Make sure the server is running."));
+      .then((data) => {
+        setRepos(data);
+        if (data.length > 0) {
+          const cachedId = localStorage.getItem("selectedRepositoryId");
+          const exists = data.some((r) => r._id === cachedId);
+          setSelectedRepoId(exists && cachedId ? cachedId : data[0]._id);
+        } else {
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load repositories:", err);
+        setError("Failed to fetch repositories. Please check backend connection.");
+        setLoading(false);
+      });
   }, []);
 
-  const loadDashboard = useCallback(async () => {
+  // Fetch dashboard details for selected repo
+  const loadDashboardData = useCallback(async () => {
     if (!selectedRepoId) return;
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
     try {
-      const data = await fetchDashboard(selectedRepoId, windowDays);
-      setDashboard(data);
-    } catch {
-      setError("Failed to load dashboard. Make sure backend is running and data is seeded.");
-      setDashboard(null);
-    } finally { setLoading(false); }
-  }, [selectedRepoId, windowDays]);
+      const data = await fetchDashboard(
+        selectedRepoId,
+        windowDays,
+        startDate || undefined,
+        endDate || undefined
+      );
+      setSummary(data);
+    } catch (err) {
+      console.error("Failed to load dashboard metrics:", err);
+      setError("Could not load dashboard analytics. Verify the backend connection and database sync state.");
+      setSummary(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedRepoId, windowDays, startDate, endDate]);
 
-  useEffect(() => { if (selectedRepoId) loadDashboard(); }, [selectedRepoId, windowDays, loadDashboard]);
+  useEffect(() => {
+    if (selectedRepoId) {
+      loadDashboardData();
+    }
+  }, [selectedRepoId, windowDays, startDate, endDate, loadDashboardData]);
 
-  const handleSeed = async () => {
-    setSeeding(true); setError(null);
-    try {
-      const repoId = await seedAndFetchRepo();
-      const updated = await fetchDashboardRepositories();
-      setRepos(updated); setSelectedRepoId(repoId);
-    } catch { setError("Seed failed. Make sure MongoDB is running."); }
-    finally { setSeeding(false); }
+  const handleSelectRepo = (id: string) => {
+    setSelectedRepoId(id);
+    localStorage.setItem("selectedRepositoryId", id);
   };
 
   const selectedRepo = repos.find((r) => r._id === selectedRepoId);
-  const triggered    = dashboard?.bottlenecks.filter((b) => b.isTriggered) ?? [];
+  const overallTheme = summary ? OVERALL_CARD_THEME[summary.overallRiskLevel] : OVERALL_CARD_THEME.good;
 
   return (
     <PageShell
       title="Team Flow Dashboard"
-      subtitle={selectedRepo ? selectedRepo.fullName : undefined}
+
       actions={
-        <>
-          <RepoSelect repos={repos} value={selectedRepoId} onChange={setSelectedRepoId} />
-          <WindowSelector value={windowDays} onChange={setWindowDays} />
-          <PrimaryBtn onClick={loadDashboard} disabled={!selectedRepoId} loading={loading}>↻ Refresh</PrimaryBtn>
-        </>
+        repos.length > 0 ? (
+          <>
+            <RepoSelect repos={repos} value={selectedRepoId} onChange={handleSelectRepo} />
+            <GhostBtn onClick={loadDashboardData} disabled={loading}>
+              ↻ Refresh
+            </GhostBtn>
+          </>
+        ) : undefined
       }
     >
       {error && <ErrorAlert message={error} />}
 
-      {!loading && !dashboard && !error && repos.length === 0 && (
+      {/* Empty State: No connected repos */}
+      {!loading && repos.length === 0 && (
         <EmptyState
-          icon="📊"
-          title="No repositories yet"
-          description="Seed demo data to see the Team Flow Dashboard."
-          action={<PrimaryBtn onClick={handleSeed} loading={seeding}>🌱 Seed Demo Data</PrimaryBtn>}
+          icon="🔌"
+          title="No connected repositories found"
+          description="Connect your first GitHub repository to view team flow analytics, rulebook evaluation, and delivery KPIs."
+          action={
+            <PrimaryBtn onClick={() => navigate("/repositories/connect")}>
+              🔌 Connect Repository
+            </PrimaryBtn>
+          }
         />
       )}
 
-      {(loading || dashboard) && (
-        <>
-          {/* Data quality */}
-          {dashboard && (
-            <DataQualityStrip
-              level={dashboard.dataQuality.level}
-              warnings={dashboard.dataQuality.warnings}
-              lastSynced={dashboard.dataQuality.lastSyncedAt}
-            />
-          )}
-          {loading && !dashboard && <div className="h-14 rounded-xl bg-slate-900/60 animate-pulse" />}
+      {/* Loading state placeholders */}
+      {loading && !summary && (
+        <div className="space-y-6">
+          <div className="h-40 rounded-2xl bg-white animate-pulse border border-slate-200" />
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-44 rounded-2xl bg-white animate-pulse border border-slate-200" />
+            ))}
+          </div>
+          <div className="h-64 rounded-2xl bg-white animate-pulse border border-slate-200" />
+        </div>
+      )}
 
-          {/* Hero risk */}
-          {dashboard
-            ? <HeroRisk level={dashboard.overallRiskLevel} triggeredCount={dashboard.triggeredRuleCount} windowDays={windowDays} />
-            : <div className="h-32 rounded-2xl bg-slate-900/60 animate-pulse" />
-          }
-
-          {/* Tabs */}
-          <Tabs<Tab>
-            tabs={[
-              { id: "kpis",         label: "Performance KPIs", icon: "📈" },
-              { id: "bottlenecks",  label: "Bottleneck Analysis", icon: "⚠️", badge: triggered.length },
-            ]}
-            active={tab}
-            onChange={setTab}
-          />
-
-          {/* Tab: KPIs */}
-          {tab === "kpis" && (
-            <section>
-              <SectionHeading title="Key Performance Indicators" subtitle={`Metrics for the last ${windowDays} days`} />
-              {loading && !dashboard ? <KPISkeletons /> : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {dashboard?.kpis.map((card) => <DashboardKPICard key={card.key} card={card} />)}
+      {/* Main dashboard content */}
+      {!loading && summary && (
+        <div className="space-y-8 animate-fadeIn">
+          {/* Overall Risk Hero Section (UC13) */}
+          <section className={`rounded-2xl border p-6 md:p-8 shadow-sm bg-white ${overallTheme.border} ${overallTheme.bg} ${overallTheme.glow}`}>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-3 flex-1">
+                <div className="flex items-center gap-3">
+                  <RiskBadge level={summary.overallRiskLevel} size="lg" />
+                  <span className="text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200 px-3 py-1 rounded-full uppercase tracking-wider">
+                    Rulebook Evaluation
+                  </span>
                 </div>
-              )}
-            </section>
-          )}
+                <h2 className="text-xl md:text-2xl font-extrabold text-slate-900">
+                  Pipeline Status is {summary.overallRiskLevel === "good" ? "Healthy" : summary.overallRiskLevel.toUpperCase() + " RISK"}
+                </h2>
+                <p className={`text-sm leading-relaxed max-w-2xl ${overallTheme.text}`}>
+                  {OVERALL_STATUS_MESSAGES[summary.overallRiskLevel]}
+                </p>
+              </div>
 
-          {/* Tab: Bottlenecks */}
-          {tab === "bottlenecks" && (
-            <section>
-              <SectionHeading
-                title="Bottleneck Analysis"
-                subtitle={`R1–R5 flow risk rules · ${triggered.length} of ${dashboard?.bottlenecks.length ?? 5} triggered`}
-                right={
-                  <button onClick={() => navigate("/rulebook")} className="text-sm text-indigo-400 hover:text-indigo-300 border border-indigo-500/30 px-3 py-1.5 rounded-lg hover:bg-indigo-500/10 transition-colors">
-                    View Rulebook →
-                  </button>
-                }
-              />
-              {loading && !dashboard ? (
-                <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-20 rounded-2xl bg-slate-900/60 animate-pulse" />)}</div>
-              ) : (
-                <div className="space-y-3">
-                  {dashboard?.bottlenecks.map((b) => (
-                    <BottleneckCard key={b.ruleCode} card={b} onDrillDown={() => navigate(`/risk`)} />
-                  ))}
+              {/* Counter and quick action */}
+              <div className="flex flex-col sm:flex-row items-center gap-5 flex-shrink-0 bg-white border border-slate-200 p-5 rounded-2xl shadow-sm">
+                <div className="flex items-center gap-4">
+                  <div className="text-center">
+                    <p className="text-3xl font-extrabold text-rose-500 tabular-nums">{summary.triggeredRuleCount}</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Triggered</p>
+                  </div>
+                  <div className="text-slate-300 text-xl font-thin">/</div>
+                  <div className="text-center">
+                    <p className="text-3xl font-extrabold text-slate-500 tabular-nums">{summary.bottlenecks.length}</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Total Rules</p>
+                  </div>
                 </div>
-              )}
-            </section>
-          )}
 
-          {/* Footer */}
-          {dashboard && (
-            <div className="flex flex-wrap gap-x-5 gap-y-1 pb-4 text-xs text-slate-600">
-              <span>Window: {new Date(dashboard.windowStart).toLocaleDateString()} → {new Date(dashboard.windowEnd).toLocaleDateString()}</span>
-              <span>·</span>
-              <span>Computed: {new Date(dashboard.computedAt).toLocaleTimeString()}</span>
+                <div className="w-px h-10 bg-slate-200 hidden sm:block" />
+
+                <PrimaryBtn onClick={() => navigate("/risk")}>
+                  🔍 View Evidence
+                </PrimaryBtn>
+              </div>
             </div>
-          )}
-        </>
+          </section>
+
+          {/* KPI Metrics Grid (UC10) */}
+          <section>
+            <SectionHeading
+              title="Team Flow Key Metrics"
+              subtitle={
+                windowDays === 0 && startDate && endDate
+                  ? `Normalized metrics calculated from ${startDate} to ${endDate}`
+                  : `Normalized metrics calculated over the last ${windowDays} days`
+              }
+              right={
+                <GhostBtn onClick={() => navigate("/review-ci")}>
+                  📊 Detailed Metrics →
+                </GhostBtn>
+              }
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+              {summary.kpis.map((kpi) => (
+                <DashboardKPICard key={kpi.key} card={kpi} />
+              ))}
+            </div>
+          </section>
+
+          {/* Active Bottlenecks & Rulebook Summary (UC11 & UC12 & UC14) */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Bottlenecks summary list (UC12) */}
+            <div className="lg:col-span-2 space-y-5">
+              <SectionHeading
+                title="Active Delivery Bottlenecks"
+                subtitle="Rules prioritized by status and severity"
+              />
+              <div className="space-y-4">
+                {summary.bottlenecks.map((btn) => (
+                  <BottleneckCard
+                    key={btn.ruleCode}
+                    card={btn}
+                    onDrillDown={() => navigate("/risk")}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Quick insights, rulebook definitions, and data quality check (UC06 & UC14) */}
+            <div className="space-y-6">
+              {/* Quick actions for Sync Status & PRs */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
+                  🚀 Repository Shortcuts
+                </h3>
+                <div className="space-y-3 text-xs">
+                  <button
+                    onClick={() => navigate(`/repositories/${selectedRepoId}/sync-status`)}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 hover:border-indigo-300 transition-all text-left bg-white shadow-sm"
+                  >
+                    <div className="h-9 w-9 rounded-lg bg-indigo-50 flex items-center justify-center text-lg flex-shrink-0">
+                      🔄
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-800">Repository Sync Status</p>
+                      <p className="text-[10px] text-slate-500 font-medium">View backfill jobs & log</p>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => navigate(`/repositories/${selectedRepoId}/pull-requests`)}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 hover:border-indigo-300 transition-all text-left bg-white shadow-sm"
+                  >
+                    <div className="h-9 w-9 rounded-lg bg-purple-50 flex items-center justify-center text-lg flex-shrink-0">
+                      🔀
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-800">View Pull Requests</p>
+                      <p className="text-[10px] text-slate-500 font-medium">Inspect pull request details</p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Data Quality Banner (UC06) */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                    🛡️ Data Quality Check
+                  </h3>
+                  <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded ${
+                    summary.dataQuality.level === "good" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
+                    summary.dataQuality.level === "partial" ? "bg-amber-50 text-amber-700 border border-amber-200" :
+                    "bg-rose-50 text-rose-700 border border-rose-200"
+                  }`}>
+                    {summary.dataQuality.level}
+                  </span>
+                </div>
+
+                <div className="space-y-2.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Sync Status:</span>
+                    <span className="font-semibold text-slate-700">{summary.dataQuality.lastSyncStatus || "unknown"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Last Synced:</span>
+                    <span className="font-semibold text-slate-700">
+                      {summary.dataQuality.lastSyncedAt
+                        ? new Date(summary.dataQuality.lastSyncedAt).toLocaleString()
+                        : "Never"}
+                    </span>
+                  </div>
+                </div>
+
+                {summary.dataQuality.warnings.length > 0 ? (
+                  <div className="space-y-2 mt-3 pt-3 border-t border-slate-100">
+                    <p className="text-xs font-bold text-amber-600">⚠️ Active Warnings ({summary.dataQuality.warnings.length})</p>
+                    <div className="max-h-28 overflow-y-auto space-y-1.5 scrollbar-none pr-1">
+                      {summary.dataQuality.warnings.map((w, idx) => (
+                        <div key={idx} className="bg-amber-50 border border-amber-200 text-xs text-amber-800 rounded-lg p-2 leading-relaxed">
+                          {w.message}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-emerald-50 border border-emerald-100 text-[11px] text-emerald-800 rounded-lg p-3 flex items-start gap-2 mt-2 leading-relaxed">
+                    <span>✓</span> All repository integration pipelines are running clean without warning flags.
+                  </div>
+                )}
+              </div>
+
+              {/* Quick links & Rulebook Info (UC14) */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-3">
+                  📋 Flow Rulebook
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Metrics are analyzed against 5 team-level flow rules (R1 to R5) configured in the rulebook.
+                </p>
+                <div className="space-y-2.5 text-xs">
+                  <div className="flex justify-between border-b border-slate-100 pb-2">
+                    <span className="text-slate-500">R1: Stale PRs</span>
+                    <span className="font-semibold text-slate-700">≥ 3 PRs</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-2">
+                    <span className="text-slate-500">R2: Review Pickup Delay</span>
+                    <span className="font-semibold text-slate-700">≥ 12 hrs</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-2">
+                    <span className="text-slate-500">R3: Review Concentration</span>
+                    <span className="font-semibold text-slate-700">≥ 50%</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-2">
+                    <span className="text-slate-500">R4: CI Friction Rate</span>
+                    <span className="font-semibold text-slate-700">≥ 25%</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-2">
+                    <span className="text-slate-500">R5: Oversized PRs</span>
+                    <span className="font-semibold text-slate-700">≥ 2 PRs</span>
+                  </div>
+                </div>
+                <div className="pt-2">
+                  <PrimaryBtn onClick={() => navigate("/rulebook")}>
+                    📋 Manage Rulebook
+                  </PrimaryBtn>
+                </div>
+              </div>
+
+              {/* Privacy Notice */}
+              <div className="rounded-2xl border border-slate-200 bg-slate-100/50 p-5">
+                <p className="text-xs font-bold text-slate-500 mb-1 flex items-center gap-1.5">
+                  🔒 Privacy Guardrails
+                </p>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Calculated metrics are restricted to team workflow indicators. HR monitoring, developer rating, and raw source code reading are strictly disabled.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </PageShell>
   );
-}
+};
+
+export default DashboardPage;
