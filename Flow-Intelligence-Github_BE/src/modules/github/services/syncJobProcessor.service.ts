@@ -4,7 +4,10 @@ import { RepositoryConnectionRepository, GitHubRepositoryRepository, SyncRunRepo
 import { PullRequest } from '../models/pullRequest.model';
 import { Review } from '../models/review.model';
 import { ReviewRequest } from '../models/reviewRequest.model';
+import { Commit } from '../../../models/commit.model';
 import { notificationService } from './notification.service';
+import { normalizationService } from '../../../services/normalization.service';
+import { IssueImport, CommitImport, CheckRunImport } from '../../../dto/import.dto';
 import { AppError } from '../../../utils/AppError';
 import { encryptToken, decryptToken } from '../../../utils/crypto';
 import { User } from '../../auth/models';
@@ -58,6 +61,15 @@ export class SyncJobProcessor {
           break;
         case 'sync_review_requests':
           await this.syncReviewRequests(payload, apiService);
+          break;
+        case 'sync_commits':
+          await this.syncCommits(payload, apiService);
+          break;
+        case 'sync_issues':
+          await this.syncIssues(payload, apiService);
+          break;
+        case 'sync_check_runs':
+          await this.syncCheckRuns(payload, apiService);
           break;
       }
 
@@ -253,6 +265,123 @@ export class SyncJobProcessor {
     } else {
       await ReviewRequest.create(requestData);
     }
+  }
+
+  /**
+   * Sync commit metadata (no diff/patch). Idempotent upsert keyed by
+   * (repositoryId, githubSha) via normalizationService.
+   */
+  private async syncCommits(payload: SyncJobPayload, apiService: GitHubApiService): Promise<void> {
+    const { owner, repo, repositoryId, since } = payload;
+    let page = 1;
+    const perPage = 100;
+    let hasMore = true;
+    let count = 0;
+
+    while (hasMore) {
+      const commits = await apiService.getCommits(owner, repo, { perPage, page, since });
+      if (commits.length === 0) break;
+
+      for (const c of commits) {
+        const row: CommitImport = {
+          githubSha: c.sha,
+          authorGithubId: c.author?.id ?? undefined,
+          authorLogin: c.author?.login ?? c.commit?.author?.name ?? undefined,
+          message: c.commit?.message ?? undefined,
+          committedAt: new Date(c.commit?.committer?.date ?? c.commit?.author?.date ?? Date.now()),
+        };
+        await normalizationService.upsertCommit(repositoryId, row);
+        count++;
+      }
+
+      if (commits.length < perPage) hasMore = false;
+      else page++;
+    }
+
+    console.log(`Synced ${count} commits for ${owner}/${repo}`);
+  }
+
+  /**
+   * Sync issue metadata. GitHub's issues endpoint also returns pull requests;
+   * rows carrying a `pull_request` field are skipped. Raw body is not stored.
+   */
+  private async syncIssues(payload: SyncJobPayload, apiService: GitHubApiService): Promise<void> {
+    const { owner, repo, repositoryId, since } = payload;
+    let page = 1;
+    const perPage = 100;
+    let hasMore = true;
+    let count = 0;
+
+    while (hasMore) {
+      const issues = await apiService.getDetailedIssues(owner, repo, { state: 'all', perPage, page, since });
+      if (issues.length === 0) break;
+
+      for (const it of issues) {
+        if (it.pull_request) continue; // skip PRs returned by the issues endpoint
+        const state = it.state === 'closed' ? 'closed' : 'open';
+        const row: IssueImport = {
+          githubIssueId: it.id,
+          number: it.number,
+          title: it.title,
+          state,
+          authorGithubId: it.user?.id ?? 0,
+          authorLogin: it.user?.login ?? 'unknown',
+          labels: (it.labels || []).map((l: any) => (typeof l === 'string' ? l : l.name)).filter(Boolean),
+          assignees: (it.assignees || []).map((a: any) => a.login).filter(Boolean),
+          issueCreatedAt: new Date(it.created_at),
+          issueUpdatedAt: new Date(it.updated_at),
+          issueClosedAt: it.closed_at ? new Date(it.closed_at) : undefined,
+          issueUrl: it.html_url,
+        };
+        await normalizationService.upsertIssue(repositoryId, row);
+        count++;
+      }
+
+      if (issues.length < perPage) hasMore = false;
+      else page++;
+    }
+
+    console.log(`Synced ${count} issues for ${owner}/${repo}`);
+  }
+
+  /**
+   * Sync CI/CD check runs. Check runs are fetched per commit ref, so this job
+   * must run after commits are synced. Iterates stored commit SHAs.
+   */
+  private async syncCheckRuns(payload: SyncJobPayload, apiService: GitHubApiService): Promise<void> {
+    const { owner, repo, repositoryId } = payload;
+
+    const commits = await Commit.find({ repositoryId: new mongoose.Types.ObjectId(repositoryId) })
+      .select('githubSha')
+      .sort({ committedAt: -1 })
+      .limit(100);
+
+    let count = 0;
+
+    for (const commit of commits) {
+      try {
+        const checkRuns = await apiService.getCheckRunsForRef(owner, repo, commit.githubSha);
+        for (const cr of checkRuns) {
+          const status = (['queued', 'in_progress', 'completed'].includes(cr.status) ? cr.status : 'completed') as CheckRunImport['status'];
+          const row: CheckRunImport = {
+            githubCheckId: cr.id,
+            name: cr.name,
+            status,
+            conclusion: cr.conclusion ?? undefined,
+            headSha: cr.head_sha ?? commit.githubSha,
+            startedAt: cr.started_at ? new Date(cr.started_at) : undefined,
+            completedAt: cr.completed_at ? new Date(cr.completed_at) : undefined,
+            detailsUrl: cr.details_url ?? undefined,
+          };
+          await normalizationService.upsertCheckRun(repositoryId, row);
+          count++;
+        }
+      } catch (error) {
+        console.error(`Failed to sync check runs for ${commit.githubSha}:`, error);
+      }
+    }
+
+    console.log(`Synced ${count} check runs for ${owner}/${repo}`);
   }
 
   private async checkAndCompleteSyncRun(syncRunId: string): Promise<void> {

@@ -5,6 +5,7 @@ import { syncJobProcessor } from '../services/syncJobProcessor.service';
 import { PullRequestRepository } from '../repositories';
 import { User } from '../../auth/models';
 import { AppError } from '../../../utils/AppError';
+import { GitHubRepository } from '../../../types';
 
 const pullRequestRepo = new PullRequestRepository();
 
@@ -116,7 +117,7 @@ export class GitHubController {
     }
 
     const id = req.params.id as string;
-    const repo = await this.connectionService.getRepositoryById(id);
+    const repo = (await this.connectionService.getRepositoryById(id)) as GitHubRepository;
     if (!repo) {
       throw new AppError('Repository not found', 404, 'REPOSITORY_NOT_FOUND');
     }
@@ -215,11 +216,11 @@ export class GitHubController {
   }
 
   async setupWebhook(req: Request, res: Response) {
-    const repositoryId = req.params.id;
+    const repositoryId = req.params.id as string;
     const webhookUrl = req.body.webhookUrl;
 
-    if (!webhookUrl) {
-      throw new AppError('Webhook URL is required', 400, 'WEBHOOK_URL_REQUIRED');
+    if (!webhookUrl || typeof webhookUrl !== 'string') {
+      throw new AppError('Webhook URL is required and must be a string', 400, 'WEBHOOK_URL_REQUIRED');
     }
 
     const result = await this.connectionService.setupWebhook(repositoryId, webhookUrl);
@@ -227,7 +228,7 @@ export class GitHubController {
   }
 
   async getPullRequests(req: Request, res: Response) {
-    const repositoryId = req.params.id;
+    const repositoryId = req.params.id as string;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
     const state = req.query.state as string;

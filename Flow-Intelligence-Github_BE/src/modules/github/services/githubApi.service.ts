@@ -172,11 +172,80 @@ export class GitHubApiService {
     }
   }
 
+  /**
+   * Detailed issues for normalization. Note: GitHub's issues endpoint also
+   * returns pull requests; callers must skip rows that carry a `pull_request`
+   * field. Only metadata is returned — no raw body is exposed here.
+   */
+  async getDetailedIssues(
+    owner: string,
+    repo: string,
+    options: { state?: 'open' | 'closed' | 'all'; perPage?: number; page?: number; since?: string } = {}
+  ): Promise<Record<string, any>[]> {
+    const { state = 'all', perPage = 100, page = 1, since } = options;
+    try {
+      const response = await this.octokit.request('GET /repos/{owner}/{repo}/issues', {
+        owner,
+        repo,
+        state,
+        per_page: perPage,
+        page,
+        ...(since ? { since } : {}),
+        headers: { 'X-GitHub-Api-Version': '2022-11-28' },
+      });
+      return response.data as Record<string, any>[];
+    } catch (error) {
+      this.handleApiError(error, 'getDetailedIssues');
+      throw error;
+    }
+  }
+
+  /** Commit history (metadata only). Supports incremental `since` (ISO date). */
+  async getCommits(
+    owner: string,
+    repo: string,
+    options: { perPage?: number; page?: number; since?: string; sha?: string } = {}
+  ): Promise<Record<string, any>[]> {
+    const { perPage = 100, page = 1, since, sha } = options;
+    try {
+      const response = await this.octokit.request('GET /repos/{owner}/{repo}/commits', {
+        owner,
+        repo,
+        per_page: perPage,
+        page,
+        ...(since ? { since } : {}),
+        ...(sha ? { sha } : {}),
+        headers: { 'X-GitHub-Api-Version': '2022-11-28' },
+      });
+      return response.data as Record<string, any>[];
+    } catch (error) {
+      this.handleApiError(error, 'getCommits');
+      throw error;
+    }
+  }
+
+  /** CI/CD check runs for a given git ref (commit SHA or branch). */
+  async getCheckRunsForRef(owner: string, repo: string, ref: string): Promise<Record<string, any>[]> {
+    try {
+      const response = await this.octokit.request('GET /repos/{owner}/{repo}/commits/{ref}/check-runs', {
+        owner,
+        repo,
+        ref,
+        per_page: 100,
+        headers: { 'X-GitHub-Api-Version': '2022-11-28' },
+      });
+      return (response.data.check_runs || []) as Record<string, any>[];
+    } catch (error) {
+      this.handleApiError(error, 'getCheckRunsForRef');
+      throw error;
+    }
+  }
+
   async getPullRequests(
     owner: string,
     repo: string,
     options: {
-      state?: string;
+      state?: 'open' | 'closed' | 'all';
       perPage?: number;
       page?: number;
     } = {}

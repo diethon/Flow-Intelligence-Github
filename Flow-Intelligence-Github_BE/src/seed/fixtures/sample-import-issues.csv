@@ -1,0 +1,3 @@
+githubIssueId,number,title,state,authorGithubId,authorLogin,labels,assignees,issueCreatedAt,issueUpdatedAt,issueClosedAt,issueUrl
+5001,12,Flaky test in CI pipeline,open,1001,octofan,bug;ci,octofan,2026-06-10T09:00:00.000Z,2026-06-12T09:00:00.000Z,,https://github.com/demo/repo/issues/12
+5002,13,"Review queue backed up, needs triage",closed,1002,review-bot,triage;process,octofan;review-bot,2026-06-08T08:00:00.000Z,2026-06-11T10:00:00.000Z,2026-06-11T10:00:00.000Z,https://github.com/demo/repo/issues/13

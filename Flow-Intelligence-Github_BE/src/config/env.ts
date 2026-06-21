@@ -25,7 +25,7 @@ try {
   env = envSchema.parse(process.env);
 } catch (error) {
   if (error instanceof z.ZodError) {
-    const missingFields = error.errors.map((err) => `${err.path.join('.')}: ${err.message}`).join('\n');
+    const missingFields = error.issues.map((err) => `${err.path.join('.')}: ${err.message}`).join('\n');
     throw new Error(`Invalid environment variables:\n${missingFields}`);
   }
   throw error;

@@ -71,8 +71,8 @@ export class WebhookService {
 
     const recentEvents = await webhookEventRepo.findMany(
       { repositoryId },
-      { sortBy: 'receivedAt', sortOrder: 'desc' },
-      { page: 1, limit: 20 }
+      { receivedAt: -1 },
+      { skip: 0, limit: 20 }
     );
 
     const unprocessedCount = await webhookEventRepo.count({
@@ -208,7 +208,7 @@ export class WebhookService {
 
       if (jobTypes.length > 0) {
         await syncJobRepo.create({
-          repositoryId,
+          repositoryId: new mongoose.Types.ObjectId(repositoryId),
           jobType: jobTypes[0],
           status: 'pending',
           runAfter,

@@ -52,19 +52,17 @@ export class GitHubConnectionService {
 
     if (repositoryRecord) {
       repositoryRecord = await githubRepositoryRepo.update(repositoryRecord._id.toString(), {
-        $set: {
-          connectionId: new mongoose.Types.ObjectId(connectionId),
-          githubRepoId: githubRepository.id,
-          owner: githubRepository.owner.login,
-          name: githubRepository.name,
-          fullName: githubRepository.full_name,
-          defaultBranch: githubRepository.default_branch,
-          isPrivate: githubRepository.private,
-        },
+        connectionId: new mongoose.Types.ObjectId(connectionId),
+        githubRepoId: githubRepository.id,
+        owner: githubRepository.owner.login,
+        name: githubRepository.name,
+        fullName: githubRepository.full_name,
+        defaultBranch: githubRepository.default_branch,
+        isPrivate: githubRepository.private,
       });
     } else {
       repositoryRecord = await githubRepositoryRepo.create({
-        connectionId,
+        connectionId: new mongoose.Types.ObjectId(connectionId),
         githubRepoId: githubRepository.id,
         owner: githubRepository.owner.login,
         name: githubRepository.name,
@@ -235,7 +233,7 @@ export class GitHubConnectionService {
       throw new AppError('Connection not found', 404, 'CONNECTION_NOT_FOUND');
     }
 
-    const decryptedToken = this.decryptToken(connection.tokenEncrypted);
+    const decryptedToken = await this.decryptToken(connection.tokenEncrypted);
     const apiService = GitHubApiService.createWithToken(decryptedToken);
 
     // Create webhook with GitHub API
