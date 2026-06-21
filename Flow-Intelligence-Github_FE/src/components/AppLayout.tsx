@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { apiClient } from "../services/axiosClient";
 
 const NAV = [
   {
@@ -89,6 +90,34 @@ function Logo() {
   );
 }
 
+// ─── Shared nav links ─────────────────────────────────────────────────────────
+
+function LogoutButton() {
+  const navigate = useNavigate();
+  const handleLogout = async () => {
+    try {
+      await apiClient.post('/auth/logout');
+    } catch (err) {
+      console.error('Logout error:', err);
+    } finally {
+      localStorage.removeItem('accessToken');
+      navigate('/login');
+    }
+  };
+
+  return (
+    <button
+      onClick={handleLogout}
+      className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-rose-600 hover:bg-rose-50 transition-all"
+    >
+      <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+      </svg>
+      Log out
+    </button>
+  );
+}
+
 // ─── Desktop Sidebar ──────────────────────────────────────────────────────────
 
 export function DesktopSidebar() {
@@ -99,7 +128,7 @@ export function DesktopSidebar() {
       </div>
       <NavLinks />
       <div className="px-4 py-4 border-t border-slate-100">
-
+        <LogoutButton />
       </div>
     </aside>
   );
@@ -158,7 +187,7 @@ export function MobileNav() {
         </div>
         <NavLinks onItemClick={() => setOpen(false)} />
         <div className="px-4 py-4 border-t border-slate-100">
-
+          <LogoutButton />
         </div>
       </aside>
     </>

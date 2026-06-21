@@ -62,7 +62,13 @@ export interface ApiResponse<T> {
 }
 
 export type GitHubWebhookEventType = 'pull_request' | 'pull_request_review' | 'push';
-export type JobType = 'sync_pull_requests' | 'sync_reviews' | 'sync_review_requests';
+export type JobType =
+  | 'sync_pull_requests'
+  | 'sync_reviews'
+  | 'sync_review_requests'
+  | 'sync_commits'
+  | 'sync_issues'
+  | 'sync_check_runs';
 export type SyncRunType = 'initial' | 'incremental';
 export type SyncStatus = 'pending' | 'running' | 'success' | 'failed' | 'error' | 'partial';
 export type RepositoryConnectionStatus = 'active' | 'inactive' | 'error';
@@ -105,11 +111,13 @@ export interface WebhookEvent {
   updatedAt: Date;
 }
 
+export type SyncStatus = 'pending' | 'running' | 'success' | 'error';
+
 export interface SyncRun {
   id: string;
   repositoryId: string;
   type: SyncRunType;
-  status: 'pending' | 'running' | 'success' | 'error';
+  status: SyncStatus;
   startedAt: Date;
   finishedAt?: Date;
   recordsProcessed?: number;

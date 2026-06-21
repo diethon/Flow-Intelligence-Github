@@ -17,6 +17,7 @@ import { SyncRun } from "../models/SyncRun.js";
 import { MetricSnapshot } from "../models/MetricSnapshot.js";
 import { RiskEvent } from "../models/RiskEvent.js";
 import { EvidenceCard } from "../models/EvidenceCard.js";
+import { PrDelayPrediction } from "../models/PrDelayPrediction.js";
 
 // Import seeding/analytics functions
 import { seedRulebook } from "./seedRulebook.js";
@@ -78,6 +79,7 @@ async function runSeeding() {
       MetricSnapshot.deleteMany({}),
       RiskEvent.deleteMany({}),
       EvidenceCard.deleteMany({}),
+      PrDelayPrediction.deleteMany({}),
     ]);
     console.log("[Seed] Cleanup completed successfully");
 
@@ -125,6 +127,24 @@ async function runSeeding() {
     // Evaluate delivery flow risks & trigger evidence cards (UC-13, UC-14)
     await evaluateRiskRules(repoId, 7);
     console.log("[Seed] Evaluated Delivery Flow Risk rules successfully");
+
+    // 5. Add some fake PR Delay Predictions
+    console.log("[Seed] Seeding fake PR Delay Predictions...");
+    const prs = await PullRequest.find({ repositoryId: repoId }).limit(2);
+    if (prs.length > 0) {
+      const predictions = prs.map((pr, index) => ({
+        repositoryId: repoId,
+        pullRequestId: pr._id,
+        modelVersionId: new mongoose.Types.ObjectId(), // Fake model version
+        probability: index === 0 ? 0.85 : 0.45,
+        riskLabel: index === 0 ? "High" : "Medium",
+        featureSummary: index === 0 
+          ? { "additions": 1500, "changed_files": 45, "complexity": 12 }
+          : { "additions": 300, "changed_files": 12 },
+      }));
+      await PrDelayPrediction.insertMany(predictions);
+      console.log("[Seed] Inserted fake PR Delay Predictions");
+    }
 
     console.log("[Seed] Seeding process completed successfully! 🎉");
   } catch (err) {

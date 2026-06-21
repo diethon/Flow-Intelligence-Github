@@ -23,7 +23,7 @@ export interface ProcessWebhookResult {
 }
 
 export class WebhookService {
-  constructor(private readonly githubApiService: GitHubApiService) {}
+  constructor(private readonly githubApiService: GitHubApiService) { }
 
   async receiveWebhook(request: GitHubWebhookRequest): Promise<ProcessWebhookResult> {
     const eventType = request.event;
@@ -208,7 +208,7 @@ export class WebhookService {
 
       if (jobTypes.length > 0) {
         await syncJobRepo.create({
-          repositoryId: new mongoose.Types.ObjectId(repositoryId) as any,
+          repositoryId: new mongoose.Types.ObjectId(repositoryId),
           jobType: jobTypes[0],
           status: 'pending',
           runAfter,

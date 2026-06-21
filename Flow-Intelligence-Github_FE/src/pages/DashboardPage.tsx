@@ -11,7 +11,9 @@ import {
   PrimaryBtn, GhostBtn
 } from "../components/PageShell.js";
 import { RiskBadge } from "../components/RiskBadge.js";
-
+import { SyncStatusCard } from "../components/SyncStatusCard.js";
+import { EvidenceCardRow } from "../components/EvidenceCardRow.js";
+import { useSyncStatus } from "../hooks/useSyncStatus.js";
 // Overall risk layout styles for Light Mode
 const OVERALL_CARD_THEME: Record<RiskLevel, { border: string; bg: string; text: string; glow: string }> = {
   high: {
@@ -93,6 +95,8 @@ export const DashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { data: syncData, isLoading: syncLoading } = useSyncStatus(selectedRepoId);
+  const syncStatus = syncData?.data?.syncStatus;
   // Load repository options and check localStorage cache
   useEffect(() => {
     fetchDashboardRepositories()
@@ -242,7 +246,7 @@ export const DashboardPage: React.FC = () => {
             <SectionHeading
               title="Team Flow Key Metrics"
               subtitle={
-                windowDays === 0 
+                windowDays === 0
                   ? (startDate && endDate ? `Normalized metrics calculated from ${startDate} to ${endDate}` : "Normalized metrics calculated over all time")
                   : `Normalized metrics calculated over the last ${windowDays} days`
               }
@@ -260,9 +264,10 @@ export const DashboardPage: React.FC = () => {
           </section>
 
           {/* Active Bottlenecks & Rulebook Summary (UC11 & UC12 & UC14) */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
             {/* Bottlenecks summary list (UC12) */}
-            <div className="lg:col-span-2 space-y-5">
+            <div className="lg:col-span-2 space-y-8">
+              <div className="space-y-5">
               <SectionHeading
                 title="Active Delivery Bottlenecks"
                 subtitle="Rules prioritized by status and severity"
@@ -276,6 +281,58 @@ export const DashboardPage: React.FC = () => {
                   />
                 ))}
               </div>
+            </div>
+
+            {/* Recent Risk Intelligence & Evidence (UC15 & UC16) */}
+              <section className="space-y-6 pt-2 border-t border-slate-100">
+                <SectionHeading
+                  title="Recent Risk Intelligence & Evidence"
+                  subtitle="Latest AI predictions and evidence items across the repository"
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                  {/* AI Predictions */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2">PR Delay Predictions</h3>
+                    {summary.recentPredictions && summary.recentPredictions.length > 0 ? (
+                      summary.recentPredictions.map((pred: any) => (
+                        <div key={pred._id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-800 truncate pr-2">PR #{pred.pullRequestId?.number}</span>
+                            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
+                              pred.riskLabel?.toLowerCase() === 'high' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
+                              pred.riskLabel?.toLowerCase() === 'medium' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                              'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            }`}>
+                              {pred.riskLabel} RISK
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-slate-600">
+                            <p><strong>Probability:</strong> {((pred.probability || 0) * 100).toFixed(1)}%</p>
+                            <p className="mt-1 truncate" title={Object.keys(pred.featureSummary || {}).join(", ")}>
+                              <strong>Factors:</strong> {Object.keys(pred.featureSummary || {}).join(", ")}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-slate-500 italic">No recent PR delay predictions.</p>
+                    )}
+                  </div>
+
+                  {/* Evidence Cards */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2">Latest Evidence</h3>
+                    {summary.recentEvidenceCards && summary.recentEvidenceCards.length > 0 ? (
+                      summary.recentEvidenceCards.map((card: any) => (
+                        <EvidenceCardRow key={card._id} card={card} to={`/risk/${card._id}`} />
+                      ))
+                    ) : (
+                      <p className="text-xs text-slate-500 italic">No recent evidence cards.</p>
+                    )}
+                  </div>
+                </div>
+              </section>
             </div>
 
             {/* Quick insights, rulebook definitions, and data quality check (UC06 & UC14) */}
@@ -320,11 +377,10 @@ export const DashboardPage: React.FC = () => {
                   <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                     🛡️ Data Quality Check
                   </h3>
-                  <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded ${
-                    summary.dataQuality.level === "good" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
-                    summary.dataQuality.level === "partial" ? "bg-amber-50 text-amber-700 border border-amber-200" :
-                    "bg-rose-50 text-rose-700 border border-rose-200"
-                  }`}>
+                  <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded ${summary.dataQuality.level === "good" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
+                      summary.dataQuality.level === "partial" ? "bg-amber-50 text-amber-700 border border-amber-200" :
+                        "bg-rose-50 text-rose-700 border border-rose-200"
+                    }`}>
                     {summary.dataQuality.level}
                   </span>
                 </div>
@@ -361,6 +417,16 @@ export const DashboardPage: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* Sync Status Card (UC03) */}
+              {syncStatus && (
+                <SyncStatusCard
+                  status={syncStatus.status}
+                  lastSyncAt={syncStatus.lastSyncAt}
+                  pendingJobs={syncStatus.pendingJobs}
+                  currentRun={syncStatus.currentRun}
+                />
+              )}
 
               {/* Quick links & Rulebook Info (UC14) */}
               <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
@@ -410,6 +476,7 @@ export const DashboardPage: React.FC = () => {
               </div>
             </div>
           </div>
+
         </div>
       )}
     </PageShell>

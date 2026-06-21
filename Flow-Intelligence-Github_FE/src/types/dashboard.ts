@@ -61,6 +61,9 @@ export interface DashboardSummary {
   kpis: KPICard[];
   bottlenecks: BottleneckCard[];
   dataQuality: DataQualitySummary;
+  recentEvidenceCards: any[];
+  recentRiskEvents: any[];
+  recentPredictions: any[];
   computedAt: string;
 }
 

@@ -8,3 +8,7 @@ export * from './RepositoryDetailsCard';
 export * from './RepositoryStatsCard';
 export * from './AppLayout';
 
+export * from './evidenceMeta';
+export * from './EvidenceTags';
+export * from './ConfidenceGauge';
+export * from './EvidenceCardRow';

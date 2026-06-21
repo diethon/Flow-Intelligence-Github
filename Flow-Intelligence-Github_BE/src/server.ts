@@ -11,6 +11,10 @@ import { GitHubConnectionService, GitHubApiService, SyncService, WebhookService,
 import { GitHubController } from './modules/github/controllers/github.controller';
 import { createGitHubRoutes, createWebhookRoutes, createRepositoryRoutes } from './modules/github/routes/github.routes';
 import { authRoutes } from './modules/auth';
+import { ImportController } from './controllers/import.controller';
+import { createImportRoutes } from './routes/import.routes';
+import { EvidenceController } from './controllers/evidence.controller';
+import { createRepositoryEvidenceRoutes, createEvidenceCardRoutes } from './routes/evidence.routes';
 
 import metricsRouter from "./routes/metricsRoutes.js";
 import dashboardRouter from "./routes/dashboardRoutes.js";
@@ -28,6 +32,7 @@ app.use(
 );
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use(express.text({ type: ['text/csv', 'text/plain'], limit: '2mb' }));
 app.use(morgan('dev'));
 
 // Health check
@@ -45,11 +50,16 @@ const syncService = new SyncService(githubApiService);
 const webhookService = new WebhookService(githubApiService);
 
 const githubController = new GitHubController(connectionService, syncService, githubApiService);
+const importController = new ImportController();
+const evidenceController = new EvidenceController();
 
 // Register routes
 app.use('/api/auth', authRoutes);
 app.use('/api/github', createGitHubRoutes(githubController));
 app.use('/api/repositories', createRepositoryRoutes(githubController));
+app.use('/api/repositories', createImportRoutes(importController));
+app.use('/api/repositories', createRepositoryEvidenceRoutes(evidenceController));
+app.use('/api/evidence-cards', createEvidenceCardRoutes(evidenceController));
 app.use('/api/webhooks', createWebhookRoutes(webhookService));
 
 app.use("/api/metrics", metricsRouter);

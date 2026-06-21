@@ -22,8 +22,23 @@ export interface SyncJobOptions {
   incremental?: boolean;
 }
 
+/**
+ * Default sync jobs in execution order. The worker polls pending jobs ordered
+ * by `runAfter` ascending and processes one at a time, so this order is
+ * preserved via per-index `runAfter` offsets in enqueueJobs. `sync_check_runs`
+ * must run after `sync_commits` because check runs are fetched per stored SHA.
+ */
+const DEFAULT_JOB_TYPES: JobType[] = [
+  'sync_pull_requests',
+  'sync_reviews',
+  'sync_review_requests',
+  'sync_commits',
+  'sync_issues',
+  'sync_check_runs',
+];
+
 export class SyncService {
-  constructor(private readonly githubApiService: GitHubApiService) {}
+  constructor(private readonly githubApiService: GitHubApiService) { }
 
   async cleanupStuckSyncs(repositoryId: string): Promise<void> {
     // Mark any stuck 'running' sync runs as 'failed'
@@ -73,7 +88,7 @@ export class SyncService {
     const startedAt = new Date();
 
     const syncRun = await syncRunRepo.create({
-      repositoryId: new mongoose.Types.ObjectId(repositoryId) as any,
+      repositoryId: new mongoose.Types.ObjectId(repositoryId),
       type: syncType,
       status: 'running',
       startedAt,
@@ -90,11 +105,7 @@ export class SyncService {
       success: true,
       data: {
         syncRunId: syncRun._id.toString(),
-        jobsEnqueued: options.jobTypes || [
-          'sync_pull_requests',
-          'sync_reviews',
-          'sync_review_requests',
-        ],
+        jobsEnqueued: options.jobTypes || DEFAULT_JOB_TYPES,
       },
       message: 'Sync initiated successfully',
     };
@@ -138,17 +149,17 @@ export class SyncService {
         })),
         latestRun: latestRun
           ? {
-              id: latestRun._id.toString(),
-              repositoryId: latestRun.repositoryId.toString(),
-              type: latestRun.type,
-              status: latestRun.status,
-              startedAt: latestRun.startedAt,
-              finishedAt: latestRun.finishedAt,
-              recordsProcessed: latestRun.recordsProcessed,
-              warnings: latestRun.warnings,
-              errorMessage: latestRun.errorMessage,
-              createdAt: latestRun.createdAt,
-            }
+            id: latestRun._id.toString(),
+            repositoryId: latestRun.repositoryId.toString(),
+            type: latestRun.type,
+            status: latestRun.status,
+            startedAt: latestRun.startedAt,
+            finishedAt: latestRun.finishedAt,
+            recordsProcessed: latestRun.recordsProcessed,
+            warnings: latestRun.warnings,
+            errorMessage: latestRun.errorMessage,
+            createdAt: latestRun.createdAt,
+          }
           : null,
       },
       pagination: {
@@ -179,6 +190,15 @@ export class SyncService {
     const lastRunStatus: SyncStatus = latestRun?.status || 'success';
     const lastSyncAt = latestRun?.finishedAt || latestRun?.startedAt || repository.lastSyncedAt || new Date();
 
+    let jobs: any[] = [];
+    if (latestRun) {
+      const jobsData = await syncJobRepo.findMany(
+        { syncRunId: latestRun._id },
+        { runAfter: 1 }
+      );
+      jobs = jobsData.data || [];
+    }
+
     return {
       success: true,
       data: {
@@ -189,12 +209,19 @@ export class SyncService {
           pendingJobs: pendingJobsCount,
           currentRun: latestRun
             ? {
-                id: latestRun._id.toString(),
-                type: latestRun.type,
-                status: latestRun.status,
-                startedAt: latestRun.startedAt,
-                recordsProcessed: latestRun.recordsProcessed,
-              }
+              id: latestRun._id.toString(),
+              type: latestRun.type,
+              status: latestRun.status,
+              startedAt: latestRun.startedAt,
+              recordsProcessed: latestRun.recordsProcessed,
+              jobs: jobs.map((job) => ({
+                id: job._id.toString(),
+                jobType: job.jobType,
+                status: job.status,
+                error: job.error,
+                updatedAt: job.updatedAt,
+              })),
+            }
             : null,
         },
       },
@@ -218,7 +245,7 @@ export class SyncService {
     const page = pagination.page || 1;
     const limit = pagination.limit || 10;
     const skip = (page - 1) * limit;
-    
+
     const [{ data: runs, total }] = await Promise.all([
       syncRunRepo.findMany(
         { repositoryId, ...(filters?.type && { type: filters.type }), ...(filters?.status && { status: filters.status }) },
@@ -256,7 +283,7 @@ export class SyncService {
     const page = pagination.page || 1;
     const limit = pagination.limit || 20;
     const skip = (page - 1) * limit;
-    
+
     const [{ data: events, total }] = await Promise.all([
       webhookEventRepo.findMany(
         { repositoryId },
@@ -274,17 +301,13 @@ export class SyncService {
   private async enqueueJobs(options: {
     repository: GitHubRepository & mongoose.Document;
     connection: { _id: string };
-    syncRun: { _id: string };
+    syncRun: { _id: string | mongoose.Types.ObjectId };
     options: SyncJobOptions;
   }): Promise<void> {
     const { repository, connection, syncRun, options: jobOptions } = options;
     const runAfter = new Date();
 
-    const jobTypes = jobOptions.jobTypes || [
-      'sync_pull_requests',
-      'sync_reviews',
-      'sync_review_requests',
-    ];
+    const jobTypes = jobOptions.jobTypes || DEFAULT_JOB_TYPES;
 
     const jobPayload = {
       repositoryId: repository._id.toString(),
@@ -294,12 +317,12 @@ export class SyncService {
       repo: repository.name,
     };
 
-    const jobs = jobTypes.map((jobType) => ({
-      repositoryId: new mongoose.Types.ObjectId(repository._id.toString()) as any,
-      syncRunId: new mongoose.Types.ObjectId(syncRun._id.toString()) as any,
+    const jobs = jobTypes.map((jobType, i) => ({
+      repositoryId: new mongoose.Types.ObjectId(repository._id.toString()),
+      syncRunId: new mongoose.Types.ObjectId(syncRun._id.toString()),
       jobType,
       status: 'pending' as const,
-      runAfter: new Date(runAfter.getTime() + Math.random() * 1000),
+      runAfter: new Date(runAfter.getTime() + i * 1000),
       attempts: 0,
       payload: jobPayload,
     }));

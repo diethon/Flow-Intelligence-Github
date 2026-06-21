@@ -60,10 +60,10 @@ export class GitHubConnectionService {
         fullName: githubRepository.full_name,
         defaultBranch: githubRepository.default_branch,
         isPrivate: githubRepository.private,
-      } as any);
+      });
     } else {
       repositoryRecord = await githubRepositoryRepo.create({
-        connectionId: new mongoose.Types.ObjectId(connectionId) as any,
+        connectionId: new mongoose.Types.ObjectId(connectionId),
         githubRepoId: githubRepository.id,
         owner: githubRepository.owner.login,
         name: githubRepository.name,

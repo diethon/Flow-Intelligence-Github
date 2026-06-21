@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { DashboardPage, ConnectRepositoryPage, SyncStatusPage, LoginPage, PullRequestsPage } from './pages';
+import { RiskEvidencePage, EvidenceCardDetailPage } from './pages';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { Layout } from './components/Layout';
@@ -26,7 +27,7 @@ const AuthCallback = () => {
   useEffect(() => {
     if (token) {
       localStorage.setItem('accessToken', token);
-      window.location.href = '/repositories/connect';
+      window.location.href = '/dashboard';
     } else if (error) {
       console.error('Auth error:', error);
       window.location.href = '/login';
@@ -63,9 +64,11 @@ function App() {
             path="/repositories/connect"
             element={
               <ProtectedRoute>
-                <Layout>
-                  <ConnectRepositoryPage />
-                </Layout>
+                <AppLayout>
+                  <div className="px-4 sm:px-6 py-5 sm:py-8">
+                    <ConnectRepositoryPage />
+                  </div>
+                </AppLayout>
               </ProtectedRoute>
             }
           />
@@ -153,6 +156,30 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/repositories/:id/risk-evidence"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <div className="px-4 sm:px-6 py-5 sm:py-8">
+                    <RiskEvidencePageWrapper />
+                  </div>
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/repositories/:id/risk-evidence/:cardId"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <div className="px-4 sm:px-6 py-5 sm:py-8">
+                    <EvidenceCardDetailPageWrapper />
+                  </div>
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </Router>
     </QueryClientProvider>
@@ -173,6 +200,22 @@ const PullRequestsPageWrapper = () => {
     return <Navigate to="/repositories/connect" replace />;
   }
   return <PullRequestsPage />;
+};
+
+const RiskEvidencePageWrapper = () => {
+  const { id } = useParams<{ id: string }>();
+  if (!id) {
+    return <Navigate to="/repositories/connect" replace />;
+  }
+  return <RiskEvidencePage repositoryId={id} />;
+};
+
+const EvidenceCardDetailPageWrapper = () => {
+  const { id, cardId } = useParams<{ id: string, cardId: string }>();
+  if (!id || !cardId) {
+    return <Navigate to="/repositories/connect" replace />;
+  }
+  return <EvidenceCardDetailPage repositoryId={id} cardId={cardId} />;
 };
 
 export default App;

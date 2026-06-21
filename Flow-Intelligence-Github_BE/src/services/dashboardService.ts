@@ -6,6 +6,7 @@ import { FlowRule } from "../models/FlowRule.js";
 import { Recommendation } from "../models/Recommendation.js";
 import { calculateUC10Metrics, persistUC10Snapshots } from "./metricsEngine.js";
 import { calculatePRMetrics, persistPRMetricSnapshots } from "./prMetrics.js";
+import { EvidenceCard, RiskEvent, PrDelayPrediction } from "../models/index.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,6 +57,9 @@ export interface DashboardSummary {
   kpis: KPICard[];
   bottlenecks: BottleneckCard[];
   dataQuality: DataQualitySummary;
+  recentEvidenceCards: any[];
+  recentRiskEvents: any[];
+  recentPredictions: any[];
   computedAt: Date;
 }
 
@@ -129,6 +133,27 @@ export async function buildDashboard(
   // ── Data Quality Summary ──────────────────────────────────────────────────
   const dataQuality = await buildDataQualitySummary(repoId);
 
+  // ── Recent Risk Intelligence ────────────────────────────────────────────────
+  const [recentEvidenceCards, rawRecentRiskEvents, recentPredictions] = await Promise.all([
+    EvidenceCard.find({ repositoryId: repoId }).sort({ createdAt: -1 }).limit(3).lean(),
+    RiskEvent.find({ repositoryId: repoId }).sort({ createdAt: -1 }).limit(3).lean(),
+    PrDelayPrediction.find({ repositoryId: repoId }).populate("pullRequestId", "number title").sort({ createdAt: -1 }).limit(3).lean(),
+  ]);
+
+  const recentRiskEvents = await Promise.all(rawRecentRiskEvents.map(async (ev) => {
+    const card = await EvidenceCard.findOne({ riskEventId: ev._id }).lean();
+    return {
+      ...ev,
+      evidenceCard: card ? {
+        ...card,
+        evidence: card.evidence?.map((e: any) => ({
+          ...e,
+          entityId: e.entityId ? e.entityId.toString() : "",
+        }))
+      } : null,
+    };
+  }));
+
   return {
     repositoryId,
     repositoryName: repo.name,
@@ -141,6 +166,9 @@ export async function buildDashboard(
     kpis,
     bottlenecks,
     dataQuality,
+    recentEvidenceCards,
+    recentRiskEvents,
+    recentPredictions,
     computedAt: new Date(),
   };
 }

@@ -30,10 +30,13 @@ export const SyncStatusPage: React.FC<SyncStatusPageProps> = ({ repositoryId }) 
   const detailsQuery = useRepositoryDetails(repositoryId);
 
   const handleSyncNow = async () => {
+    console.log('[SyncStatusPage] Clicked "Sync Now" button for repository ID:', repositoryId);
     try {
-      await syncNowMutation.mutateAsync(repositoryId);
+      console.log('[SyncStatusPage] Triggering sync now via React Query mutation...');
+      const response = await syncNowMutation.mutateAsync(repositoryId);
+      console.log('[SyncStatusPage] Mutation successful! Backend triggered sync run response:', response);
     } catch (error) {
-      // handled by mutation state
+      console.error('[SyncStatusPage] Mutation error - failed to trigger sync now:', error);
     }
   };
 
