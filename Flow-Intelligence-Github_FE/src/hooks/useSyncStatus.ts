@@ -24,6 +24,11 @@ export const useSyncRuns = (id: string, params?: { page?: number; limit?: number
     enabled: Boolean(id),
     staleTime: 0,
     refetchOnMount: true,
+    refetchInterval: (query) => {
+      const runs = query.state.data?.runs || [];
+      const hasRunningJob = runs.some((run: any) => run.status === 'running' || run.status === 'pending');
+      return hasRunningJob ? 3000 : false;
+    },
   });
 };
 

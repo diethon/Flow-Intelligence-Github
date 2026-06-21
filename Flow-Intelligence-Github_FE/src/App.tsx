@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
-import { DashboardPage, SyncStatusPage, LoginPage, PullRequestsPage } from './pages';
+import { DashboardPage, SyncStatusPage, LoginPage, PullRequestsPage, RiskEvidencePage, EvidenceCardDetailPage } from './pages';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { Layout } from './components/Layout';
@@ -80,6 +80,22 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/repositories/:id/risk-evidence"
+            element={
+              <ProtectedRoute>
+                <RiskEvidencePageWrapper />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/repositories/:id/risk-evidence/:cardId"
+            element={
+              <ProtectedRoute>
+                <EvidenceCardDetailPageWrapper />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </Router>
     </QueryClientProvider>
@@ -100,6 +116,30 @@ const PullRequestsPageWrapper = () => {
     return <Navigate to="/repositories/connect" replace />;
   }
   return <PullRequestsPage />;
+};
+
+const RiskEvidencePageWrapper = () => {
+  const { id } = useParams<{ id: string }>();
+  if (!id) {
+    return <Navigate to="/repositories/connect" replace />;
+  }
+  return (
+    <Layout>
+      <RiskEvidencePage repositoryId={id} />
+    </Layout>
+  );
+};
+
+const EvidenceCardDetailPageWrapper = () => {
+  const { id, cardId } = useParams<{ id: string; cardId: string }>();
+  if (!id || !cardId) {
+    return <Navigate to="/repositories/connect" replace />;
+  }
+  return (
+    <Layout>
+      <EvidenceCardDetailPage repositoryId={id} cardId={cardId} />
+    </Layout>
+  );
 };
 
 export default App;

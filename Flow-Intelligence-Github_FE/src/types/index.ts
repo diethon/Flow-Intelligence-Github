@@ -89,6 +89,14 @@ export interface WebhookEvent {
   updatedAt: string;
 }
 
+export interface SyncStatusJob {
+  id: string;
+  jobType: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  error?: string;
+  updatedAt: string;
+}
+
 export interface RepositorySyncStatus {
   repositoryId: string;
   lastSyncAt: string;
@@ -100,6 +108,7 @@ export interface RepositorySyncStatus {
     status: SyncStatus;
     startedAt: string;
     recordsProcessed: number;
+    jobs?: SyncStatusJob[];
   };
 }
 
@@ -110,7 +119,14 @@ export interface SyncStatusResponse {
       status: SyncStatus;
       lastSyncAt: string;
       pendingJobs: number;
-      currentRun?: SyncRun;
+      currentRun?: {
+        id: string;
+        type: SyncRunType;
+        status: SyncStatus;
+        startedAt: string;
+        recordsProcessed: number;
+        jobs?: SyncStatusJob[];
+      };
     };
   };
 }
@@ -189,4 +205,42 @@ export interface GitHubReview {
   state: 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED' | 'DISMISSED';
   submitted_at: string;
   html_url: string;
+}
+
+// ── Risk & Evidence (UC-16 / E6-S3) ───────────────────────────────────────────
+export type EvidenceSeverity = 'low' | 'medium' | 'high';
+export type EvidenceConfidence = 'low' | 'medium' | 'high';
+export type EvidenceSourceType = 'risk_event' | 'prediction';
+export type EvidenceEntityType = 'pull_request' | 'issue' | 'commit' | 'check_run';
+
+export interface EvidenceItem {
+  entityType: EvidenceEntityType;
+  entityId: string;
+  sourceLabel: string;
+  sourceUrl: string;
+  summary: string;
+}
+
+export interface EvidenceCard {
+  _id: string;
+  repositoryId: string;
+  riskEventId?: string;
+  predictionId?: string;
+  sourceType: EvidenceSourceType;
+  title: string;
+  severity: EvidenceSeverity;
+  summary: string;
+  evidence: EvidenceItem[];
+  suggestedAction: string;
+  confidence: EvidenceConfidence;
+  limitation: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EvidenceListParams {
+  severity?: EvidenceSeverity;
+  sourceType?: EvidenceSourceType;
+  page?: number;
+  limit?: number;
 }

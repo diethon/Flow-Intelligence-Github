@@ -1,15 +1,17 @@
 import React from 'react';
-import type { SyncStatus } from '../types';
+import type { SyncStatus, SyncStatusJob } from '../types';
 
 interface SyncStatusCardProps {
   status: SyncStatus;
   lastSyncAt: string;
   pendingJobs: number;
   currentRun?: {
+    id: string;
     type: string;
     status: SyncStatus;
     startedAt: string;
     recordsProcessed: number;
+    jobs?: SyncStatusJob[];
   } | null;
 }
 
@@ -40,6 +42,15 @@ const statusStyles: Record<SyncStatus, { bg: string; text: string; label: string
   },
 };
 
+const jobLabels: Record<string, string> = {
+  sync_pull_requests: 'Đồng bộ Pull Requests',
+  sync_reviews: 'Đồng bộ Đánh giá (Reviews)',
+  sync_review_requests: 'Đồng bộ Yêu cầu Review',
+  sync_commits: 'Đồng bộ Lịch sử Commits',
+  sync_issues: 'Đồng bộ Issues',
+  sync_check_runs: 'Đồng bộ CI/CD Checks',
+};
+
 export const SyncStatusCard: React.FC<SyncStatusCardProps> = ({
   status,
   lastSyncAt,
@@ -48,6 +59,53 @@ export const SyncStatusCard: React.FC<SyncStatusCardProps> = ({
 }) => {
   const style = statusStyles[status] || statusStyles.success;
   const isRunning = status === 'running';
+
+  const renderJobStatusIcon = (jobStatus: SyncStatusJob['status']) => {
+    switch (jobStatus) {
+      case 'completed':
+        return (
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-green-100 text-green-600 shrink-0">
+            <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+          </span>
+        );
+      case 'processing':
+        return (
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-600 animate-spin shrink-0">
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+          </span>
+        );
+      case 'failed':
+        return (
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-100 text-red-600 shrink-0">
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </span>
+        );
+      default: // pending
+        return (
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-slate-400 shrink-0">
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </span>
+        );
+    }
+  };
+
+  const getJobStatusTextColor = (jobStatus: SyncStatusJob['status']) => {
+    switch (jobStatus) {
+      case 'completed': return 'text-slate-700';
+      case 'processing': return 'text-blue-700 font-medium';
+      case 'failed': return 'text-red-700 font-medium';
+      default: return 'text-slate-400';
+    }
+  };
 
   return (
     <div className={`rounded-xl border ${style.bg} p-5`}>
@@ -89,19 +147,43 @@ export const SyncStatusCard: React.FC<SyncStatusCardProps> = ({
 
       {currentRun && (
         <div className="mt-4 pt-4 border-t border-slate-200/50">
-          <div className="flex items-center gap-2 text-xs text-slate-600 mb-1">
-            <span className="font-semibold">Current run:</span>
+          <div className="flex items-center justify-between gap-2 text-xs text-slate-600 mb-2">
+            <span className="font-semibold">Current run details:</span>
+            <span className="px-2 py-0.5 bg-white/50 rounded capitalize text-[10px]">{currentRun.type}</span>
           </div>
-          <div className="flex items-center gap-3 text-xs text-slate-600">
-            <span className="px-2 py-0.5 bg-white/50 rounded capitalize">{currentRun.type}</span>
-            <span>•</span>
-            <span className="capitalize">{currentRun.status}</span>
+
+          <div className="flex items-center gap-3 text-xs text-slate-500 mb-4 bg-white/30 p-2 rounded-lg">
+            <span className="capitalize font-medium">{currentRun.status}</span>
             <span>•</span>
             <span>{currentRun.recordsProcessed} records</span>
+            <span>•</span>
+            <span>{new Date(currentRun.startedAt).toLocaleTimeString()}</span>
           </div>
-          <p className="mt-2 text-xs text-slate-400">
-            Started: {new Date(currentRun.startedAt).toLocaleString()}
-          </p>
+
+          {currentRun.jobs && currentRun.jobs.length > 0 && (
+            <div className="space-y-2 mt-3 bg-white/40 p-3 rounded-lg border border-slate-200/20">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                Chi tiết tác vụ đồng bộ:
+              </p>
+              <div className="space-y-2.5">
+                {currentRun.jobs.map((job) => (
+                  <div key={job.id} className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-2 text-xs">
+                      {renderJobStatusIcon(job.status)}
+                      <span className={`${getJobStatusTextColor(job.status)} truncate`}>
+                        {jobLabels[job.jobType] || job.jobType}
+                      </span>
+                    </div>
+                    {job.status === 'failed' && job.error && (
+                      <p className="ml-7 text-[10px] text-red-500 italic max-w-full truncate" title={job.error}>
+                        Lỗi: {job.error}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

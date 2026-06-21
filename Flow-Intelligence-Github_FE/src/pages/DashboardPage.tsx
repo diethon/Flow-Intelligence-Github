@@ -479,6 +479,12 @@ export const DashboardPage: React.FC = () => {
                         View Status
                       </button>
                       <button
+                        onClick={() => navigate(`/repositories/${repo.id}/risk-evidence`)}
+                        className="px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                      >
+                        Risk &amp; Evidence
+                      </button>
+                      <button
                         onClick={() => handleDisconnect({ id: repo.id, fullName: repo.fullName })}
                         className="px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       >
