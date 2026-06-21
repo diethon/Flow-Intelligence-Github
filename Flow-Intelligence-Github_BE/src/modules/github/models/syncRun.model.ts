@@ -2,7 +2,8 @@ import mongoose, { Schema, Document, Types } from 'mongoose';
 
 export interface ISyncRun extends Document {
   repositoryId: Types.ObjectId;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  type: 'initial' | 'incremental';
+  status: 'pending' | 'running' | 'success' | 'error';
   triggeredBy: 'webhook' | 'manual' | 'scheduled';
   startedAt: Date;
   completedAt?: Date;
@@ -18,7 +19,8 @@ export interface ISyncRun extends Document {
 const SyncRunSchema = new Schema<ISyncRun>(
   {
     repositoryId: { type: Schema.Types.ObjectId, ref: 'GitHubRepository', required: true, index: true },
-    status: { type: String, enum: ['pending', 'running', 'completed', 'failed'], default: 'pending' },
+    type: { type: String, enum: ['initial', 'incremental'], required: true },
+    status: { type: String, enum: ['pending', 'running', 'success', 'error'], default: 'pending' },
     triggeredBy: { type: String, enum: ['webhook', 'manual', 'scheduled'], default: 'manual' },
     startedAt: { type: Date, default: Date.now },
     completedAt: { type: Date },

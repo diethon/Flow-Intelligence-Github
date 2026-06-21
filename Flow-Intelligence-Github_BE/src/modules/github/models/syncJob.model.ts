@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document, Types } from 'mongoose';
 
-export type SyncJobType = 'commits' | 'pull_requests' | 'issues' | 'branches' | 'sync_pull_requests' | 'sync_reviews' | 'sync_review_requests';
+export type SyncJobType = 'commits' | 'pull_requests' | 'issues' | 'branches' | 'sync_pull_requests' | 'sync_reviews' | 'sync_review_requests' | 'sync_commits' | 'sync_issues' | 'sync_check_runs';
 
 export interface ISyncJob extends Document {
   syncRunId: Types.ObjectId;
@@ -22,7 +22,7 @@ const SyncJobSchema = new Schema<ISyncJob>(
     repositoryId: { type: Schema.Types.ObjectId, ref: 'GitHubRepository', required: true, index: true },
     jobType: { 
       type: String, 
-      enum: ['commits', 'pull_requests', 'issues', 'branches', 'sync_pull_requests', 'sync_reviews', 'sync_review_requests'], 
+      enum: ['commits', 'pull_requests', 'issues', 'branches', 'sync_pull_requests', 'sync_reviews', 'sync_review_requests', 'sync_commits', 'sync_issues', 'sync_check_runs'],
       required: true 
     },
     status: { type: String, enum: ['pending', 'processing', 'completed', 'failed'], default: 'pending' },

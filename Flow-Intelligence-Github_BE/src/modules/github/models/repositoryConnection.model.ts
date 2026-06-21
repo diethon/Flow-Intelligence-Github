@@ -5,7 +5,7 @@ export interface IRepositoryConnection extends Document {
   providerType: 'github';
   tokenEncrypted?: string;
   installationId?: string;
-  status: 'active' | 'inactive' | 'pending';
+  status: 'active' | 'inactive' | 'error' | 'pending';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -16,7 +16,7 @@ const RepositoryConnectionSchema = new Schema<IRepositoryConnection>(
     providerType: { type: String, enum: ['github'], required: true },
     tokenEncrypted: { type: String },
     installationId: { type: String },
-    status: { type: String, enum: ['active', 'inactive', 'pending'], default: 'pending' },
+    status: { type: String, enum: ['active', 'inactive', 'error', 'pending'], default: 'pending' },
   },
   { timestamps: true }
 );

@@ -8,6 +8,8 @@ export interface IGitHubRepository extends Document {
   fullName: string;
   defaultBranch: string;
   isPrivate: boolean;
+  webhookId?: number;
+  webhookUrl?: string;
   lastSyncedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -22,6 +24,8 @@ const GitHubRepositorySchema = new Schema<IGitHubRepository>(
     fullName: { type: String, required: true, unique: true },
     defaultBranch: { type: String, default: 'main' },
     isPrivate: { type: Boolean, default: false },
+    webhookId: { type: Number },
+    webhookUrl: { type: String },
     lastSyncedAt: { type: Date },
   },
   { timestamps: true }
