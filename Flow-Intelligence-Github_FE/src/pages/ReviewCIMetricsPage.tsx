@@ -235,8 +235,8 @@ export function ReviewCIMetricsPage() {
                 <SectionHeading
                   title="Key Performance Indicators"
                   subtitle={
-                    windowDays === 0 && startDate && endDate
-                      ? `Computed from ${startDate} to ${endDate}`
+                    windowDays === 0 
+                      ? (startDate && endDate ? `From ${startDate} to ${endDate}` : "All Time")
                       : lastUpdated
                       ? `Computed at ${lastUpdated.toLocaleTimeString()}`
                       : `Last ${windowDays} days`

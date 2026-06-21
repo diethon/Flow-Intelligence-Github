@@ -202,11 +202,14 @@ function OverallRiskHero({ level, triggered, total, windowDays, startDate, endDa
       <div className="flex flex-col sm:flex-row sm:items-center gap-6">
         {/* Badge */}
         <div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-            {windowDays === 0 && startDate && endDate
-              ? `Overall Risk · ${startDate} to ${endDate}`
+          <div className="flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full border border-white/20 mb-2">
+            <span className="text-sm">🗓️</span>
+            <span className="text-xs font-semibold">
+            {windowDays === 0 
+              ? (startDate && endDate ? `${startDate} to ${endDate}` : "All Time Risk Evaluation")
               : `Overall Risk · ${windowDays}d window`}
-          </p>
+            </span>
+          </div>
           <RiskBadge level={level} size="lg" />
         </div>
 

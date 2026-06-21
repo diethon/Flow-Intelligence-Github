@@ -114,6 +114,7 @@ export const WINDOW_OPTIONS: WindowOption[] = [
   { days: 30,  label: "1 month",  sublabel: "30 days"   },
   { days: 180, label: "6 months", sublabel: "180 days"  },
   { days: 365, label: "1 year",   sublabel: "365 days"  },
+  { days: 0,   label: "All Time", sublabel: "Since beginning" },
 ];
 
 export function WindowSelector({
@@ -176,6 +177,17 @@ export function WindowSelector({
   };
 
   const handlePresetSelect = (opt: typeof WINDOW_OPTIONS[number]) => {
+    if (opt.days === 0) {
+      setLocalStart("");
+      setLocalEnd("");
+      if (onCustomRangeChange) {
+        onCustomRangeChange("", "");
+      }
+      onChange(0);
+      setOpen(false);
+      return;
+    }
+
     const end = new Date();
     const start = new Date();
     start.setDate(end.getDate() - opt.days);

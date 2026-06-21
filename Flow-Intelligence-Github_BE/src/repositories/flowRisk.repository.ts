@@ -1,10 +1,10 @@
 import mongoose from "mongoose";
-import { FlowRule, IFlowRule } from "../../../models/FlowRule.js";
-import { Recommendation, IRecommendation } from "../../../models/Recommendation.js";
-import { RiskEvent, IRiskEvent } from "../../../models/RiskEvent.js";
-import { PullRequest, IPullRequest } from "../../../models/PullRequest.js";
-import { Review, IReview } from "../../../models/Review.js";
-import { CheckRun, ICheckRun } from "../../../models/CheckRun.js";
+import { FlowRule, IFlowRule } from "../models/FlowRule.js";
+import { Recommendation, IRecommendation } from "../models/Recommendation.js";
+import { RiskEvent, IRiskEvent } from "../models/RiskEvent.js";
+import { PullRequest, IPullRequest } from "../models/PullRequest.js";
+import { Review, IReview } from "../models/Review.js";
+import { CheckRun, ICheckRun } from "../models/CheckRun.js";
 
 export interface IFlowRuleRepository {
   findActive(): Promise<IFlowRule[]>;

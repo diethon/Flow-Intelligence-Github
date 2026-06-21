@@ -242,8 +242,8 @@ export const DashboardPage: React.FC = () => {
             <SectionHeading
               title="Team Flow Key Metrics"
               subtitle={
-                windowDays === 0 && startDate && endDate
-                  ? `Normalized metrics calculated from ${startDate} to ${endDate}`
+                windowDays === 0 
+                  ? (startDate && endDate ? `Normalized metrics calculated from ${startDate} to ${endDate}` : "Normalized metrics calculated over all time")
                   : `Normalized metrics calculated over the last ${windowDays} days`
               }
               right={

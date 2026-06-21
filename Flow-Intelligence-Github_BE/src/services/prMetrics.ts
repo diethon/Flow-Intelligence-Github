@@ -51,7 +51,7 @@ export async function calculatePRMetrics(
 ): Promise<PRMetricsResult> {
   const repoId = new mongoose.Types.ObjectId(repositoryId);
   const windowEnd = endDate || new Date();
-  const windowStart = startDate || new Date(windowEnd.getTime() - windowDays * 24 * 60 * 60 * 1000);
+  const windowStart = startDate || (windowDays === 0 ? new Date(0) : new Date(windowEnd.getTime() - windowDays * 24 * 60 * 60 * 1000));
 
   const prs = await PullRequest.find({
     repositoryId: repoId,

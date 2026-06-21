@@ -8,6 +8,7 @@ import { AppError } from '../../../utils/AppError';
 import { ApiResponse, GitHubRepository } from '../../../types';
 import crypto from 'crypto';
 import mongoose from 'mongoose';
+import { SyncService } from './sync.service.js';
 
 const repositoryConnectionRepo = new RepositoryConnectionRepository();
 const githubRepositoryRepo = new GitHubRepositoryRepository();
@@ -73,6 +74,15 @@ export class GitHubConnectionService {
     }
 
     const connection = await repositoryConnectionRepo.findById(connectionId);
+
+    // Auto-trigger sync upon successful connection to pull historical data
+    try {
+      const syncService = new SyncService(userApiService);
+      await syncService.triggerSync(repositoryRecord._id.toString());
+    } catch (syncError) {
+      console.error('Failed to auto-trigger sync during repository connection:', syncError);
+      // Proceed without failing the connection
+    }
 
     return {
       success: true,

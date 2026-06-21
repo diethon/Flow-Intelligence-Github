@@ -88,7 +88,7 @@ export async function calculateUC10Metrics(
 ): Promise<UC10MetricsResult> {
   const repoObjectId = new mongoose.Types.ObjectId(repositoryId);
   const windowEnd = endDate || new Date();
-  const windowStart = startDate || new Date(windowEnd.getTime() - windowDays * 24 * 60 * 60 * 1000);
+  const windowStart = startDate || (windowDays === 0 ? new Date(0) : new Date(windowEnd.getTime() - windowDays * 24 * 60 * 60 * 1000));
   const calculatedDays = startDate && endDate
     ? Math.round(Math.abs(endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
     : windowDays;

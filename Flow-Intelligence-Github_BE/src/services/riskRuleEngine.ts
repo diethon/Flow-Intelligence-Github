@@ -14,7 +14,7 @@ import {
   PullRequestRepository,
   ReviewRepository,
   CheckRunRepository
-} from "../modules/github/repositories/flowRisk.repository.js";
+} from "../repositories/flowRisk.repository.js";
 
 // ─── Interfaces & DTOs ────────────────────────────────────────────────────────
 
@@ -383,7 +383,7 @@ export class RiskEvaluationService {
   ): Promise<RiskEvaluationResult> {
     const repoId = new mongoose.Types.ObjectId(repositoryId);
     const end = endDate || new Date();
-    const start = startDate || new Date(end.getTime() - windowDays * 24 * 60 * 60 * 1000);
+    const start = startDate || (windowDays === 0 ? new Date(0) : new Date(end.getTime() - windowDays * 24 * 60 * 60 * 1000));
     const calculatedDays = startDate && endDate
       ? Math.round(Math.abs(endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
       : windowDays;
@@ -596,7 +596,7 @@ export class RiskEvaluationService {
   ): Promise<RiskEvaluationResult | null> {
     const repoId = new mongoose.Types.ObjectId(repositoryId);
     const end = endDate || new Date();
-    const start = startDate || new Date(end.getTime() - windowDays * 24 * 60 * 60 * 1000);
+    const start = startDate || (windowDays === 0 ? new Date(0) : new Date(end.getTime() - windowDays * 24 * 60 * 60 * 1000));
     const calculatedDays = startDate && endDate
       ? Math.round(Math.abs(endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
       : windowDays;

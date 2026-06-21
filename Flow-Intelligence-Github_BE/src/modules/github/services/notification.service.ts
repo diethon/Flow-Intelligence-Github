@@ -1,5 +1,8 @@
 import { AppError } from '../../../utils/AppError';
 
+import { calculateUC10Metrics, persistUC10Snapshots } from '../../../services/metricsEngine.js';
+import { evaluateRiskRules } from '../../../services/riskRuleEngine.js';
+
 export interface MetricsPayload {
   repositoryId: string;
   syncRunId: string;
@@ -86,31 +89,13 @@ export class NotificationService {
     }
   ): Promise<void> {
     try {
-      const payload: MetricsPayload = {
-        repositoryId,
-        syncRunId,
-        metrics: {
-          totalPRs: data.pullRequestsCount,
-          openPRs: 0,
-          closedPRs: 0,
-          mergedPRs: 0,
-          totalReviews: data.reviewsCount,
-        },
-      };
+      // Calculate and persist UC10 metrics synchronously or asynchronously
+      const metrics = await calculateUC10Metrics(repositoryId, 7);
+      await persistUC10Snapshots(metrics);
 
-      const response = await fetch(`${this.metricsEndpoint}/sync-complete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        throw new AppError(`Metrics service responded with ${response.status}`, response.status, 'METRICS_ERROR');
-      }
-
-      console.log(`[NotificationService] Metrics notified for ${repositoryId}`);
+      console.log(`[NotificationService] Metrics calculated and persisted locally for ${repositoryId}`);
     } catch (error) {
-      console.error(`[NotificationService] Failed to notify metrics:`, error);
+      console.error(`[NotificationService] Failed to calculate metrics locally:`, error);
       throw error;
     }
   }
@@ -160,24 +145,12 @@ export class NotificationService {
     }
   ): Promise<void> {
     try {
-      const payload: RiskPayload = {
-        repositoryId,
-        riskFactors: [],
-      };
-
-      const response = await fetch(`${this.riskEndpoint}/assess`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        throw new AppError(`Risk service responded with ${response.status}`, response.status, 'RISK_ERROR');
-      }
-
-      console.log(`[NotificationService] Risk assessment triggered for ${repositoryId}`);
+      // Evaluate risk rules locally (UC13)
+      await evaluateRiskRules(repositoryId, 7);
+      
+      console.log(`[NotificationService] Risk assessment executed locally for ${repositoryId}`);
     } catch (error) {
-      console.error(`[NotificationService] Failed to notify risk service:`, error);
+      console.error(`[NotificationService] Failed to execute risk assessment locally:`, error);
       throw error;
     }
   }

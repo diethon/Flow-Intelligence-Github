@@ -305,7 +305,9 @@ export class SyncService {
     }));
 
     if (jobs.length > 0) {
-      await syncJobRepo.create(jobs[0]);
+      for (const job of jobs) {
+        await syncJobRepo.create(job);
+      }
     }
   }
 }
