@@ -1,14 +1,14 @@
-import { GitHubApiService } from './githubApi.service';
+import { GitHubApiService } from "./githubApi.service";
 import {
   RepositoryConnectionRepository,
   GitHubRepositoryRepository,
   WebhookEventRepository,
-} from '../repositories';
-import { AppError } from '../../../utils/AppError';
-import { ApiResponse, GitHubRepository } from '../../../types';
-import crypto from 'crypto';
-import mongoose from 'mongoose';
-import { SyncService } from './sync.service.js';
+} from "../repositories";
+import { AppError } from "../../../utils/AppError";
+import { ApiResponse, GitHubRepository } from "../../../types";
+import crypto from "crypto";
+import mongoose from "mongoose";
+import { SyncService } from "./sync.service.js";
 
 const repositoryConnectionRepo = new RepositoryConnectionRepository();
 const githubRepositoryRepo = new GitHubRepositoryRepository();
@@ -20,15 +20,20 @@ export class GitHubConnectionService {
     token: string;
     owner: string;
     repo: string;
-  }): Promise<ApiResponse<{ repository: GitHubRepository; connectionId: string }>> {
+  }): Promise<
+    ApiResponse<{ repository: GitHubRepository; connectionId: string }>
+  > {
     const userApiService = GitHubApiService.createWithToken(data.token);
     await userApiService.validateToken();
-    const githubRepository = await userApiService.getRepository(data.owner, data.repo);
+    const githubRepository = await userApiService.getRepository(
+      data.owner,
+      data.repo,
+    );
 
     const existingConnection = await repositoryConnectionRepo.findOne({
       userId: data.userId,
-      providerType: 'github',
-      status: 'active',
+      providerType: "github",
+      status: "active",
     });
 
     let connectionId: string;
@@ -37,30 +42,38 @@ export class GitHubConnectionService {
     if (existingConnection) {
       tokenEncrypted = existingConnection.tokenEncrypted;
       connectionId = existingConnection._id.toString();
-      await repositoryConnectionRepo.updateStatus(existingConnection._id.toString(), 'active');
+      await repositoryConnectionRepo.updateStatus(
+        existingConnection._id.toString(),
+        "active",
+      );
     } else {
       tokenEncrypted = this.encryptToken(data.token);
       const connection = await repositoryConnectionRepo.create({
         userId: new mongoose.Types.ObjectId(data.userId) as any,
-        providerType: 'github',
+        providerType: "github",
         tokenEncrypted,
-        status: 'active',
+        status: "active",
       });
       connectionId = connection._id.toString();
     }
 
-    let repositoryRecord = await githubRepositoryRepo.findByFullName(githubRepository.full_name);
+    let repositoryRecord = await githubRepositoryRepo.findByFullName(
+      githubRepository.full_name,
+    );
 
     if (repositoryRecord) {
-      repositoryRecord = await githubRepositoryRepo.update(repositoryRecord._id.toString(), {
-        connectionId: new mongoose.Types.ObjectId(connectionId),
-        githubRepoId: githubRepository.id,
-        owner: githubRepository.owner.login,
-        name: githubRepository.name,
-        fullName: githubRepository.full_name,
-        defaultBranch: githubRepository.default_branch,
-        isPrivate: githubRepository.private,
-      });
+      repositoryRecord = await githubRepositoryRepo.update(
+        repositoryRecord._id.toString(),
+        {
+          connectionId: new mongoose.Types.ObjectId(connectionId),
+          githubRepoId: githubRepository.id,
+          owner: githubRepository.owner.login,
+          name: githubRepository.name,
+          fullName: githubRepository.full_name,
+          defaultBranch: githubRepository.default_branch,
+          isPrivate: githubRepository.private,
+        },
+      );
     } else {
       repositoryRecord = await githubRepositoryRepo.create({
         connectionId: new mongoose.Types.ObjectId(connectionId),
@@ -80,7 +93,10 @@ export class GitHubConnectionService {
       const syncService = new SyncService(userApiService);
       await syncService.triggerSync(repositoryRecord._id.toString());
     } catch (syncError) {
-      console.error('Failed to auto-trigger sync during repository connection:', syncError);
+      console.error(
+        "Failed to auto-trigger sync during repository connection:",
+        syncError,
+      );
       // Proceed without failing the connection
     }
 
@@ -102,16 +118,16 @@ export class GitHubConnectionService {
         },
         connectionId: connection?._id.toString() || connectionId,
       },
-      message: 'Repository connected successfully',
+      message: "Repository connected successfully",
     };
   }
 
   async disconnectRepository(
-    repositoryId: string
+    repositoryId: string,
   ): Promise<ApiResponse<{ disconnected: boolean }>> {
     const repository = await githubRepositoryRepo.findById(repositoryId);
     if (!repository) {
-      throw new AppError('Repository not found', 404, 'REPOSITORY_NOT_FOUND', {
+      throw new AppError("Repository not found", 404, "REPOSITORY_NOT_FOUND", {
         repositoryId,
         retryable: false,
       });
@@ -125,11 +141,13 @@ export class GitHubConnectionService {
       data: {
         disconnected: true,
       },
-      message: 'Repository disconnected successfully',
+      message: "Repository disconnected successfully",
     };
   }
 
-  async getConnectionStatus(userId: string): Promise<ApiResponse<{ connections: unknown[] }>> {
+  async getConnectionStatus(
+    userId: string,
+  ): Promise<ApiResponse<{ connections: unknown[] }>> {
     const connections = await repositoryConnectionRepo.findByUserId(userId);
 
     const connectionDtos = connections.map((connection) => ({
@@ -151,27 +169,29 @@ export class GitHubConnectionService {
   }
 
   private encryptToken(token: string): string {
-    const algorithm = 'aes-256-gcm';
+    const algorithm = "aes-256-gcm";
     const key = crypto.scryptSync(
-      process.env.ENCRYPTION_KEY || 'default_encryption_key_for_dev_only',
-      process.env.ENCRYPTION_SALT || 'default_salt',
-      32
+      process.env.ENCRYPTION_KEY || "default_encryption_key_for_dev_only",
+      process.env.ENCRYPTION_SALT || "default_salt",
+      32,
     );
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipheriv(algorithm, key, iv);
 
-    let encrypted = cipher.update(token, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
+    let encrypted = cipher.update(token, "utf8", "hex");
+    encrypted += cipher.final("hex");
 
     const authTag = cipher.getAuthTag();
 
-    return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+    return `${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted}`;
   }
 
   async getRepositoryById(repositoryId: string): Promise<unknown> {
     const repository = await githubRepositoryRepo.findById(repositoryId);
     if (!repository) {
-      throw new AppError('Repository not found', 404, 'REPOSITORY_NOT_FOUND', { repositoryId });
+      throw new AppError("Repository not found", 404, "REPOSITORY_NOT_FOUND", {
+        repositoryId,
+      });
     }
     return {
       id: repository._id.toString(),
@@ -188,10 +208,13 @@ export class GitHubConnectionService {
     };
   }
 
-  async getUserRepositories(userId: string, pagination = { page: 1, limit: 20 }) {
+  async getUserRepositories(
+    userId: string,
+    pagination = { page: 1, limit: 20 },
+  ) {
     // Find all connections for this user
     const connections = await repositoryConnectionRepo.findByUserId(userId);
-    const connectionIds = connections.map(c => c._id.toString());
+    const connectionIds = connections.map((c) => c._id.toString());
 
     if (connectionIds.length === 0) {
       return {
@@ -203,14 +226,21 @@ export class GitHubConnectionService {
 
     // Find all repositories for these connections
     const { data: repositories, total } = await githubRepositoryRepo.findMany(
-      { connectionId: { $in: connectionIds.map(id => new mongoose.Types.ObjectId(id)) } },
+      {
+        connectionId: {
+          $in: connectionIds.map((id) => new mongoose.Types.ObjectId(id)),
+        },
+      },
       { createdAt: -1 },
-      { skip: (pagination.page - 1) * pagination.limit, limit: pagination.limit }
+      {
+        skip: (pagination.page - 1) * pagination.limit,
+        limit: pagination.limit,
+      },
     );
 
     return {
       success: true,
-      data: repositories.map(repo => ({
+      data: repositories.map((repo) => ({
         id: repo._id.toString(),
         connectionId: repo.connectionId.toString(),
         githubRepoId: repo.githubRepoId,
@@ -232,27 +262,43 @@ export class GitHubConnectionService {
     };
   }
 
-  async setupWebhook(repositoryId: string, webhookUrl: string): Promise<ApiResponse<{ webhookId: number }>> {
+  async setupWebhook(
+    repositoryId: string,
+    webhookUrl: string,
+  ): Promise<ApiResponse<{ webhookId: number }>> {
     const repository = await githubRepositoryRepo.findById(repositoryId);
     if (!repository) {
-      throw new AppError('Repository not found', 404, 'REPOSITORY_NOT_FOUND', { repositoryId });
+      throw new AppError("Repository not found", 404, "REPOSITORY_NOT_FOUND", {
+        repositoryId,
+      });
     }
 
-    const connection = await repositoryConnectionRepo.findById(repository.connectionId.toString());
+    const connection = await repositoryConnectionRepo.findById(
+      repository.connectionId.toString(),
+    );
     if (!connection) {
-      throw new AppError('Connection not found', 404, 'CONNECTION_NOT_FOUND');
+      throw new AppError("Connection not found", 404, "CONNECTION_NOT_FOUND");
     }
 
     const decryptedToken = await this.decryptToken(connection.tokenEncrypted);
     const apiService = GitHubApiService.createWithToken(decryptedToken);
 
     // Create webhook with GitHub API
-    const webhook = await apiService.createWebhook(repository.owner, repository.name, {
-      url: webhookUrl,
-      secret: process.env.GITHUB_WEBHOOK_SECRET || 'default_secret',
-      events: ['pull_request', 'pull_request_review', 'pull_request_review_comment', 'push'],
-      active: true,
-    });
+    const webhook = await apiService.createWebhook(
+      repository.owner,
+      repository.name,
+      {
+        url: webhookUrl,
+        secret: process.env.GITHUB_WEBHOOK_SECRET || "default_secret",
+        events: [
+          "pull_request",
+          "pull_request_review",
+          "pull_request_review_comment",
+          "push",
+        ],
+        active: true,
+      },
+    );
 
     // Update repository with webhook info
     await githubRepositoryRepo.update(repositoryId, {
@@ -263,34 +309,39 @@ export class GitHubConnectionService {
     return {
       success: true,
       data: { webhookId: webhook.id },
-      message: 'Webhook configured successfully',
+      message: "Webhook configured successfully",
     };
   }
 
   async decryptToken(encryptedToken: string): Promise<string> {
-    const algorithm = 'aes-256-gcm';
+    const algorithm = "aes-256-gcm";
     const key = crypto.scryptSync(
-      process.env.ENCRYPTION_KEY || 'default_encryption_key_for_dev_only',
-      process.env.ENCRYPTION_SALT || 'default_salt',
-      32
+      process.env.ENCRYPTION_KEY || "default_encryption_key_for_dev_only",
+      process.env.ENCRYPTION_SALT || "default_salt",
+      32,
     );
 
-    const parts = encryptedToken.split(':');
+    const parts = encryptedToken.split(":");
     if (parts.length !== 3) {
-      throw new AppError('Invalid encrypted token format', 400, 'INVALID_TOKEN_FORMAT', {
-        retryable: false,
-      });
+      throw new AppError(
+        "Invalid encrypted token format",
+        400,
+        "INVALID_TOKEN_FORMAT",
+        {
+          retryable: false,
+        },
+      );
     }
 
     const [ivHex, authTagHex, encrypted] = parts;
-    const iv = Buffer.from(ivHex, 'hex');
-    const authTag = Buffer.from(authTagHex, 'hex');
+    const iv = Buffer.from(ivHex, "hex");
+    const authTag = Buffer.from(authTagHex, "hex");
 
     const decipher = crypto.createDecipheriv(algorithm, key, iv);
     decipher.setAuthTag(authTag);
 
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
+    let decrypted = decipher.update(encrypted, "hex", "utf8");
+    decrypted += decipher.final("utf8");
 
     return decrypted;
   }

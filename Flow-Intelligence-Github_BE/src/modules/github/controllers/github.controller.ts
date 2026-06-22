@@ -38,7 +38,7 @@ export class GitHubController {
       owner,
       repo,
     });
-    res.json(result);
+    res.status(201).json(result);
   }
 
   async disconnectRepository(req: Request, res: Response) {
@@ -178,7 +178,7 @@ export class GitHubController {
       }
     });
 
-    res.json(result);
+    res.status(202).json(result);
   }
 
   async getSyncStatusSummary(req: Request, res: Response) {

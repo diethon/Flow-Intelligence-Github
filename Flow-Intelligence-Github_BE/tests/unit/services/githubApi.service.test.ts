@@ -1,4 +1,10 @@
-import { GitHubApiService } from '../../src/modules/github/services/githubApi.service';
+jest.mock('@octokit/rest', () => ({
+  Octokit: jest.fn().mockImplementation(() => ({
+    request: jest.fn(),
+  })),
+}));
+
+import { GitHubApiService } from '../../../src/modules/github/services/githubApi.service';
 
 describe('GitHubApiService', () => {
   const service = new GitHubApiService({ token: 'test-token' });

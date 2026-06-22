@@ -3,6 +3,7 @@ module.exports = {
   preset: 'ts-jest',
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^@octokit/rest$': '<rootDir>/tests/mocks/octokitRest.ts',
   },
   testEnvironment: 'node',
   roots: ['<rootDir>/tests'],

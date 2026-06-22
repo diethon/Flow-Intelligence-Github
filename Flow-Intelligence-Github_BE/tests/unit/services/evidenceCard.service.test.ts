@@ -1,13 +1,10 @@
 import { EvidenceCardService } from '../../../src/services/evidenceCard.service';
 import { EvidenceCardRepository } from '../../../src/repositories/evidenceCard.repository';
-import { GitHubRepository } from '../../../src/modules/github/models/githubRepository.model';
-import { PullRequest } from '../../../src/modules/github/models/pullRequest.model';
+import { GitHubRepository, PullRequest } from '../../../src/modules/github/models';
 import { AppError } from '../../../src/utils/AppError';
 
-jest.mock('../../../src/modules/github/models/githubRepository.model', () => ({
+jest.mock('../../../src/modules/github/models', () => ({
   GitHubRepository: { findById: jest.fn() },
-}));
-jest.mock('../../../src/modules/github/models/pullRequest.model', () => ({
   PullRequest: { findById: jest.fn() },
 }));
 jest.mock('../../../src/models/issue.model', () => ({ Issue: { findById: jest.fn() } }));
