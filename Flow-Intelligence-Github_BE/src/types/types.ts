@@ -111,8 +111,6 @@ export interface WebhookEvent {
   updatedAt: Date;
 }
 
-export type SyncStatus = 'pending' | 'running' | 'success' | 'error';
-
 export interface SyncRun {
   id: string;
   repositoryId: string;
