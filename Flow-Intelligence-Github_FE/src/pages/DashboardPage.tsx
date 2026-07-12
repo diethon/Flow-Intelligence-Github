@@ -14,6 +14,8 @@ import { RiskBadge } from "../components/RiskBadge.js";
 import { SyncStatusCard } from "../components/SyncStatusCard.js";
 import { EvidenceCardRow } from "../components/EvidenceCardRow.js";
 import { useSyncStatus } from "../hooks/useSyncStatus.js";
+import { DataQualityPanel } from "../components/DataQualityPanel.js";
+
 // Overall risk layout styles for Light Mode
 const OVERALL_CARD_THEME: Record<RiskLevel, { border: string; bg: string; text: string; glow: string }> = {
   high: {
@@ -372,51 +374,7 @@ export const DashboardPage: React.FC = () => {
               </div>
 
               {/* Data Quality Banner (UC06) */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                    🛡️ Data Quality Check
-                  </h3>
-                  <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded ${summary.dataQuality.level === "good" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
-                      summary.dataQuality.level === "partial" ? "bg-amber-50 text-amber-700 border border-amber-200" :
-                        "bg-rose-50 text-rose-700 border border-rose-200"
-                    }`}>
-                    {summary.dataQuality.level}
-                  </span>
-                </div>
-
-                <div className="space-y-2.5 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Sync Status:</span>
-                    <span className="font-semibold text-slate-700">{summary.dataQuality.lastSyncStatus || "unknown"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Last Synced:</span>
-                    <span className="font-semibold text-slate-700">
-                      {summary.dataQuality.lastSyncedAt
-                        ? new Date(summary.dataQuality.lastSyncedAt).toLocaleString()
-                        : "Never"}
-                    </span>
-                  </div>
-                </div>
-
-                {summary.dataQuality.warnings.length > 0 ? (
-                  <div className="space-y-2 mt-3 pt-3 border-t border-slate-100">
-                    <p className="text-xs font-bold text-amber-600">⚠️ Active Warnings ({summary.dataQuality.warnings.length})</p>
-                    <div className="max-h-28 overflow-y-auto space-y-1.5 scrollbar-none pr-1">
-                      {summary.dataQuality.warnings.map((w, idx) => (
-                        <div key={idx} className="bg-amber-50 border border-amber-200 text-xs text-amber-800 rounded-lg p-2 leading-relaxed">
-                          {w.message}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-emerald-50 border border-emerald-100 text-[11px] text-emerald-800 rounded-lg p-3 flex items-start gap-2 mt-2 leading-relaxed">
-                    <span>✓</span> All repository integration pipelines are running clean without warning flags.
-                  </div>
-                )}
-              </div>
+              <DataQualityPanel repositoryId={selectedRepoId} />
 
               {/* Sync Status Card (UC03) */}
               {syncStatus && (

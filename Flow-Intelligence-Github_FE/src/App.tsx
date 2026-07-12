@@ -9,6 +9,8 @@ import { ReviewCIMetricsPage } from "./pages/ReviewCIMetricsPage.js";
 import { RulebookPage } from "./pages/RulebookPage.js";
 import { RiskPage } from "./pages/RiskPage.js";
 import { ComingSoon } from "./pages/ComingSoon.js";
+import { WeeklyBriefPage } from "./pages/WeeklyBriefPage.js";
+import { PrivacyPage } from "./pages/PrivacyPage.js";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -141,7 +143,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <AppLayout>
-                  <ComingSoon title="AI Weekly Brief" owner="Anh Quân" />
+                  <WeeklyBriefPage />
                 </AppLayout>
               </ProtectedRoute>
             }
@@ -151,7 +153,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <AppLayout>
-                  <ComingSoon title="Privacy Settings" owner="Anh Quân" />
+                  <PrivacyPage />
                 </AppLayout>
               </ProtectedRoute>
             }
