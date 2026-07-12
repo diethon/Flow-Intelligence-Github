@@ -4,6 +4,7 @@ import { useEvidenceCard } from '../hooks/useEvidence';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { SeverityTag, SourceTag, EntityIcon } from '../components/EvidenceTags';
 import { ConfidenceGauge } from '../components/ConfidenceGauge';
+import { PredictionDetails } from '../components/PredictionDetails';
 import { SEVERITY, ENTITY_LABEL, relativeTime } from '../components/evidenceMeta';
 import type { EvidenceCard, EvidenceItem } from '../types';
 
@@ -140,6 +141,26 @@ const CardBody: React.FC<{ card: EvidenceCard; repositoryId: string }> = ({ card
           </div>
         </aside>
       </div>
+      
+      {card.sourceType === 'prediction' && (
+        <div className="border-t border-slate-100 p-6 bg-slate-50/50">
+          <PredictionDetails 
+            prediction={{
+              pullRequestId: 'mock-123',
+              modelVersionId: 'pr-delay-risk-v1.0.0',
+              probability: card.confidence / 100,
+              riskLabel: card.severity === 'high' ? 'High' : card.severity === 'medium' ? 'Medium' : 'Low',
+              predictedAt: card.createdAt,
+              featureSummary: {
+                changed_files: 12,
+                additions: 350,
+                deletions: 45,
+                commits: 5
+              }
+            }} 
+          />
+        </div>
+      )}
 
       <p className="border-t border-slate-100 px-6 py-3 text-xs text-slate-400">
         Workflow signal for the whole team — not a measure of any individual's performance.

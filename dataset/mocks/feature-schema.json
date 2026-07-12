@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PR Feature Schema",
+  "type": "object",
+  "properties": {
+    "changedFiles": {
+      "type": "integer",
+      "description": "Number of files changed in the PR"
+    },
+    "additions": {
+      "type": "integer",
+      "description": "Total lines added"
+    },
+    "deletions": {
+      "type": "integer",
+      "description": "Total lines deleted"
+    },
+    "authorPastDelays": {
+      "type": "integer",
+      "description": "Number of past PRs by the author that experienced significant delay"
+    },
+    "isDraft": {
+      "type": "boolean",
+      "description": "Whether the PR was ever in a draft state"
+    }
+  },
+  "required": ["changedFiles", "additions", "deletions"]
+}

@@ -13,6 +13,7 @@ import {
 import { RiskBadge } from "../components/RiskBadge.js";
 import { SyncStatusCard } from "../components/SyncStatusCard.js";
 import { EvidenceCardRow } from "../components/EvidenceCardRow.js";
+import { PredictionCard } from "../components/PredictionCard.js";
 import { useSyncStatus } from "../hooks/useSyncStatus.js";
 // Overall risk layout styles for Light Mode
 const OVERALL_CARD_THEME: Record<RiskLevel, { border: string; bg: string; text: string; glow: string }> = {
@@ -296,24 +297,12 @@ export const DashboardPage: React.FC = () => {
                     <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2">PR Delay Predictions</h3>
                     {summary.recentPredictions && summary.recentPredictions.length > 0 ? (
                       summary.recentPredictions.map((pred: any) => (
-                        <div key={pred._id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800 truncate pr-2">PR #{pred.pullRequestId?.number}</span>
-                            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
-                              pred.riskLabel?.toLowerCase() === 'high' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
-                              pred.riskLabel?.toLowerCase() === 'medium' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
-                              'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            }`}>
-                              {pred.riskLabel} RISK
-                            </span>
-                          </div>
-                          <div className="mt-2 text-xs text-slate-600">
-                            <p><strong>Probability:</strong> {((pred.probability || 0) * 100).toFixed(1)}%</p>
-                            <p className="mt-1 truncate" title={Object.keys(pred.featureSummary || {}).join(", ")}>
-                              <strong>Factors:</strong> {Object.keys(pred.featureSummary || {}).join(", ")}
-                            </p>
-                          </div>
-                        </div>
+                        <PredictionCard
+                          key={pred._id}
+                          prediction={pred}
+                          prNumber={pred.pullRequestId?.number}
+                          prTitle={pred.pullRequestId?.title || `Pull Request #${pred.pullRequestId?.number}`}
+                        />
                       ))
                     ) : (
                       <p className="text-xs text-slate-500 italic">No recent PR delay predictions.</p>

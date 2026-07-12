@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PR Delay Risk Feature Schema",
+  "type": "object",
+  "properties": {
+    "changed_files": {
+      "type": "integer"
+    },
+    "additions": {
+      "type": "integer"
+    },
+    "deletions": {
+      "type": "integer"
+    },
+    "commits": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "changed_files",
+    "additions",
+    "deletions",
+    "commits"
+  ]
+}

@@ -1,0 +1,28 @@
+[
+  {
+    "pullRequestId": "60d5ecb8b392b45000000010",
+    "modelVersionId": "60d5ecb8b392b45000000001",
+    "probability": 0.85,
+    "riskLabel": "High",
+    "featureSummary": {
+      "changedFiles": 25,
+      "additions": 1500,
+      "deletions": 200,
+      "authorPastDelays": 3
+    },
+    "predictedAt": "2026-07-09T00:00:00.000Z"
+  },
+  {
+    "pullRequestId": "60d5ecb8b392b45000000011",
+    "modelVersionId": "60d5ecb8b392b45000000001",
+    "probability": 0.20,
+    "riskLabel": "Low",
+    "featureSummary": {
+      "changedFiles": 2,
+      "additions": 15,
+      "deletions": 5,
+      "authorPastDelays": 0
+    },
+    "predictedAt": "2026-07-09T00:00:00.000Z"
+  }
+]

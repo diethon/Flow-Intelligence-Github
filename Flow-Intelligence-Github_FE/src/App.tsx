@@ -3,7 +3,6 @@ import { DashboardPage, ConnectRepositoryPage, SyncStatusPage, LoginPage, PullRe
 import { RiskEvidencePage, EvidenceCardDetailPage } from './pages';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { Layout } from './components/Layout';
 import { AppLayout } from './components/AppLayout.js';
 import { ReviewCIMetricsPage } from "./pages/ReviewCIMetricsPage.js";
 import { RulebookPage } from "./pages/RulebookPage.js";

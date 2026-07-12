@@ -9,6 +9,8 @@ import { IssueImport, CommitImport, CheckRunImport } from '../../../dto/import.d
 import { AppError } from '../../../utils/AppError';
 import { encryptToken, decryptToken } from '../../../utils/crypto';
 import { User } from '../../auth/models';
+import { PredictionService } from '../../../services/PredictionService';
+import { evidenceCardService } from '../../../services/evidenceCard.service';
 
 const connectionRepo = new RepositoryConnectionRepository();
 const repositoryRepo = new GitHubRepositoryRepository();
@@ -91,6 +93,8 @@ export class SyncJobProcessor {
     let hasMore = true;
     let prCount = 0;
 
+    const syncedOpenPrIds: string[] = [];
+
     while (hasMore) {
       const prs = await apiService.getPullRequests(owner, repo, {
         state: 'all',
@@ -112,7 +116,14 @@ export class SyncJobProcessor {
           }
         }
 
-        await this.upsertPullRequest(payload.repositoryId, pr);
+        const prId = await this.upsertPullRequest(payload.repositoryId, pr);
+        
+        // Orchestration: Only collect PRs that are "open" to avoid overloading ML Prediction process
+        const prState = pr.merged ? 'merged' : pr.state;
+        if (prState === 'open' && prId) {
+          syncedOpenPrIds.push(prId.toString());
+        }
+        
         prCount++;
       }
 
@@ -120,6 +131,30 @@ export class SyncJobProcessor {
         hasMore = false;
       } else {
         page++;
+      }
+    }
+
+    // Orchestration Trigger: Run predictions sequentially for updated OPEN pull requests
+    if (syncedOpenPrIds.length > 0) {
+      console.log(`[ML] Triggering delay risk prediction for ${syncedOpenPrIds.length} open PRs...`);
+      for (const prId of syncedOpenPrIds) {
+        try {
+          const prediction = await PredictionService.predictAndSave(payload.repositoryId, prId);
+          console.log(`[ML] Prediction for PR ${prId}: ${prediction.riskLabel} Risk (${(prediction.probability * 100).toFixed(1)}%)`);
+          
+          if (prediction.riskLabel === 'High' || prediction.riskLabel === 'Medium') {
+            await evidenceCardService.generateFromPrediction(payload.repositoryId, {
+              pullRequestId: prId,
+              predictionId: prediction.predictionId || undefined,
+              probability: prediction.probability,
+              riskLabel: prediction.riskLabel,
+              modelVersion: prediction.modelVersionId,
+              limitation: "Generated automatically after GitHub Sync.",
+            });
+          }
+        } catch (err) {
+          console.error(`[ML Error] Failed to process prediction for PR ${prId}:`, err);
+        }
       }
     }
 
@@ -157,7 +192,7 @@ export class SyncJobProcessor {
     return created._id as mongoose.Types.ObjectId;
   }
 
-  private async upsertPullRequest(repositoryId: string, pr: any): Promise<void> {
+  private async upsertPullRequest(repositoryId: string, pr: any): Promise<mongoose.Types.ObjectId> {
     const repoId = new mongoose.Types.ObjectId(repositoryId);
 
     const existing = await PullRequest.findOne({ githubPrId: pr.id });
@@ -203,8 +238,10 @@ export class SyncJobProcessor {
 
     if (existing) {
       await PullRequest.updateOne({ _id: existing._id }, prData);
+      return existing._id as mongoose.Types.ObjectId;
     } else {
-      await PullRequest.create(prData);
+      const created = await PullRequest.create(prData);
+      return created._id as mongoose.Types.ObjectId;
     }
   }
 
