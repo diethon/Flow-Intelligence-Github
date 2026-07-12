@@ -1,0 +1,5 @@
+{
+  "error": "AI Service Timeout",
+  "code": "ETIMEDOUT",
+  "message": "The AI provider failed to respond in a timely manner. Fallback triggered."
+}
