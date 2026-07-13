@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import mongoose from "mongoose";
 import { metricsController } from "../controllers/metrics.controller.js";
+import { authenticate } from "../middlewares/authenticate.js";
 
 const router = Router();
 
@@ -16,7 +17,7 @@ function validateRepoId(req: Request, res: Response, next: () => void): void {
 
 // ─── GET /api/metrics/repositories ───────────────────────────────────────────
 // List all repositories (for demo selector)
-router.get("/repositories", metricsController.getRepositories);
+router.get("/repositories", authenticate, metricsController.getRepositories);
 
 // ─── GET /api/metrics/repositories/:repoId/review-ci ─────────────────────────
 // UC-10: Calculate and return review + CI metrics (live calculation, no persistence)

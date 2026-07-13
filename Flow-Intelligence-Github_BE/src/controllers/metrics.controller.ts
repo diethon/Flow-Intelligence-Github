@@ -69,13 +69,23 @@ function buildComparison(
 }
 
 // ─── Controller Methods ───────────────────────────────────────────────────────
+import { GitHubConnection } from "../models/GitHubConnection.js";
 
 export class MetricsController {
   
   // List all repositories
-  async getRepositories(_req: Request, res: Response): Promise<void> {
+  async getRepositories(req: Request & { userId?: string }, res: Response): Promise<void> {
     try {
-      const repos = await Repository.find().select("_id owner name fullName lastSyncedAt").lean();
+      const userId = req.userId;
+      if (!userId) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
+      const connections = await GitHubConnection.find({ userId }).select("_id").lean();
+      const connectionIds = connections.map(c => c._id);
+
+      const repos = await Repository.find({ connectionId: { $in: connectionIds } }).select("_id owner name fullName lastSyncedAt").lean();
       res.json({ repositories: repos });
     } catch (err) {
       res.status(500).json({ error: "Failed to fetch repositories", detail: String(err) });

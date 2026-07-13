@@ -119,7 +119,7 @@ export class SyncJobProcessor {
         const prId = await this.upsertPullRequest(payload.repositoryId, pr);
         
         // Orchestration: Only collect PRs that are "open" to avoid overloading ML Prediction process
-        const prState = pr.merged ? 'merged' : pr.state;
+        const prState = pr.merged_at ? 'merged' : pr.state;
         if (prState === 'open' && prId) {
           syncedOpenPrIds.push(prId.toString());
         }
