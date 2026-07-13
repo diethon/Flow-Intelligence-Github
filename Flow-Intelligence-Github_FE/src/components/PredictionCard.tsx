@@ -13,6 +13,7 @@ export interface PredictionCardProps {
   prediction: PredictionResult;
   prNumber?: number;
   prTitle?: string;
+  onClick?: () => void;
 }
 
 const RISK_THEME = {
@@ -21,12 +22,15 @@ const RISK_THEME = {
   High: { border: "border-rose-200", bg: "bg-rose-50/50", text: "text-rose-700", badgeBg: "bg-rose-50", badgeBorder: "border-rose-200/60", icon: "🔴" }
 };
 
-export function PredictionCard({ prediction, prNumber, prTitle }: PredictionCardProps) {
+export function PredictionCard({ prediction, prNumber, prTitle, onClick }: PredictionCardProps) {
   const theme = RISK_THEME[prediction.riskLabel] || RISK_THEME.Low;
   const probPercent = (prediction.probability * 100).toFixed(1);
 
   return (
-    <div className={`rounded-2xl border p-5 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 ${theme.border} ${theme.bg}`}>
+    <div 
+      onClick={onClick}
+      className={`rounded-2xl border p-5 shadow-sm transition-all duration-300 ${onClick ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : ''} ${theme.border} ${theme.bg}`}
+    >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl bg-white shadow-sm border border-slate-100`}>

@@ -4,9 +4,10 @@ import { useEvidenceCard } from '../hooks/useEvidence';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { SeverityTag, SourceTag, EntityIcon } from '../components/EvidenceTags';
 import { ConfidenceGauge } from '../components/ConfidenceGauge';
-import { PredictionDetails } from '../components/PredictionDetails';
-import { SEVERITY, ENTITY_LABEL, relativeTime } from '../components/evidenceMeta';
-import type { EvidenceCard, EvidenceItem } from '../types';
+import { PredictionDetails } from '../components/PredictionDetails.js';
+import { SEVERITY, ENTITY_LABEL, relativeTime } from '../components/evidenceMeta.js';
+import { usePredictionDetail } from '../hooks/usePrediction.js';
+import type { EvidenceCard, EvidenceItem } from '../types/index.js';
 
 interface EvidenceCardDetailPageProps {
   repositoryId: string;
@@ -80,6 +81,16 @@ const Exhibit: React.FC<{ item: EvidenceItem; index: number }> = ({ item, index 
 const CardBody: React.FC<{ card: EvidenceCard; repositoryId: string }> = ({ card, repositoryId }) => {
   const sev = SEVERITY[card.severity];
   const caseId = card._id.slice(-6).toUpperCase();
+  
+  // Find the associated Pull Request ID for fetching prediction details
+  const pullRequestRef = card.evidence.find(e => e.entityType === 'pull_request');
+  const pullRequestId = pullRequestRef?.entityId;
+
+  // Fetch real ML prediction from the backend API
+  const { data: prediction, isLoading: isPredLoading, isError: isPredError } = usePredictionDetail(
+    card.sourceType === 'prediction' ? repositoryId : '',
+    card.sourceType === 'prediction' ? pullRequestId : undefined
+  );
 
   return (
     <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -144,21 +155,27 @@ const CardBody: React.FC<{ card: EvidenceCard; repositoryId: string }> = ({ card
       
       {card.sourceType === 'prediction' && (
         <div className="border-t border-slate-100 p-6 bg-slate-50/50">
-          <PredictionDetails 
-            prediction={{
-              pullRequestId: 'mock-123',
-              modelVersionId: 'pr-delay-risk-v1.0.0',
-              probability: card.confidence / 100,
-              riskLabel: card.severity === 'high' ? 'High' : card.severity === 'medium' ? 'Medium' : 'Low',
-              predictedAt: card.createdAt,
-              featureSummary: {
-                changed_files: 12,
-                additions: 350,
-                deletions: 45,
-                commits: 5
-              }
-            }} 
-          />
+          {isPredLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <span className="text-sm font-medium text-slate-500 flex items-center gap-2">
+                <svg className="animate-spin h-4 w-4 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Loading ML Prediction data...
+              </span>
+            </div>
+          ) : isPredError ? (
+            <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 font-medium">
+              Failed to load detailed prediction features.
+            </div>
+          ) : prediction ? (
+            <PredictionDetails prediction={prediction} />
+          ) : (
+            <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-500 font-medium">
+              No detailed prediction features available for this PR.
+            </div>
+          )}
         </div>
       )}
 

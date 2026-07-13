@@ -32,6 +32,7 @@ import { createBriefRoutes } from './routes/brief.routes';
 import metricsRouter from "./routes/metricsRoutes.js";
 import dashboardRouter from "./routes/dashboardRoutes.js";
 import riskRouter from "./routes/riskRoutes.js";
+import { createPredictionRouter } from './routes/prediction.routes.js';
 import { seedRulebook } from "./seeds/seedRulebook.js";
 
 const app: Express = express();
@@ -87,6 +88,7 @@ app.use('/api/evidence-cards', createEvidenceCardRoutes(evidenceController));
 app.use('/api/repositories', createDataQualityRoutes(dataQualityController));
 app.use('/api/repositories', createPrivacyRoutes(privacyController));
 app.use('/api/repositories', createBriefRoutes(briefController));
+app.use('/api/repositories', createPredictionRouter());
 app.use('/api/webhooks', createWebhookRoutes(webhookService));
 
 app.use("/api/metrics", metricsRouter);

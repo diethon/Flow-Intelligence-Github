@@ -304,6 +304,11 @@ export const DashboardPage: React.FC = () => {
                           prediction={pred}
                           prNumber={pred.pullRequestId?.number}
                           prTitle={pred.pullRequestId?.title || `Pull Request #${pred.pullRequestId?.number}`}
+                          onClick={() => {
+                            if (pred.pullRequestId?.prUrl) {
+                              window.open(pred.pullRequestId.prUrl, '_blank');
+                            }
+                          }}
                         />
                       ))
                     ) : (

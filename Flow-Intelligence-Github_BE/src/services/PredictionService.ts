@@ -6,7 +6,7 @@ import { ModelVersion } from "../models/ModelVersion";
 import { PredictionResult } from "../dto/prediction.dto";
 
 export class PredictionService {
-  private static readonly INFERENCE_SCRIPT = path.join(__dirname, "../../../../dataset/inference.py");
+  private static readonly INFERENCE_SCRIPT = path.join(__dirname, "../../../dataset/inference.py");
 
   /**
    * Calls the Python inference script to predict delay risk.
@@ -14,7 +14,7 @@ export class PredictionService {
   private static async callInference(features: Record<string, number>): Promise<{ probability: number; riskLabel: RiskLabel }> {
     return new Promise((resolve, reject) => {
       const process = spawn("python", [this.INFERENCE_SCRIPT], {
-        cwd: path.join(__dirname, "../../../../dataset")
+        cwd: path.join(__dirname, "../../../dataset")
       });
 
       let output = "";

@@ -136,7 +136,7 @@ export async function buildDashboard(
   const [recentEvidenceCards, rawRecentRiskEvents, recentPredictions] = await Promise.all([
     EvidenceCard.find({ repositoryId: repoId }).sort({ createdAt: -1 }).limit(3).lean(),
     RiskEvent.find({ repositoryId: repoId }).sort({ createdAt: -1 }).limit(3).lean(),
-    PrDelayPrediction.find({ repositoryId: repoId }).populate("pullRequestId", "number title").sort({ createdAt: -1 }).limit(3).lean(),
+    PrDelayPrediction.find({ repositoryId: repoId }).populate("pullRequestId", "number title prUrl").sort({ createdAt: -1 }).limit(3).lean(),
   ]);
 
   const recentRiskEvents = await Promise.all(rawRecentRiskEvents.map(async (ev) => {
