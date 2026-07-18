@@ -7,6 +7,7 @@ import { Recommendation } from "../models/Recommendation.js";
 import { calculateUC10Metrics, persistUC10Snapshots } from "./metricsEngine.js";
 import { calculatePRMetrics, persistPRMetricSnapshots } from "./prMetrics.js";
 import { EvidenceCard, RiskEvent, PrDelayPrediction } from "../models/index.js";
+import { evaluateRiskRules, RiskEvaluationResult, RiskEventDTO } from "./riskRuleEngine.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -88,9 +89,10 @@ export async function buildDashboard(
   if (!repo) throw new Error(`Repository ${repositoryId} not found`);
 
   // Calculate fresh metrics in parallel
-  const [uc10, prMetrics] = await Promise.all([
+  const [uc10, prMetrics, riskEvaluation] = await Promise.all([
     calculateUC10Metrics(repositoryId, windowDays, startDate, endDate),
     calculatePRMetrics(repositoryId, windowDays, startDate, endDate),
+    evaluateRiskRules(repositoryId, windowDays, startDate, endDate),
   ]);
 
   // Persist snapshots in background (fire-and-forget)
@@ -121,14 +123,11 @@ export async function buildDashboard(
   const kpis: KPICard[] = buildKPICards(metricMap, prMetrics, uc10);
 
   // ── Evaluate Rules & Build Bottleneck Cards ──────────────────────────────
-  const bottlenecks = await buildBottleneckCards(metricMap, prMetrics, uc10, repositoryId);
+  const bottlenecks = await buildBottleneckCards(riskEvaluation);
 
   // ── Overall Risk Level ────────────────────────────────────────────────────
-  const triggeredRules = bottlenecks.filter((b) => b.isTriggered);
-  const hasHigh = triggeredRules.some((b) => b.severity === "high");
-  const hasMedium = triggeredRules.some((b) => b.severity === "medium");
-  const overallRiskLevel: RiskLevel =
-    triggeredRules.length === 0 ? "good" : hasHigh ? "high" : hasMedium ? "medium" : "low";
+  const overallRiskLevel: RiskLevel = riskEvaluation.overallRisk;
+  const triggeredRuleCount = riskEvaluation.triggeredCount;
 
   // ── Data Quality Summary ──────────────────────────────────────────────────
   const dataQuality = await buildDataQualitySummary(repoId);
@@ -137,7 +136,7 @@ export async function buildDashboard(
   const [recentEvidenceCards, rawRecentRiskEvents, recentPredictions] = await Promise.all([
     EvidenceCard.find({ repositoryId: repoId }).sort({ createdAt: -1 }).limit(3).lean(),
     RiskEvent.find({ repositoryId: repoId }).sort({ createdAt: -1 }).limit(3).lean(),
-    PrDelayPrediction.find({ repositoryId: repoId }).populate("pullRequestId", "number title").sort({ createdAt: -1 }).limit(3).lean(),
+    PrDelayPrediction.find({ repositoryId: repoId }).populate("pullRequestId", "number title prUrl").sort({ createdAt: -1 }).limit(3).lean(),
   ]);
 
   const recentRiskEvents = await Promise.all(rawRecentRiskEvents.map(async (ev) => {
@@ -162,7 +161,7 @@ export async function buildDashboard(
     windowStart,
     windowEnd,
     overallRiskLevel,
-    triggeredRuleCount: triggeredRules.length,
+    triggeredRuleCount,
     kpis,
     bottlenecks,
     dataQuality,
@@ -262,126 +261,29 @@ function buildKPICards(
 // ─── Bottleneck Cards Builder ─────────────────────────────────────────────────
 
 async function buildBottleneckCards(
-  metricMap: MetricMap,
-  prMetrics: PRMetricsResult,
-  uc10: UC10Result,
-  _repositoryId: string
+  riskEvaluation: RiskEvaluationResult
 ): Promise<BottleneckCard[]> {
-  const recommendations = await Recommendation.find().lean();
-  const recMap: Record<string, string> = {};
-  for (const rec of recommendations) {
-    if (!recMap[rec.ruleCode]) recMap[rec.ruleCode] = rec.title;
-  }
-
-  const rulesDb = await FlowRule.find({ isActive: true }).lean();
-  const ruleMap: Record<string, typeof rulesDb[0]> = {};
-  for (const r of rulesDb) ruleMap[r.ruleCode] = r;
-
   const bottlenecks: BottleneckCard[] = [];
 
-  // R1 – Stale PR
-  const r1Value = prMetrics.stalePRCount;
-  bottlenecks.push({
-    ruleCode: "R1",
-    ruleName: ruleMap["R1"]?.name ?? "Stale PR Risk",
-    severity: "high",
-    isTriggered: r1Value >= RULE_CONFIG.R1.threshold,
-    metricValue: r1Value,
-    threshold: RULE_CONFIG.R1.threshold,
-    thresholdUnit: RULE_CONFIG.R1.unit,
-    metricLabel: RULE_CONFIG.R1.label,
-    affectedCount: prMetrics.stalePRIds.length,
-    affectedItems: prMetrics.stalePRIds.map((p) => ({ label: `#${p.prNumber} — ${p.title} (${p.daysOpen}d open)` })),
-    suggestedAction: recMap["R1"] ?? "Review and action stale pull requests",
-    evidenceType: "stale_pr",
-    dataStatus: prMetrics.dataStatus,
-  });
+  for (const ev of riskEvaluation.events) {
+    bottlenecks.push({
+      ruleCode: ev.ruleCode,
+      ruleName: ev.ruleName,
+      severity: ev.severity as "high" | "medium" | "low",
+      isTriggered: ev.isTriggered,
+      metricValue: ev.metricValue,
+      threshold: ev.thresholdValue,
+      thresholdUnit: ev.thresholdUnit,
+      metricLabel: ev.metricLabel,
+      affectedCount: ev.evidenceCard?.evidence?.length || 0,
+      affectedItems: ev.evidenceCard?.evidence?.map((e: any) => ({ label: e.label })) || [],
+      suggestedAction: ev.evidenceCard?.suggestedAction || "",
+      evidenceType: "evidence",
+      dataStatus: ev.status === "insufficient_data" ? "insufficient_data" : "ok",
+    });
+  }
 
-  // R2 – Review Pickup
-  const r2Value = uc10.reviewPickup.avgHours;
-  bottlenecks.push({
-    ruleCode: "R2",
-    ruleName: ruleMap["R2"]?.name ?? "Review Pickup Risk",
-    severity: "medium",
-    isTriggered: r2Value !== null && r2Value >= RULE_CONFIG.R2.threshold,
-    metricValue: r2Value !== null ? Math.round(r2Value * 10) / 10 : null,
-    threshold: RULE_CONFIG.R2.threshold,
-    thresholdUnit: RULE_CONFIG.R2.unit,
-    metricLabel: RULE_CONFIG.R2.label,
-    affectedCount: uc10.reviewPickup.perPR.filter((p) => p.pickupHours !== null && p.pickupHours > 12).length,
-    affectedItems: uc10.reviewPickup.perPR
-      .filter((p) => p.pickupHours !== null && p.pickupHours > 12)
-      .slice(0, 5)
-      .map((p) => ({ label: `#${p.prNumber} — ${p.title} (${p.pickupHours?.toFixed(1)}h pickup)` })),
-    suggestedAction: recMap["R2"] ?? "Define a team review SLA",
-    evidenceType: "review_pickup",
-    dataStatus: uc10.reviewPickup.dataStatus,
-  });
-
-  // R3 – Reviewer Concentration
-  const r3Value = uc10.reviewLoadConcentration.topReviewerPct;
-  const topReviewer = uc10.reviewLoadConcentration.reviewerBreakdown[0];
-  bottlenecks.push({
-    ruleCode: "R3",
-    ruleName: ruleMap["R3"]?.name ?? "Reviewer Concentration Risk",
-    severity: "medium",
-    isTriggered: r3Value !== null && r3Value >= RULE_CONFIG.R3.threshold,
-    metricValue: r3Value,
-    threshold: RULE_CONFIG.R3.threshold,
-    thresholdUnit: RULE_CONFIG.R3.unit,
-    metricLabel: RULE_CONFIG.R3.label,
-    affectedCount: uc10.reviewLoadConcentration.reviewerBreakdown.length,
-    affectedItems: topReviewer ? [{ label: `${topReviewer.login}: ${topReviewer.count} reviews (${topReviewer.pct}%)` }] : [],
-    suggestedAction: recMap["R3"] ?? "Distribute review ownership across the team",
-    evidenceType: "reviewer_concentration",
-    dataStatus: uc10.reviewLoadConcentration.dataStatus,
-  });
-
-  // R4 – CI Friction
-  const r4Value = uc10.failedCheckRate.failedRatePct;
-  const topFailedCheck = uc10.failedCheckRate.checkBreakdown[0];
-  bottlenecks.push({
-    ruleCode: "R4",
-    ruleName: ruleMap["R4"]?.name ?? "CI Friction Risk",
-    severity: "high",
-    isTriggered: r4Value !== null && r4Value >= RULE_CONFIG.R4.threshold,
-    metricValue: r4Value,
-    threshold: RULE_CONFIG.R4.threshold,
-    thresholdUnit: RULE_CONFIG.R4.unit,
-    metricLabel: RULE_CONFIG.R4.label,
-    affectedCount: uc10.failedCheckRate.failedRuns,
-    affectedItems: topFailedCheck ? [{ label: `${topFailedCheck.name}: ${topFailedCheck.failRate.toFixed(1)}% fail rate (${topFailedCheck.failed}/${topFailedCheck.total})` }] : [],
-    suggestedAction: recMap["R4"] ?? "Investigate the most frequently failing check suites",
-    evidenceType: "ci_friction",
-    dataStatus: uc10.failedCheckRate.dataStatus,
-  });
-
-  // R5 – Oversized PR
-  const r5Value = prMetrics.oversizedPRCount;
-  bottlenecks.push({
-    ruleCode: "R5",
-    ruleName: ruleMap["R5"]?.name ?? "Oversized PR Risk",
-    severity: "medium",
-    isTriggered: r5Value >= RULE_CONFIG.R5.threshold,
-    metricValue: r5Value,
-    threshold: RULE_CONFIG.R5.threshold,
-    thresholdUnit: RULE_CONFIG.R5.unit,
-    metricLabel: RULE_CONFIG.R5.label,
-    affectedCount: prMetrics.oversizedPRIds.length,
-    affectedItems: prMetrics.oversizedPRIds
-      .slice(0, 5)
-      .map((p) => ({ label: `#${p.prNumber} — ${p.title} (${p.totalLines} lines)` })),
-    suggestedAction: recMap["R5"] ?? "Break large changes into smaller pull requests",
-    evidenceType: "oversized_pr",
-    dataStatus: prMetrics.dataStatus,
-  });
-
-  // Sort: triggered first, then by severity (high > medium > low)
-  const severityOrder = { high: 0, medium: 1, low: 2 };
-  return bottlenecks.sort((a, b) => {
-    if (a.isTriggered !== b.isTriggered) return a.isTriggered ? -1 : 1;
-    return severityOrder[a.severity] - severityOrder[b.severity];
-  });
+  return bottlenecks;
 }
 
 // ─── Data Quality Summary ─────────────────────────────────────────────────────

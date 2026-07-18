@@ -1,14 +1,25 @@
 import { type Request, type Response } from "express";
 import mongoose from "mongoose";
 import { Repository } from "../models/Repository.js";
+import { GitHubConnection } from "../models/GitHubConnection.js";
 import { buildDashboard, getRulebook } from "../services/dashboardService.js";
 
 export class DashboardController {
   
   // GET /api/dashboard/repositories
-  async getRepositories(_req: Request, res: Response): Promise<void> {
+  async getRepositories(req: Request & { userId?: string }, res: Response): Promise<void> {
     try {
-      const repos = await Repository.find()
+      const userId = req.userId;
+      if (!userId) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
+      // Find user's github connections
+      const connections = await GitHubConnection.find({ userId: userId }).select("_id").lean();
+      const connectionIds = connections.map(c => c._id);
+
+      const repos = await Repository.find({ connectionId: { $in: connectionIds } })
         .select("_id owner name fullName lastSyncedAt isPrivate")
         .lean();
       res.json({ success: true, data: repos });

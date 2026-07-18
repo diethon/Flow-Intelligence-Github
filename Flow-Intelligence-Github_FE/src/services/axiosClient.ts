@@ -5,7 +5,7 @@ import type { ApiResponse } from '../types';
 const createApiClient = (baseURL: string) => {
   const client = axios.create({
     baseURL,
-    timeout: 15000,
+    timeout: 60000, // Increased to 60s to allow Gemini API enough time to generate the brief
     headers: {
       'Content-Type': 'application/json',
     },

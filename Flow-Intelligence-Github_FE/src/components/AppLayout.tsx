@@ -15,14 +15,14 @@ const NAV = [
     group: "Insights",
     items: [
       { to: "/risk",  label: "Risk & Evidence", icon: "◆", done: true  },
-      { to: "/brief", label: "AI Weekly Brief", icon: "◇", done: false },
+      { to: "/brief", label: "AI Weekly Brief", icon: "◇", done: true },
     ],
   },
   {
     group: "Settings",
     items: [
       { to: "/repositories/connect", label: "Connected Repos", icon: "🔌", done: true  },
-      { to: "/privacy", label: "Privacy Settings", icon: "◌", done: false },
+      { to: "/privacy", label: "Privacy Settings", icon: "◌", done: true },
     ],
   },
 ];

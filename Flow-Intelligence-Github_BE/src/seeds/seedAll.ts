@@ -18,6 +18,7 @@ import { MetricSnapshot } from "../models/MetricSnapshot.js";
 import { RiskEvent } from "../models/RiskEvent.js";
 import { EvidenceCard } from "../models/EvidenceCard.js";
 import { PrDelayPrediction } from "../models/PrDelayPrediction.js";
+import { ModelVersion } from "../models/ModelVersion.js";
 
 // Import seeding/analytics functions
 import { seedRulebook } from "./seedRulebook.js";
@@ -130,13 +131,23 @@ async function runSeeding() {
 
     // 5. Add some fake PR Delay Predictions
     console.log("[Seed] Seeding fake PR Delay Predictions...");
+    
+    // Create an available model version to satisfy the orchestrator
+    const modelVersion = await ModelVersion.create({
+      version: "rf-v1.0.0",
+      algorithm: "RandomForestClassifier",
+      artifactPath: "dataset/pr-delay-risk.joblib",
+      featureSchemaPath: "dataset/feature-schema.json",
+      status: "available",
+      trainedAt: new Date()
+    });
     const prs = await PullRequest.find({ repositoryId: repoId }).limit(2);
     if (prs.length > 0) {
       const predictions = prs.map((pr, index) => ({
         repositoryId: repoId,
         pullRequestId: pr._id,
-        modelVersionId: new mongoose.Types.ObjectId(), // Fake model version
-        probability: index === 0 ? 0.85 : 0.45,
+        modelVersionId: modelVersion._id,
+        probability: index === 0 ? 0.85 : 0.20,
         riskLabel: index === 0 ? "High" : "Medium",
         featureSummary: index === 0 
           ? { "additions": 1500, "changed_files": 45, "complexity": 12 }

@@ -16,9 +16,23 @@ import { createImportRoutes } from './routes/import.routes';
 import { EvidenceController } from './controllers/evidence.controller';
 import { createRepositoryEvidenceRoutes, createEvidenceCardRoutes } from './routes/evidence.routes';
 
+import { DataQualityService } from './services/dataQuality.service';
+import { DataQualityController } from './controllers/dataQuality.controller';
+import { createDataQualityRoutes } from './routes/dataQuality.routes';
+
+import { PrivacyService } from './services/privacy.service';
+import { PrivacyController } from './controllers/privacy.controller';
+import { createPrivacyRoutes } from './routes/privacy.routes';
+
+import { AiPayloadBuilderService } from './services/aiPayloadBuilder.service';
+import { BriefService } from './services/brief.service';
+import { BriefController } from './controllers/brief.controller';
+import { createBriefRoutes } from './routes/brief.routes';
+
 import metricsRouter from "./routes/metricsRoutes.js";
 import dashboardRouter from "./routes/dashboardRoutes.js";
 import riskRouter from "./routes/riskRoutes.js";
+import { createPredictionRouter } from './routes/prediction.routes.js';
 import { seedRulebook } from "./seeds/seedRulebook.js";
 
 const app: Express = express();
@@ -53,6 +67,16 @@ const githubController = new GitHubController(connectionService, syncService, gi
 const importController = new ImportController();
 const evidenceController = new EvidenceController();
 
+const dataQualityService = new DataQualityService();
+const dataQualityController = new DataQualityController(dataQualityService);
+
+const privacyService = new PrivacyService();
+const privacyController = new PrivacyController();
+
+const aiPayloadBuilderService = new AiPayloadBuilderService(privacyService);
+const briefService = new BriefService(aiPayloadBuilderService);
+const briefController = new BriefController(briefService);
+
 // Register routes
 app.use('/api/auth', authRoutes);
 app.use('/api/github', createGitHubRoutes(githubController));
@@ -60,6 +84,11 @@ app.use('/api/repositories', createRepositoryRoutes(githubController));
 app.use('/api/repositories', createImportRoutes(importController));
 app.use('/api/repositories', createRepositoryEvidenceRoutes(evidenceController));
 app.use('/api/evidence-cards', createEvidenceCardRoutes(evidenceController));
+
+app.use('/api/repositories', createDataQualityRoutes(dataQualityController));
+app.use('/api/repositories', createPrivacyRoutes(privacyController));
+app.use('/api/repositories', createBriefRoutes(briefController));
+app.use('/api/repositories', createPredictionRouter());
 app.use('/api/webhooks', createWebhookRoutes(webhookService));
 
 app.use("/api/metrics", metricsRouter);

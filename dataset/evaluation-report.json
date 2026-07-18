@@ -1,0 +1,28 @@
+{
+  "accuracy": 0.6068,
+  "precision": 0.5636,
+  "recall": 0.6068,
+  "f1Score": 0.5716,
+  "confusionMatrix": [
+    [
+      250,
+      8,
+      43
+    ],
+    [
+      35,
+      2,
+      20
+    ],
+    [
+      108,
+      5,
+      86
+    ]
+  ],
+  "classes": [
+    "Low (<24h)",
+    "Medium (24-72h)",
+    "High (>72h)"
+  ]
+}
