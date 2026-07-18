@@ -85,6 +85,7 @@ export class PredictionService {
     );
 
     return {
+      predictionId: prediction._id.toString(),
       pullRequestId: pr._id.toString(),
       modelVersionId: model._id.toString(),
       probability: prediction.probability,
