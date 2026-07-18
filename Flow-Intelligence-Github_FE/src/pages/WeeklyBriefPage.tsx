@@ -14,6 +14,12 @@ export function WeeklyBriefPage() {
   const [brief, setBrief] = useState<AiBriefData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState(
+    new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+  );
+  const [endDate, setEndDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
 
   useEffect(() => {
     fetchDashboardRepositories()
@@ -62,7 +68,9 @@ export function WeeklyBriefPage() {
     setLoading(true);
     setError(null);
     try {
-      const generated = await briefApi.generateBrief(selectedRepoId);
+      const startIso = new Date(startDate).toISOString();
+      const endIso = new Date(endDate + 'T23:59:59.999Z').toISOString();
+      const generated = await briefApi.generateBrief(selectedRepoId, startIso, endIso);
       setBrief(generated);
     } catch (err: any) {
       setError(err.message || "Failed to generate brief");
@@ -81,11 +89,16 @@ export function WeeklyBriefPage() {
       title="AI Weekly Brief"
       actions={
         repos.length > 0 ? (
-          <>
+          <div className="flex items-center gap-3">
             <RepoSelect repos={repos} value={selectedRepoId} onChange={handleSelectRepo} />
+            <div className="hidden md:flex items-center gap-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-lg px-2 shadow-sm">
+              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-transparent border-none focus:ring-0 text-slate-700 py-1.5 outline-none cursor-pointer" />
+              <span>→</span>
+              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent border-none focus:ring-0 text-slate-700 py-1.5 outline-none cursor-pointer" />
+            </div>
             <GhostBtn onClick={loadBriefs} disabled={loading}>↻ Refresh</GhostBtn>
-            <PrimaryBtn onClick={handleGenerate} disabled={loading}>✨ Generate Again</PrimaryBtn>
-          </>
+            <PrimaryBtn onClick={handleGenerate} disabled={loading}>✨ Generate</PrimaryBtn>
+          </div>
         ) : undefined
       }
     >
