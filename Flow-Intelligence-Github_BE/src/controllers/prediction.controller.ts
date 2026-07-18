@@ -5,10 +5,10 @@ import mongoose from 'mongoose';
 
 export class PredictionController {
   async getPredictionByPullRequestId(req: Request, res: Response) {
-    const { pullRequestId } = req.params;
+    const pullRequestId = String(req.params["pullRequestId"]);
 
     if (!mongoose.Types.ObjectId.isValid(pullRequestId)) {
-      throw new AppError('Invalid pullRequestId', 400);
+      throw new AppError('Invalid pullRequestId', 400, 'INVALID_INPUT');
     }
 
     const prediction = await PrDelayPrediction.findOne({ pullRequestId })
@@ -16,7 +16,7 @@ export class PredictionController {
       .lean() as any;
 
     if (!prediction) {
-      throw new AppError('Prediction not found for this pull request', 404);
+      throw new AppError('Prediction not found for this pull request', 404, 'NOT_FOUND');
     }
 
     res.json({

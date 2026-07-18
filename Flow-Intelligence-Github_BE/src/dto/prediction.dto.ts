@@ -7,6 +7,7 @@ export interface PredictionRequest {
 }
 
 export interface PredictionResult {
+  predictionId?: string;
   pullRequestId: string;
   modelVersionId: string;
   probability: number;
