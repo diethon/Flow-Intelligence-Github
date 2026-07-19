@@ -11,6 +11,7 @@ export interface IRepository extends Document {
   lastSyncedAt: Date | null;
   webhookId?: number | null;
   webhookUrl?: string | null;
+  slackWebhookUrl?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,6 +28,7 @@ const repositorySchema = new Schema<IRepository>(
     lastSyncedAt: { type: Date, default: null },
     webhookId: { type: Number, default: null },
     webhookUrl: { type: String, default: null },
+    slackWebhookUrl: { type: String, default: null },
   },
   { timestamps: true }
 );

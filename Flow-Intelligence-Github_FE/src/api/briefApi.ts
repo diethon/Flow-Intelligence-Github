@@ -34,4 +34,14 @@ export const briefApi = {
     const res = await apiClient.get<{ success: boolean; data: AiBriefData[] }>(`/repositories/${repositoryId}/briefs`);
     return res.data.data;
   },
+  updateNotificationSettings: async (repositoryId: string, slackWebhookUrl: string): Promise<any> => {
+    const res = await apiClient.patch<{ success: boolean; data: any }>(`/repositories/${repositoryId}/notification-settings`, {
+      slackWebhookUrl,
+    });
+    return res.data.data;
+  },
+  sendBriefNotification: async (repositoryId: string, payload?: { recipients?: string[]; slackWebhookUrl?: string }): Promise<any> => {
+    const res = await apiClient.post<{ success: boolean; message: string; data: any }>(`/repositories/${repositoryId}/briefs/send-notification`, payload || {});
+    return res.data;
+  },
 };
