@@ -3,6 +3,8 @@ export interface EvidenceItem {
   entityId: string;
   label: string;
   githubUrl: string | null;
+  /** Per-item reasoning: why this record is evidence (e.g. "Waited 38h for first review"). */
+  summary?: string;
 }
 
 export interface EvidenceCard {

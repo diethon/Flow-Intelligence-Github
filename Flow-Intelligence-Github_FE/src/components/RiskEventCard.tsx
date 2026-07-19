@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import type { RiskEvent, EvidenceItem } from "../types/risk.js";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -46,13 +47,17 @@ export function EvidenceItemRow({ item }: EvidenceItemRowProps) {
           </a>
         )}
       </div>
+      {/* Per-item reasoning: why this record is evidence for the rule. */}
+      {item.summary && item.summary !== item.label && (
+        <p className="mt-1.5 pl-8 text-xs text-slate-500">{item.summary}</p>
+      )}
     </div>
   );
 }
 
 // ─── Risk event card ──────────────────────────────────────────────────────────
 
-export function RiskEventCard({ event, dimmed = false }: { event: RiskEvent; dimmed?: boolean }) {
+export function RiskEventCard({ event, dimmed = false, repositoryId }: { event: RiskEvent; dimmed?: boolean; repositoryId?: string }) {
   const [open, setOpen] = useState(false);
   const acc = RULE_ACCENT[event.ruleCode] ?? RULE_ACCENT.R1;
   const icon = RULE_ICONS[event.ruleCode] ?? "⚠️";
@@ -158,6 +163,15 @@ export function RiskEventCard({ event, dimmed = false }: { event: RiskEvent; dim
                   <p className="text-xs font-semibold text-indigo-700 mb-1">💡 Suggested Action</p>
                   <p className="text-sm text-slate-600 leading-relaxed">{event.evidenceCard.suggestedAction}</p>
                 </div>
+              )}
+
+              {repositoryId && event.evidenceCard.id && (
+                <Link
+                  to={`/repositories/${repositoryId}/evidence/${event.evidenceCard.id}`}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 mt-1"
+                >
+                  View full evidence card →
+                </Link>
               )}
             </div>
           )}

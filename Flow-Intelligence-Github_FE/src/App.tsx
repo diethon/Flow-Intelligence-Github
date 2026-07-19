@@ -1,13 +1,12 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { DashboardPage, ConnectRepositoryPage, SyncStatusPage, LoginPage, PullRequestsPage } from './pages';
-import { RiskEvidencePage, EvidenceCardDetailPage } from './pages';
+import { EvidencePage, EvidenceCardDetailPage } from './pages';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { AppLayout } from './components/AppLayout.js';
 import { ReviewCIMetricsPage } from "./pages/ReviewCIMetricsPage.js";
 import { RulebookPage } from "./pages/RulebookPage.js";
 import { RiskPage } from "./pages/RiskPage.js";
-import { ComingSoon } from "./pages/ComingSoon.js";
 import { WeeklyBriefPage } from "./pages/WeeklyBriefPage.js";
 import { PrivacyPage } from "./pages/PrivacyPage.js";
 
@@ -131,8 +130,50 @@ function App() {
             path="/risk"
             element={
               <ProtectedRoute>
+                <SelectedRepoRedirect section="risk" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/evidence"
+            element={
+              <ProtectedRoute>
+                <SelectedRepoRedirect section="evidence" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/repositories/:id/risk"
+            element={
+              <ProtectedRoute>
                 <AppLayout>
-                  <RiskPage />
+                  <div className="px-4 sm:px-6 py-5 sm:py-8">
+                    <RiskPageWrapper />
+                  </div>
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/repositories/:id/evidence"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <div className="px-4 sm:px-6 py-5 sm:py-8">
+                    <EvidencePageWrapper />
+                  </div>
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/repositories/:id/evidence/:cardId"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <div className="px-4 sm:px-6 py-5 sm:py-8">
+                    <EvidenceCardDetailPageWrapper />
+                  </div>
                 </AppLayout>
               </ProtectedRoute>
             }
@@ -157,30 +198,9 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/repositories/:id/risk-evidence"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <div className="px-4 sm:px-6 py-5 sm:py-8">
-                    <RiskEvidencePageWrapper />
-                  </div>
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/repositories/:id/risk-evidence/:cardId"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <div className="px-4 sm:px-6 py-5 sm:py-8">
-                    <EvidenceCardDetailPageWrapper />
-                  </div>
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
+          {/* Legacy routes — redirect to the split Evidence pages. */}
+          <Route path="/repositories/:id/risk-evidence" element={<LegacyEvidenceRedirect />} />
+          <Route path="/repositories/:id/risk-evidence/:cardId" element={<LegacyEvidenceRedirect />} />
         </Routes>
       </Router>
     </QueryClientProvider>
@@ -203,12 +223,20 @@ const PullRequestsPageWrapper = () => {
   return <PullRequestsPage />;
 };
 
-const RiskEvidencePageWrapper = () => {
+const RiskPageWrapper = () => {
   const { id } = useParams<{ id: string }>();
   if (!id) {
     return <Navigate to="/repositories/connect" replace />;
   }
-  return <RiskEvidencePage repositoryId={id} />;
+  return <RiskPage repositoryId={id} />;
+};
+
+const EvidencePageWrapper = () => {
+  const { id } = useParams<{ id: string }>();
+  if (!id) {
+    return <Navigate to="/repositories/connect" replace />;
+  }
+  return <EvidencePage repositoryId={id} />;
 };
 
 const EvidenceCardDetailPageWrapper = () => {
@@ -217,6 +245,28 @@ const EvidenceCardDetailPageWrapper = () => {
     return <Navigate to="/repositories/connect" replace />;
   }
   return <EvidenceCardDetailPage repositoryId={id} cardId={cardId} />;
+};
+
+// The sidebar links are global, but the Risk/Evidence pages are repo-scoped.
+// Redirect to the last-selected repository, falling back to the dashboard.
+const SelectedRepoRedirect = ({ section }: { section: 'risk' | 'evidence' }) => {
+  const repoId = localStorage.getItem('selectedRepositoryId');
+  if (!repoId) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <Navigate to={`/repositories/${repoId}/${section}`} replace />;
+};
+
+// Legacy /repositories/:id/risk-evidence(/:cardId) → new /evidence path.
+const LegacyEvidenceRedirect = () => {
+  const { id, cardId } = useParams<{ id: string; cardId?: string }>();
+  if (!id) {
+    return <Navigate to="/repositories/connect" replace />;
+  }
+  const target = cardId
+    ? `/repositories/${id}/evidence/${cardId}`
+    : `/repositories/${id}/evidence`;
+  return <Navigate to={target} replace />;
 };
 
 export default App;
