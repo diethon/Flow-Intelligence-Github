@@ -3,6 +3,7 @@ import { EvidenceCardRepository, EvidenceCardFilter } from '../repositories/evid
 import { IEvidenceItem } from '../models/evidenceCard.model';
 import { Issue } from '../models/issue.model';
 import { Commit } from '../models/commit.model';
+import { Review } from '../models/Review';
 import { CheckRun } from '../models/checkRun.model';
 import { PullRequest, GitHubRepository } from '../modules/github/models/index.js';
 import { RiskEvent } from '../models/RiskEvent';
@@ -24,6 +25,7 @@ const RECOMMENDATION_BY_RULE: Record<string, string> = {
   R3: 'Distribute review ownership and rotate reviewers.',
   R4: 'Inspect failing checks, rerun them, and prioritize CI fixes.',
   R5: 'Split the PR into smaller, focused changes for easier review.',
+  W1: 'Review workload distribution across the team and encourage healthier working-hours boundaries.',
 };
 
 const DEFAULT_LIMITATION = 'Only GitHub PR/review metadata was analyzed.';
@@ -35,6 +37,7 @@ const RULE_CAVEAT: Record<string, string> = {
   R3: 'Small teams naturally concentrate reviews on fewer people.',
   R4: 'Counts required checks only; flaky tests can cause false positives.',
   R5: 'Generated or vendored files can inflate line counts.',
+  W1: 'Off-hours are computed in UTC without timezone normalization; contributors in other timezones may be miscounted.',
 };
 
 /** Which unresolved data-quality warning weakens confidence for each rule. */
@@ -120,6 +123,21 @@ export class EvidenceCardService {
           }
           break;
         }
+        case 'review': {
+          const review = await Review.findById(oid);
+          if (review) {
+            // Reviewer identity is intentionally masked (no real login in evidence).
+            const pr = await PullRequest.findById(review.pullRequestId);
+            items.push({
+              entityType: 'review',
+              entityId: review._id,
+              sourceLabel: pr ? `Review on PR #${pr.number}` : 'Review',
+              sourceUrl: pr?.prUrl || '',
+              summary: `Review submitted (${review.state})`,
+            });
+          }
+          break;
+        }
       }
     }
 
@@ -127,13 +145,13 @@ export class EvidenceCardService {
   }
 
   /**
-   * UC-15: Generate an Evidence Card from a rule-based risk event.
-   * Guardrail: a card with no resolvable evidence is never created.
+   * Build the Evidence Card shape from a rule-based risk event WITHOUT persisting
+   * it. Guardrail: throws if no evidence resolves (a card with no evidence is
+   * never produced). Used both by {@link generateFromRiskEvent} (which persists)
+   * and by signals that render on their own page and must NOT pollute the shared
+   * Evidence list (e.g. Workload Risk / burnout — surfaced only on its own page).
    */
-  async generateFromRiskEvent(
-    repositoryId: string,
-    input: RiskEventInput
-  ): Promise<ApiResponse<unknown>> {
+  async buildRiskEventCard(repositoryId: string, input: RiskEventInput) {
     await this.assertRepositoryExists(repositoryId);
 
     const evidence = await this.resolveEvidence(input.affectedEntityRefs);
@@ -161,9 +179,9 @@ export class EvidenceCardService {
     const limitation =
       input.limitation || (caveat ? `${DEFAULT_LIMITATION} ${caveat}` : DEFAULT_LIMITATION);
 
-    const card = await this.repo.create({
+    return {
       repositoryId: new mongoose.Types.ObjectId(repositoryId),
-      sourceType: 'risk_event',
+      sourceType: 'risk_event' as const,
       title: input.title || `Flow risk detected (${input.ruleCode})`,
       severity: input.severity,
       summary:
@@ -175,8 +193,19 @@ export class EvidenceCardService {
       suggestedAction,
       confidence,
       limitation,
-    });
+    };
+  }
 
+  /**
+   * UC-15: Generate and persist an Evidence Card from a rule-based risk event.
+   * Guardrail: a card with no resolvable evidence is never created.
+   */
+  async generateFromRiskEvent(
+    repositoryId: string,
+    input: RiskEventInput
+  ): Promise<ApiResponse<unknown>> {
+    const cardData = await this.buildRiskEventCard(repositoryId, input);
+    const card = await this.repo.create(cardData);
     return { success: true, message: 'Evidence Card created', data: card };
   }
 

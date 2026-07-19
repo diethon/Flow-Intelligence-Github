@@ -5,3 +5,4 @@ export { default as LoginPage } from './LoginPage';
 export { default as PullRequestsPage } from './PullRequestsPage';
 export { default as EvidencePage } from './EvidencePage';
 export { default as EvidenceCardDetailPage } from './EvidenceCardDetailPage';
+export { default as WorkloadRiskPage } from './WorkloadRiskPage';

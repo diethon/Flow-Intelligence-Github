@@ -7,6 +7,7 @@ import { AppLayout } from './components/AppLayout.js';
 import { ReviewCIMetricsPage } from "./pages/ReviewCIMetricsPage.js";
 import { RulebookPage } from "./pages/RulebookPage.js";
 import { RiskPage } from "./pages/RiskPage.js";
+import { WorkloadRiskPage } from "./pages/WorkloadRiskPage.js";
 import { WeeklyBriefPage } from "./pages/WeeklyBriefPage.js";
 import { PrivacyPage } from "./pages/PrivacyPage.js";
 
@@ -143,6 +144,14 @@ function App() {
             }
           />
           <Route
+            path="/workload-risk"
+            element={
+              <ProtectedRoute>
+                <SelectedRepoRedirect section="workload-risk" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/repositories/:id/risk"
             element={
               <ProtectedRoute>
@@ -161,6 +170,18 @@ function App() {
                 <AppLayout>
                   <div className="px-4 sm:px-6 py-5 sm:py-8">
                     <EvidencePageWrapper />
+                  </div>
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/repositories/:id/workload-risk"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <div className="px-4 sm:px-6 py-5 sm:py-8">
+                    <WorkloadRiskPageWrapper />
                   </div>
                 </AppLayout>
               </ProtectedRoute>
@@ -239,6 +260,14 @@ const EvidencePageWrapper = () => {
   return <EvidencePage repositoryId={id} />;
 };
 
+const WorkloadRiskPageWrapper = () => {
+  const { id } = useParams<{ id: string }>();
+  if (!id) {
+    return <Navigate to="/repositories/connect" replace />;
+  }
+  return <WorkloadRiskPage repositoryId={id} />;
+};
+
 const EvidenceCardDetailPageWrapper = () => {
   const { id, cardId } = useParams<{ id: string, cardId: string }>();
   if (!id || !cardId) {
@@ -249,7 +278,7 @@ const EvidenceCardDetailPageWrapper = () => {
 
 // The sidebar links are global, but the Risk/Evidence pages are repo-scoped.
 // Redirect to the last-selected repository, falling back to the dashboard.
-const SelectedRepoRedirect = ({ section }: { section: 'risk' | 'evidence' }) => {
+const SelectedRepoRedirect = ({ section }: { section: 'risk' | 'evidence' | 'workload-risk' }) => {
   const repoId = localStorage.getItem('selectedRepositoryId');
   if (!repoId) {
     return <Navigate to="/dashboard" replace />;

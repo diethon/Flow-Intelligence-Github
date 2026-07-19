@@ -3,8 +3,10 @@ import { PullRequest } from "../models/PullRequest.js";
 import { Review } from "../models/Review.js";
 import { ReviewRequest } from "../models/ReviewRequest.js";
 import { CheckRun } from "../models/CheckRun.js";
+import { Commit } from "../models/Commit.js";
 import { Contributor } from "../models/Contributor.js";
 import { MetricSnapshot, type MetricKey } from "../models/MetricSnapshot.js";
+import { classifyOffHours } from "../utils/offHours.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -474,4 +476,225 @@ export async function persistUC10Snapshots(result: UC10MetricsResult): Promise<v
       )
     )
   );
+}
+
+// ─── Workload Risk (Developer Burnout signal) ─────────────────────────────────
+
+/**
+ * Minimum number of distinct contributors with off-hours activity required
+ * before a Workload Risk signal is surfaced. Below this, we return
+ * `insufficient_data` so the aggregate cannot be traced back to an individual
+ * (privacy-safe by design — no individual productivity score).
+ */
+export const WORKLOAD_MIN_GROUP_THRESHOLD = 3;
+
+/** Number of representative off-hours records attached as Evidence. */
+const WORKLOAD_EVIDENCE_LIMIT = 6;
+
+export type WorkloadSeverity = "high" | "medium" | "low";
+
+export interface WorkloadRiskAggregate {
+  totalEvents: number;
+  offHoursEvents: number;
+  offHoursPct: number | null;
+  weekendCount: number;
+  nightCount: number;
+  distinctContributorsOffHours: number;
+  windowStart: Date;
+  windowEnd: Date;
+  dataStatus: "ok" | "insufficient_data";
+}
+
+/** Per-contributor breakdown. `label` carries the real GitHub identity. */
+export interface WorkloadContributorBreakdown {
+  label: string;
+  totalCommits: number;
+  offHoursEvents: number;
+  weekend: number;
+  night: number;
+}
+
+export interface WorkloadEvidenceRef {
+  entityType: "commit" | "review";
+  entityId: string;
+}
+
+export interface WorkloadRiskResult {
+  repositoryId: string;
+  aggregate: WorkloadRiskAggregate;
+  breakdown: WorkloadContributorBreakdown[];
+  evidenceRefs: WorkloadEvidenceRef[];
+  severity: WorkloadSeverity;
+}
+
+interface OffHoursEvent {
+  entityType: "commit" | "review";
+  entityId: string;
+  at: Date;
+  contributorId: string | null;
+  weekend: boolean;
+  night: boolean;
+}
+
+/** Stable pseudonym label: "Contributor A", "Contributor B", ... */
+export function pseudonymLabel(index: number): string {
+  if (index < 26) return `Contributor ${String.fromCharCode(65 + index)}`;
+  return `Contributor ${index + 1}`;
+}
+
+function severityFromPct(pct: number): WorkloadSeverity {
+  if (pct >= 40) return "high";
+  if (pct >= 20) return "medium";
+  return "low";
+}
+
+/**
+ * Developer Burnout / Workload Risk: scans commits and reviews in the window,
+ * flags activity happening on weekends or at night (UTC), and aggregates it at
+ * the team level plus a pseudonymized per-contributor breakdown.
+ *
+ * Privacy: no real names are ever returned; below WORKLOAD_MIN_GROUP_THRESHOLD
+ * distinct contributors the result is marked `insufficient_data`.
+ */
+export async function calculateWorkloadRisk(
+  repositoryId: string,
+  windowStart: Date,
+  windowEnd: Date
+): Promise<WorkloadRiskResult> {
+  const repoObjectId = new mongoose.Types.ObjectId(repositoryId);
+
+  const [commits, reviews, contributors] = await Promise.all([
+    Commit.find({ repositoryId: repoObjectId, committedAt: { $gte: windowStart, $lte: windowEnd } })
+      .select("_id committedAt authorGithubId authorLogin")
+      .lean<{ _id: mongoose.Types.ObjectId; committedAt: Date; authorGithubId?: number | null; authorLogin?: string | null }[]>(),
+    Review.find({ repositoryId: repoObjectId, submittedAt: { $gte: windowStart, $lte: windowEnd } })
+      .select("_id submittedAt reviewerId")
+      .lean(),
+    Contributor.find({ repositoryId: repoObjectId })
+      .select("_id githubUserId login")
+      .lean<{ _id: mongoose.Types.ObjectId; githubUserId?: number | null; login?: string | null }[]>(),
+  ]);
+
+  // Commits are stored with the author's GitHub id (not a Contributor ref),
+  // while reviews carry a Contributor _id. Resolve commit authors into that same
+  // identity space so someone who both commits AND reviews off-hours is counted
+  // once. Authors without a Contributor record fall back to a stable `gh:<id>` key.
+  const contributorIdByGithubId = new Map<number, string>();
+  const nameByContributorId = new Map<string, string>();
+  for (const c of contributors) {
+    if (c.githubUserId != null) contributorIdByGithubId.set(c.githubUserId, c._id.toString());
+    nameByContributorId.set(c._id.toString(), c.login ?? `@${c.githubUserId ?? "unknown"}`);
+  }
+  const commitContributorId = (githubUserId?: number | null): string | null => {
+    if (githubUserId == null) return null;
+    return contributorIdByGithubId.get(githubUserId) ?? `gh:${githubUserId}`;
+  };
+  // Commit authors often have no Contributor record (unlinked/bot accounts), so
+  // remember their GitHub login to show a real name instead of a bare id.
+  const loginByGithubId = new Map<number, string>();
+  // Real contributor identity for the breakdown (per the project decision to
+  // surface who is working off-hours).
+  const displayName = (contributorId: string): string => {
+    const known = nameByContributorId.get(contributorId);
+    if (known) return known;
+    if (contributorId.startsWith("gh:")) {
+      const gid = Number(contributorId.slice(3));
+      return loginByGithubId.get(gid) ?? `@${gid}`;
+    }
+    return contributorId;
+  };
+
+  const totalEvents = commits.length + reviews.length;
+
+  // Total commits per contributor (all hours) so the breakdown can show how
+  // many of a person's commits landed off-hours out of their total.
+  const totalCommitsByContributor = new Map<string, number>();
+
+  const offHoursEvents: OffHoursEvent[] = [];
+  for (const c of commits) {
+    if (c.authorGithubId != null && c.authorLogin) loginByGithubId.set(c.authorGithubId, c.authorLogin);
+    const cid = commitContributorId(c.authorGithubId);
+    if (cid) totalCommitsByContributor.set(cid, (totalCommitsByContributor.get(cid) ?? 0) + 1);
+
+    const flags = classifyOffHours(c.committedAt);
+    if (!flags.offHours) continue;
+    offHoursEvents.push({
+      entityType: "commit",
+      entityId: c._id.toString(),
+      at: c.committedAt,
+      contributorId: cid,
+      weekend: flags.weekend,
+      night: flags.night,
+    });
+  }
+  for (const r of reviews) {
+    const flags = classifyOffHours(r.submittedAt);
+    if (!flags.offHours) continue;
+    offHoursEvents.push({
+      entityType: "review",
+      entityId: r._id.toString(),
+      at: r.submittedAt,
+      contributorId: r.reviewerId ? r.reviewerId.toString() : null,
+      weekend: flags.weekend,
+      night: flags.night,
+    });
+  }
+
+  const weekendCount = offHoursEvents.filter((e) => e.weekend).length;
+  const nightCount = offHoursEvents.filter((e) => e.night).length;
+  const offHoursPct = totalEvents > 0 ? Math.round((offHoursEvents.length / totalEvents) * 100) : null;
+
+  // Group by contributor (known ids only) for the pseudonymized breakdown.
+  const byContributor = new Map<string, { offHoursEvents: number; weekend: number; night: number }>();
+  for (const e of offHoursEvents) {
+    if (!e.contributorId) continue;
+    const acc = byContributor.get(e.contributorId) ?? { offHoursEvents: 0, weekend: 0, night: 0 };
+    acc.offHoursEvents += 1;
+    if (e.weekend) acc.weekend += 1;
+    if (e.night) acc.night += 1;
+    byContributor.set(e.contributorId, acc);
+  }
+
+  const distinctContributorsOffHours = byContributor.size;
+  const insufficient = totalEvents === 0 || distinctContributorsOffHours < WORKLOAD_MIN_GROUP_THRESHOLD;
+
+  // Per-contributor breakdown with real identity + total vs off-hours commits.
+  const breakdown: WorkloadContributorBreakdown[] = insufficient
+    ? []
+    : Array.from(byContributor.entries())
+        .map(([cid, stats]) => ({
+          label: displayName(cid),
+          totalCommits: totalCommitsByContributor.get(cid) ?? 0,
+          offHoursEvents: stats.offHoursEvents,
+          weekend: stats.weekend,
+          night: stats.night,
+        }))
+        .sort((a, b) => b.offHoursEvents - a.offHoursEvents);
+
+  const evidenceRefs: WorkloadEvidenceRef[] = insufficient
+    ? []
+    : [...offHoursEvents]
+        .sort((a, b) => b.at.getTime() - a.at.getTime())
+        .slice(0, WORKLOAD_EVIDENCE_LIMIT)
+        .map((e) => ({ entityType: e.entityType, entityId: e.entityId }));
+
+  const severity: WorkloadSeverity = insufficient || offHoursPct === null ? "low" : severityFromPct(offHoursPct);
+
+  return {
+    repositoryId,
+    aggregate: {
+      totalEvents,
+      offHoursEvents: offHoursEvents.length,
+      offHoursPct,
+      weekendCount,
+      nightCount,
+      distinctContributorsOffHours,
+      windowStart,
+      windowEnd,
+      dataStatus: insufficient ? "insufficient_data" : "ok",
+    },
+    breakdown,
+    evidenceRefs,
+    severity,
+  };
 }

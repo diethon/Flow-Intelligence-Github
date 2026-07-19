@@ -14,9 +14,10 @@ const NAV = [
   {
     group: "Insights",
     items: [
-      { to: "/risk",     label: "Risk",            icon: "◆", done: true  },
-      { to: "/evidence", label: "Evidence",        icon: "◈", done: true  },
-      { to: "/brief",    label: "AI Weekly Brief", icon: "◇", done: true },
+      { to: "/risk",          label: "Risk",            icon: "◆", done: true  },
+      { to: "/evidence",      label: "Evidence",        icon: "◈", done: true  },
+      { to: "/workload-risk", label: "Workload Risk",   icon: "🌙", done: true  },
+      { to: "/brief",         label: "AI Weekly Brief", icon: "◇", done: true },
     ],
   },
   {
