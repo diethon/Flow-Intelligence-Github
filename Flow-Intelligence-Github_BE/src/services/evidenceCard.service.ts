@@ -5,6 +5,11 @@ import { Issue } from '../models/issue.model';
 import { Commit } from '../models/commit.model';
 import { CheckRun } from '../models/checkRun.model';
 import { PullRequest, GitHubRepository } from '../modules/github/models/index.js';
+import { RiskEvent } from '../models/RiskEvent';
+import { FlowRule } from '../models/FlowRule';
+import type { RuleCode } from '../models/FlowRule';
+import { Recommendation } from '../models/Recommendation';
+import { DataQualityWarning, DataQualityCode } from '../models/DataQualityWarning';
 import { AppError } from '../utils/AppError';
 import { ApiResponse } from '../types';
 import { RiskEventInput, PredictionInput, EvidenceListQuery } from '../dto/evidence.dto';
@@ -22,6 +27,24 @@ const RECOMMENDATION_BY_RULE: Record<string, string> = {
 };
 
 const DEFAULT_LIMITATION = 'Only GitHub PR/review metadata was analyzed.';
+
+/** Rule-specific caveat appended to the limitation, to head off false positives. */
+const RULE_CAVEAT: Record<string, string> = {
+  R1: 'Includes draft/WIP PRs that may be intentionally left open.',
+  R2: 'Counts only PRs that received a review; automated reviews are included.',
+  R3: 'Small teams naturally concentrate reviews on fewer people.',
+  R4: 'Counts required checks only; flaky tests can cause false positives.',
+  R5: 'Generated or vendored files can inflate line counts.',
+};
+
+/** Which unresolved data-quality warning weakens confidence for each rule. */
+const RULE_WARNING_CODE: Record<string, DataQualityCode> = {
+  R1: 'no_pr_data',
+  R2: 'no_review_data',
+  R3: 'no_review_data',
+  R4: 'missing_checks_permission',
+  R5: 'no_pr_data',
+};
 
 export class EvidenceCardService {
   constructor(private readonly repo: EvidenceCardRepository = new EvidenceCardRepository()) {}
@@ -123,6 +146,21 @@ export class EvidenceCardService {
       );
     }
 
+    // Reuse the rulebook recommendation (owned by the metrics module) before
+    // falling back to the built-in default.
+    const recommendation = await Recommendation.findOne({ ruleCode: input.ruleCode as RuleCode }).lean();
+    const suggestedAction =
+      input.suggestedAction ||
+      recommendation?.description ||
+      RECOMMENDATION_BY_RULE[input.ruleCode] ||
+      'Review the affected items.';
+
+    const confidence = input.confidence || (await this.deriveConfidence(repositoryId, input.ruleCode));
+
+    const caveat = RULE_CAVEAT[input.ruleCode];
+    const limitation =
+      input.limitation || (caveat ? `${DEFAULT_LIMITATION} ${caveat}` : DEFAULT_LIMITATION);
+
     const card = await this.repo.create({
       repositoryId: new mongoose.Types.ObjectId(repositoryId),
       sourceType: 'risk_event',
@@ -134,13 +172,33 @@ export class EvidenceCardService {
           ? `Metric ${input.metricValue} crossed threshold ${input.thresholdValue}.`
           : `Rule ${input.ruleCode} triggered.`),
       evidence,
-      suggestedAction:
-        input.suggestedAction || RECOMMENDATION_BY_RULE[input.ruleCode] || 'Review the affected items.',
-      confidence: input.confidence || 'medium',
-      limitation: input.limitation || DEFAULT_LIMITATION,
+      suggestedAction,
+      confidence,
+      limitation,
     });
 
     return { success: true, message: 'Evidence Card created', data: card };
+  }
+
+  /**
+   * Confidence from data completeness: an unresolved data-quality warning for the
+   * rule's metric lowers confidence to "medium". Otherwise "high". Never "low" —
+   * a card that weak would not have been created.
+   */
+  private async deriveConfidence(
+    repositoryId: string,
+    ruleCode: string
+  ): Promise<'high' | 'medium'> {
+    const warnCode = RULE_WARNING_CODE[ruleCode];
+    if (warnCode) {
+      const warn = await DataQualityWarning.findOne({
+        repositoryId: new mongoose.Types.ObjectId(repositoryId),
+        code: warnCode,
+        resolvedAt: null,
+      }).lean();
+      if (warn) return 'medium';
+    }
+    return 'high';
   }
 
   /**
@@ -223,13 +281,44 @@ export class EvidenceCardService {
     };
   }
 
-  /** UC-16: Evidence Card detail with resolved evidence for drill-down. */
+  /**
+   * UC-16: Evidence Card detail with resolved evidence for drill-down.
+   * For rule-based cards, also surface the linked RiskEvent as "risk drivers"
+   * (metric vs threshold, evaluation window, status) so the detail page can
+   * explain *why* the rule triggered — symmetric to prediction cards' ML details.
+   */
   async getById(id: string): Promise<ApiResponse<unknown>> {
     const card = await this.repo.findById(id);
     if (!card) {
       throw new AppError('Evidence Card not found', 404, 'EVIDENCE_CARD_NOT_FOUND', { id });
     }
-    return { success: true, data: card };
+
+    const maybeDoc = card as { toObject?: () => Record<string, unknown> };
+    const data: Record<string, unknown> =
+      typeof maybeDoc.toObject === 'function'
+        ? maybeDoc.toObject()
+        : { ...(card as Record<string, unknown>) };
+
+    if (card.sourceType === 'risk_event' && card.riskEventId) {
+      const event = await RiskEvent.findById(card.riskEventId).lean();
+      if (event) {
+        const rule = await FlowRule.findOne({ ruleCode: event.ruleCode }).lean();
+        data.riskEvent = {
+          ruleCode: event.ruleCode,
+          ruleName: rule?.name ?? event.ruleCode,
+          metricValue: event.metricValue,
+          thresholdValue: event.thresholdValue,
+          thresholdUnit: rule?.thresholdUnit ?? '',
+          operator: rule?.operator ?? 'gte',
+          status: event.status,
+          severity: event.severity,
+          windowStart: event.windowStart,
+          windowEnd: event.windowEnd,
+        };
+      }
+    }
+
+    return { success: true, data };
   }
 }
 
