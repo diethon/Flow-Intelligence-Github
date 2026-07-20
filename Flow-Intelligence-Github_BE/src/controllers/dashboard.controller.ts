@@ -20,7 +20,7 @@ export class DashboardController {
       const connectionIds = connections.map(c => c._id);
 
       const repos = await Repository.find({ connectionId: { $in: connectionIds } })
-        .select("_id owner name fullName lastSyncedAt isPrivate")
+        .select("_id owner name fullName lastSyncedAt isPrivate slackWebhookUrl scheduleEnabled scheduleDay scheduleTime")
         .lean();
       res.json({ success: true, data: repos });
     } catch (err) {
