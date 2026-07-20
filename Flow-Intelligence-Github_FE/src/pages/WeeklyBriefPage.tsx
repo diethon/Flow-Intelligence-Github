@@ -128,6 +128,20 @@ export function WeeklyBriefPage() {
             <p className="text-slate-700 leading-relaxed">{brief.summary}</p>
           </div>
 
+          {brief.items.some(i => i.type === "trend_comparison") && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
+              <h2 className="text-xl font-bold text-slate-900 mb-4">📈 Trend Analysis</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {brief.items.filter(i => i.type === "trend_comparison").map((item, idx) => (
+                  <div key={idx} className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                    <h4 className="font-semibold text-blue-900 mb-1">{item.title}</h4>
+                    <p className="text-sm text-blue-800">{item.detail}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h3 className="text-lg font-bold text-slate-900 mb-4">Key Insights</h3>

@@ -16,7 +16,10 @@ export class BriefService {
       }
 
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const prompt = `Analyze the following team workflow metrics and evidence cards. Provide an executive summary, list of limitations, and an array of items (each item having type 'risk_summary' or 'recommendation', title, detail, severity 'high'|'medium'|'low'|'info'). Output strictly in valid JSON matching this schema: { "summary": "string", "confidence": "high"|"medium"|"low", "limitations": ["string"], "items": [{ "type": "risk_summary"|"recommendation", "title": "string", "detail": "string", "severity": "high"|"medium"|"low"|"info" }] }
+      const prompt = `Analyze the following team workflow metrics and evidence cards. Note that 'metrics' and 'predictions' represent the current period, while 'previousMetrics' and 'previousPredictions' represent the preceding historical period.
+Compare the current period with the previous period to identify trends. If there are significant changes, highlight them in the executive summary or add items with type 'trend_comparison'.
+Provide an executive summary, list of limitations, and an array of items (each item having type 'risk_summary' | 'recommendation' | 'trend_comparison', title, detail, severity 'high'|'medium'|'low'|'info').
+Output strictly in valid JSON matching this schema: { "summary": "string", "confidence": "high"|"medium"|"low", "limitations": ["string"], "items": [{ "type": "risk_summary"|"recommendation"|"trend_comparison", "title": "string", "detail": "string", "severity": "high"|"medium"|"low"|"info" }] }
 
 Payload data: ${JSON.stringify(payload)}`;
 
