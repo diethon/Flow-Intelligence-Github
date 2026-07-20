@@ -112,11 +112,17 @@ export class BriefController {
       throw new AppError("Repository ID is required", 400, "BAD_REQUEST");
     }
 
-    const { slackWebhookUrl } = req.body;
+    const { slackWebhookUrl, scheduleEnabled, scheduleDay, scheduleTime } = req.body;
+
+    const updatePayload: Record<string, any> = {};
+    if (slackWebhookUrl !== undefined) updatePayload.slackWebhookUrl = slackWebhookUrl || null;
+    if (scheduleEnabled !== undefined) updatePayload.scheduleEnabled = Boolean(scheduleEnabled);
+    if (scheduleDay !== undefined) updatePayload.scheduleDay = scheduleDay;
+    if (scheduleTime !== undefined) updatePayload.scheduleTime = scheduleTime;
 
     const repo = await Repository.findByIdAndUpdate(
       id,
-      { slackWebhookUrl: slackWebhookUrl || null },
+      updatePayload,
       { new: true }
     );
 

@@ -18,8 +18,11 @@ export function PrivacyPage() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("Settings saved successfully!");
 
-  // Slack Notification settings
+  // Slack & Schedule Notification settings
   const [slackWebhookUrl, setSlackWebhookUrl] = useState("");
+  const [scheduleEnabled, setScheduleEnabled] = useState(true);
+  const [scheduleDay, setScheduleDay] = useState("FRIDAY");
+  const [scheduleTime, setScheduleTime] = useState("17:00");
   const [testingNotification, setTestingNotification] = useState(false);
 
   useEffect(() => {
@@ -34,6 +37,9 @@ export function PrivacyPage() {
 
           const currentRepo = data.find((r) => r._id === activeId);
           setSlackWebhookUrl((currentRepo as any)?.slackWebhookUrl || "");
+          setScheduleEnabled((currentRepo as any)?.scheduleEnabled !== false);
+          setScheduleDay((currentRepo as any)?.scheduleDay || "FRIDAY");
+          setScheduleTime((currentRepo as any)?.scheduleTime || "17:00");
         } else {
           setLoading(false);
         }
@@ -53,6 +59,9 @@ export function PrivacyPage() {
       setSettings(data);
       const currentRepo = repos.find((r) => r._id === selectedRepoId);
       setSlackWebhookUrl((currentRepo as any)?.slackWebhookUrl || "");
+      setScheduleEnabled((currentRepo as any)?.scheduleEnabled !== false);
+      setScheduleDay((currentRepo as any)?.scheduleDay || "FRIDAY");
+      setScheduleTime((currentRepo as any)?.scheduleTime || "17:00");
     } catch (err: any) {
       setError(err.message || "Failed to load settings");
     } finally {
@@ -82,13 +91,22 @@ export function PrivacyPage() {
     setError(null);
     try {
       await privacyApi.updateSettings(selectedRepoId, settings);
-      await briefApi.updateNotificationSettings(selectedRepoId, slackWebhookUrl);
+      await briefApi.updateNotificationSettings(selectedRepoId, {
+        slackWebhookUrl,
+        scheduleEnabled,
+        scheduleDay,
+        scheduleTime,
+      });
 
       setRepos((prev) =>
-        prev.map((r) => (r._id === selectedRepoId ? { ...r, slackWebhookUrl } : r))
+        prev.map((r) =>
+          r._id === selectedRepoId
+            ? { ...r, slackWebhookUrl, scheduleEnabled, scheduleDay, scheduleTime }
+            : r
+        )
       );
 
-      setToastMessage("Privacy & Slack notification settings saved!");
+      setToastMessage("Privacy & delivery schedule settings saved!");
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3500);
     } catch (err: any) {
@@ -141,17 +159,73 @@ export function PrivacyPage() {
 
       {!loading && !error && settings && (
         <div className="space-y-8 max-w-4xl">
-          {/* Slack Integration Card */}
+          {/* Notification Schedule & Slack Integration Card */}
           <section className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
             <SectionHeading
-              title="💬 Slack Integration & Channel Delivery"
-              subtitle="Configure Slack Incoming Webhook for automatic Friday 17:00 Weekly AI Brief delivery."
+              title="💬 Automated Delivery & Slack Integration"
+              subtitle="Configure your team's preferred day, time, and Slack Webhook for Weekly AI Brief delivery."
             />
 
-            <div className="mt-6 space-y-4">
+            <div className="mt-6 space-y-6">
+              {/* Schedule Enable Toggle */}
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div>
+                  <h4 className="font-semibold text-slate-800">Enable Automatic Weekly Schedule</h4>
+                  <p className="text-sm text-slate-500 max-w-lg">
+                    Automatically generate AI Brief and send Email & Slack reports on the configured schedule.
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={scheduleEnabled}
+                    onChange={(e) => setScheduleEnabled(e.target.checked)}
+                  />
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+              </div>
+
+              {/* Day & Time Selection */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-800 mb-2">
+                    📅 Delivery Day
+                  </label>
+                  <select
+                    value={scheduleDay}
+                    onChange={(e) => setScheduleDay(e.target.value)}
+                    disabled={!scheduleEnabled}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:bg-slate-50"
+                  >
+                    <option value="MONDAY">Monday</option>
+                    <option value="TUESDAY">Tuesday</option>
+                    <option value="WEDNESDAY">Wednesday</option>
+                    <option value="THURSDAY">Thursday</option>
+                    <option value="FRIDAY">Friday</option>
+                    <option value="SATURDAY">Saturday</option>
+                    <option value="SUNDAY">Sunday</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-800 mb-2">
+                    ⏰ Delivery Time
+                  </label>
+                  <input
+                    type="time"
+                    value={scheduleTime}
+                    onChange={(e) => setScheduleTime(e.target.value)}
+                    disabled={!scheduleEnabled}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:bg-slate-50 font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Slack Webhook Input */}
               <div>
                 <label className="block text-sm font-semibold text-slate-800 mb-2">
-                  Slack Incoming Webhook URL
+                  Slack Incoming Webhook URL (Optional)
                 </label>
                 <div className="flex flex-col sm:flex-row items-stretch gap-3">
                   <div className="flex-1 relative">
@@ -165,14 +239,14 @@ export function PrivacyPage() {
                     />
                   </div>
                   <PrimaryBtn onClick={handleSave} disabled={saving || loading}>
-                    {saving ? "Saving..." : "💾 Save Webhook"}
+                    {saving ? "Saving..." : "💾 Save Settings"}
                   </PrimaryBtn>
                   <GhostBtn onClick={handleTestNotification} disabled={testingNotification}>
                     {testingNotification ? "Sending..." : "🧪 Send Summary Report"}
                   </GhostBtn>
                 </div>
                 <p className="text-xs text-slate-500 mt-2">
-                  Enter your Slack Incoming Webhook URL to automatically receive the Weekly AI Brief in your team's channel every Friday at 17:00. Email reports are automatically sent to the project owner.
+                  Scheduled reports will be sent automatically to the connected project owner email and Slack channel (if Webhook URL is provided).
                 </p>
               </div>
             </div>

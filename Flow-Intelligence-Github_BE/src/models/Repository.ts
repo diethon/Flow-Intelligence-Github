@@ -12,6 +12,9 @@ export interface IRepository extends Document {
   webhookId?: number | null;
   webhookUrl?: string | null;
   slackWebhookUrl?: string | null;
+  scheduleEnabled?: boolean;
+  scheduleDay?: string;
+  scheduleTime?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +32,9 @@ const repositorySchema = new Schema<IRepository>(
     webhookId: { type: Number, default: null },
     webhookUrl: { type: String, default: null },
     slackWebhookUrl: { type: String, default: null },
+    scheduleEnabled: { type: Boolean, default: true },
+    scheduleDay: { type: String, default: "FRIDAY" },
+    scheduleTime: { type: String, default: "17:00" },
   },
   { timestamps: true }
 );

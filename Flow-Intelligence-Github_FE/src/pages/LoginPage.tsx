@@ -1,8 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../services/axiosClient';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [navigate]);
 
   const handleGitHubLogin = async () => {
     setLoading(true);
@@ -25,15 +34,15 @@ export default function LoginPage() {
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
           <h2 className="text-lg font-medium text-slate-900 mb-1 text-center">Welcome back</h2>
-          <p className="text-sm text-slate-500 mb-6 text-center">Sign in to your account</p>
+          <p className="text-sm text-slate-500 mb-6 text-center">Sign in with your GitHub account</p>
 
           <button
             onClick={handleGitHubLogin}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 bg-slate-900 text-white py-3 px-4 rounded-lg font-medium hover:bg-slate-800 transition-colors disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-3 bg-slate-900 text-white py-3 px-4 rounded-lg font-medium hover:bg-slate-800 transition-colors disabled:opacity-50 shadow-sm"
           >
             {loading ? (
-              <span>Redirecting...</span>
+              <span>Redirecting to GitHub...</span>
             ) : (
               <>
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -43,6 +52,21 @@ export default function LoginPage() {
               </>
             )}
           </button>
+
+          <div className="mt-4 pt-4 border-t border-slate-100 text-center">
+            <p className="text-xs text-slate-500 mb-2">Want to use a different account?</p>
+            <a
+              href="https://github.com/logout"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Sign out of GitHub on browser to switch account
+            </a>
+          </div>
         </div>
 
         <p className="text-xs text-slate-400 text-center mt-6">
