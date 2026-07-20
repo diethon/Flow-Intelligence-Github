@@ -34,6 +34,7 @@ import dashboardRouter from "./routes/dashboardRoutes.js";
 import riskRouter from "./routes/riskRoutes.js";
 import { createPredictionRouter } from './routes/prediction.routes.js';
 import { seedRulebook } from "./seeds/seedRulebook.js";
+import chatRouter from "./routes/chatRoutes.js";
 
 const app: Express = express();
 
@@ -94,6 +95,7 @@ app.use('/api/webhooks', createWebhookRoutes(webhookService));
 app.use("/api/metrics", metricsRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/risk", riskRouter);
+app.use("/api/chat", chatRouter);
 
 // Unhandled route fallback
 app.use((_req: Request, res: Response) => {

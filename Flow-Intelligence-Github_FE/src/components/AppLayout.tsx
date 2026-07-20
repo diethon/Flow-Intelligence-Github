@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { apiClient } from "../services/axiosClient";
+import { ChatWidget } from "./ChatWidget.js";
 
 const NAV = [
   {
@@ -202,6 +203,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="lg:pl-60 pt-14 lg:pt-0">
         {children}
       </div>
+      <ChatWidget />
     </div>
   );
 }
