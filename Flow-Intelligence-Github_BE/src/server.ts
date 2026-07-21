@@ -15,6 +15,8 @@ import { ImportController } from './controllers/import.controller';
 import { createImportRoutes } from './routes/import.routes';
 import { EvidenceController } from './controllers/evidence.controller';
 import { createRepositoryEvidenceRoutes, createEvidenceCardRoutes } from './routes/evidence.routes';
+import { WorkloadBurnoutController } from './controllers/workloadBurnout.controller';
+import { createWorkloadBurnoutRoutes } from './routes/workloadBurnout.routes';
 
 import { DataQualityService } from './services/dataQuality.service';
 import { DataQualityController } from './controllers/dataQuality.controller';
@@ -69,6 +71,7 @@ const webhookService = new WebhookService(githubApiService);
 const githubController = new GitHubController(connectionService, syncService, githubApiService);
 const importController = new ImportController();
 const evidenceController = new EvidenceController();
+const workloadBurnoutController = new WorkloadBurnoutController();
 
 const dataQualityService = new DataQualityService();
 const dataQualityController = new DataQualityController(dataQualityService);
@@ -88,6 +91,7 @@ app.use('/api/github', createGitHubRoutes(githubController));
 app.use('/api/repositories', createRepositoryRoutes(githubController));
 app.use('/api/repositories', createImportRoutes(importController));
 app.use('/api/repositories', createRepositoryEvidenceRoutes(evidenceController));
+app.use('/api/repositories', createWorkloadBurnoutRoutes(workloadBurnoutController));
 app.use('/api/evidence-cards', createEvidenceCardRoutes(evidenceController));
 
 app.use('/api/repositories', createDataQualityRoutes(dataQualityController));

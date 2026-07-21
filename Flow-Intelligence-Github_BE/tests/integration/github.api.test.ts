@@ -1,3 +1,9 @@
+jest.mock('@octokit/rest', () => ({
+  Octokit: jest.fn().mockImplementation(() => ({
+    request: jest.fn(),
+  })),
+}));
+
 import request from 'supertest';
 import app from '../../src/server';
 

@@ -1,0 +1,74 @@
+{
+  "success": true,
+  "data": {
+    "severity": "high",
+    "aggregate": {
+      "totalEvents": 120,
+      "offHoursEvents": 54,
+      "offHoursPct": 45,
+      "weekendCount": 20,
+      "nightCount": 34,
+      "distinctContributorsOffHours": 4,
+      "windowStart": "2026-07-12T00:00:00.000Z",
+      "windowEnd": "2026-07-19T00:00:00.000Z",
+      "dataStatus": "ok"
+    },
+    "breakdown": [
+      { "label": "octofan", "totalCommits": 30, "offHoursEvents": 18, "weekend": 7, "night": 11 },
+      { "label": "reviewbot", "totalCommits": 22, "offHoursEvents": 15, "weekend": 6, "night": 9 },
+      { "label": "devlin", "totalCommits": 19, "offHoursEvents": 12, "weekend": 4, "night": 8 },
+      { "label": "mkuznetsova", "totalCommits": 14, "offHoursEvents": 9, "weekend": 3, "night": 6 }
+    ],
+    "card": {
+      "_id": "64c0aa11bb22cc33dd44ee55",
+      "repositoryId": "64b7f0c2e1a2b3c4d5e6f7a8",
+      "sourceType": "risk_event",
+      "title": "Workload Risk: off-hours activity elevated",
+      "severity": "high",
+      "summary": "45% of 120 commit/review events occurred off-hours (20 on weekends, 34 at night, UTC) across 4 contributors.",
+      "evidence": [
+        {
+          "entityType": "commit",
+          "entityId": "64bf1234aa11bb22cc33dd44",
+          "sourceLabel": "Commit 9f3a1c2",
+          "sourceUrl": "",
+          "summary": "Refactor sync scheduler"
+        },
+        {
+          "entityType": "review",
+          "entityId": "64bf5678ee55ff66aa77bb88",
+          "sourceLabel": "Review on PR #142",
+          "sourceUrl": "https://github.com/org/repo/pull/142",
+          "summary": "Review submitted (CHANGES_REQUESTED)"
+        }
+      ],
+      "suggestedAction": "Review workload distribution across the team and encourage healthier working-hours boundaries.",
+      "confidence": "medium",
+      "limitation": "Only GitHub commit/review timestamps were analyzed. Off-hours are computed in UTC without timezone normalization.",
+      "createdAt": "2026-07-19T09:00:00.000Z",
+      "updatedAt": "2026-07-19T09:00:00.000Z"
+    },
+    "aiAnalysis": {
+      "summary": "Off-hours contributions have risen notably this window, concentrated in late-night commits. This can indicate schedule pressure worth reviewing.",
+      "confidence": "medium",
+      "limitations": [
+        "Only GitHub commit/review timestamps were analyzed. Off-hours are computed in UTC without timezone normalization."
+      ],
+      "items": [
+        {
+          "type": "risk_summary",
+          "title": "Elevated off-hours activity",
+          "detail": "45% of commit/review activity happened outside business hours (UTC), across 4 contributors.",
+          "severity": "high"
+        },
+        {
+          "type": "recommendation",
+          "title": "Rebalance review and delivery load",
+          "detail": "Check whether deadlines or review bottlenecks are pushing work into evenings and weekends, and redistribute where possible.",
+          "severity": "info"
+        }
+      ],
+      "isFallback": false
+    }
+  }
+}

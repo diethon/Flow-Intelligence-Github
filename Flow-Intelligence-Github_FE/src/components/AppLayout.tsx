@@ -15,8 +15,10 @@ const NAV = [
   {
     group: "Insights",
     items: [
-      { to: "/risk",  label: "Risk & Evidence", icon: "◆", done: true  },
-      { to: "/brief", label: "AI Weekly Brief", icon: "◇", done: true },
+      { to: "/risk",          label: "Risk",            icon: "◆", done: true  },
+      { to: "/evidence",      label: "Evidence",        icon: "◈", done: true  },
+      { to: "/workload-risk", label: "Workload Risk",   icon: "🌙", done: true  },
+      { to: "/brief",         label: "AI Weekly Brief", icon: "◇", done: true },
     ],
   },
   {
@@ -41,7 +43,12 @@ function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
           </p>
           <div className="space-y-0.5">
             {group.items.map((item) => {
-              const active = pathname.startsWith(item.to);
+              // Global nav targets (e.g. /risk, /evidence) also match their
+              // repo-scoped routes (/repositories/:id/risk, .../evidence/:cardId).
+              const active =
+                pathname.startsWith(item.to) ||
+                pathname.endsWith(item.to) ||
+                pathname.includes(`${item.to}/`);
               return (
                 <NavLink
                   key={item.to}

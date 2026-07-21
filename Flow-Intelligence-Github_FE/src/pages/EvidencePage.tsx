@@ -6,7 +6,7 @@ import { EvidenceCardRow } from '../components/EvidenceCardRow';
 import { SEVERITY, SEVERITY_ORDER, SOURCE, severityRank } from '../components/evidenceMeta';
 import type { EvidenceCard, EvidenceSeverity, EvidenceSourceType } from '../types';
 
-interface RiskEvidencePageProps {
+interface EvidencePageProps {
   repositoryId: string;
 }
 
@@ -26,7 +26,7 @@ const parseErrorMessage = (error: unknown): string => {
   return 'Could not load Evidence Cards.';
 };
 
-export const RiskEvidencePage: React.FC<RiskEvidencePageProps> = ({ repositoryId }) => {
+export const EvidencePage: React.FC<EvidencePageProps> = ({ repositoryId }) => {
   // Fetch a generous page, then filter/sort/paginate on the client (matches the
   // Dashboard pattern and keeps the severity counts accurate).
   const query = useEvidenceCards(repositoryId, { limit: 100 });
@@ -39,22 +39,6 @@ export const RiskEvidencePage: React.FC<RiskEvidencePageProps> = ({ repositoryId
     () => (query.data?.data ?? []).filter((c) => c.evidence.length > 0),
     [query.data?.data]
   );
-
-  React.useEffect(() => {
-    console.log('[RiskEvidencePage] Active Repository:', repositoryId);
-    console.log('[RiskEvidencePage] Fetching state:', {
-      loading: query.isLoading,
-      success: query.isSuccess,
-      error: query.isError,
-    });
-    if (query.isSuccess) {
-      console.log('[RiskEvidencePage] Raw cards loaded from API:', query.data?.data);
-      console.log('[RiskEvidencePage] Valid cards containing evidence:', cards);
-    }
-    if (query.isError) {
-      console.error('[RiskEvidencePage] Failed to fetch cards:', query.error);
-    }
-  }, [repositoryId, query.isLoading, query.isSuccess, query.isError, query.data, cards]);
 
   const severityCounts = useMemo(() => {
     const counts = { high: 0, medium: 0, low: 0 } as Record<EvidenceSeverity, number>;
@@ -78,12 +62,10 @@ export const RiskEvidencePage: React.FC<RiskEvidencePageProps> = ({ repositoryId
   const paged = visible.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const changeSeverity = (next: SeverityFilter) => {
-    console.log('[RiskEvidencePage] Severity filter changed to:', next);
     setSeverity(next);
     setPage(1);
   };
   const changeSource = (next: SourceFilter) => {
-    console.log('[RiskEvidencePage] Source filter changed to:', next);
     setSource(next);
     setPage(1);
   };
@@ -98,17 +80,17 @@ export const RiskEvidencePage: React.FC<RiskEvidencePageProps> = ({ repositoryId
       {/* Header */}
       <div className="mb-6">
         <Link
-          to={`/repositories/${repositoryId}/sync-status`}
+          to={`/repositories/${repositoryId}/risk`}
           className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 transition-colors"
         >
           <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
-          Repository
+          Risk rules
         </Link>
-        <h1 className="mt-2 text-2xl font-bold text-slate-900">Risk &amp; Evidence</h1>
+        <h1 className="mt-2 text-2xl font-bold text-slate-900">Evidence</h1>
         <p className="mt-1 text-slate-500">
-          Every risk below is backed by linked GitHub records — open a card to see the evidence behind it.
+          Every card is backed by linked GitHub records — open one to see the evidence behind it.
         </p>
       </div>
 
@@ -190,7 +172,7 @@ export const RiskEvidencePage: React.FC<RiskEvidencePageProps> = ({ repositoryId
                 <EvidenceCardRow
                   key={card._id}
                   card={card}
-                  to={`/repositories/${repositoryId}/risk-evidence/${card._id}`}
+                  to={`/repositories/${repositoryId}/evidence/${card._id}`}
                 />
               ))}
             </div>
@@ -202,7 +184,7 @@ export const RiskEvidencePage: React.FC<RiskEvidencePageProps> = ({ repositoryId
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.6 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <p className="font-medium text-slate-700">No risks detected yet</p>
+              <p className="font-medium text-slate-700">No evidence yet</p>
               <p className="mt-1 text-sm text-slate-500">
                 Evidence Cards appear here once a workflow risk is found or a delay is predicted.
               </p>
@@ -251,4 +233,4 @@ export const RiskEvidencePage: React.FC<RiskEvidencePageProps> = ({ repositoryId
   );
 };
 
-export default RiskEvidencePage;
+export default EvidencePage;

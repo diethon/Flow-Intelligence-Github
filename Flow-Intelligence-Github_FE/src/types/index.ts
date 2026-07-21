@@ -211,7 +211,13 @@ export interface GitHubReview {
 export type EvidenceSeverity = 'low' | 'medium' | 'high';
 export type EvidenceConfidence = 'low' | 'medium' | 'high';
 export type EvidenceSourceType = 'risk_event' | 'prediction';
-export type EvidenceEntityType = 'pull_request' | 'issue' | 'commit' | 'check_run';
+export type EvidenceEntityType =
+  | 'pull_request'
+  | 'issue'
+  | 'commit'
+  | 'check_run'
+  | 'review'
+  | 'contributor';
 
 export interface EvidenceItem {
   entityType: EvidenceEntityType;
@@ -219,6 +225,20 @@ export interface EvidenceItem {
   sourceLabel: string;
   sourceUrl: string;
   summary: string;
+}
+
+/** Rule-based "risk drivers" — the linked RiskEvent that explains why a rule fired. */
+export interface RiskDriver {
+  ruleCode: string;
+  ruleName: string;
+  metricValue: number;
+  thresholdValue: number;
+  thresholdUnit: string;
+  operator: 'gte' | 'lte';
+  status: string;
+  severity: EvidenceSeverity;
+  windowStart: string;
+  windowEnd: string;
 }
 
 export interface EvidenceCard {
@@ -234,6 +254,8 @@ export interface EvidenceCard {
   suggestedAction: string;
   confidence: EvidenceConfidence;
   limitation: string;
+  /** Present only for rule-based cards (sourceType === 'risk_event'). */
+  riskEvent?: RiskDriver;
   createdAt: string;
   updatedAt: string;
 }
