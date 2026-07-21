@@ -14,6 +14,12 @@ export function WeeklyBriefPage() {
   const [brief, setBrief] = useState<AiBriefData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState(
+    new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+  );
+  const [endDate, setEndDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
 
   useEffect(() => {
     fetchDashboardRepositories()
@@ -62,7 +68,9 @@ export function WeeklyBriefPage() {
     setLoading(true);
     setError(null);
     try {
-      const generated = await briefApi.generateBrief(selectedRepoId);
+      const startIso = new Date(startDate).toISOString();
+      const endIso = new Date(endDate + 'T23:59:59.999Z').toISOString();
+      const generated = await briefApi.generateBrief(selectedRepoId, startIso, endIso);
       setBrief(generated);
     } catch (err: any) {
       setError(err.message || "Failed to generate brief");
@@ -81,11 +89,16 @@ export function WeeklyBriefPage() {
       title="AI Weekly Brief"
       actions={
         repos.length > 0 ? (
-          <>
+          <div className="flex items-center gap-3">
             <RepoSelect repos={repos} value={selectedRepoId} onChange={handleSelectRepo} />
+            <div className="hidden md:flex items-center gap-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-lg px-2 shadow-sm">
+              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-transparent border-none focus:ring-0 text-slate-700 py-1.5 outline-none cursor-pointer" />
+              <span>→</span>
+              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent border-none focus:ring-0 text-slate-700 py-1.5 outline-none cursor-pointer" />
+            </div>
             <GhostBtn onClick={loadBriefs} disabled={loading}>↻ Refresh</GhostBtn>
-            <PrimaryBtn onClick={handleGenerate} disabled={loading}>✨ Generate Again</PrimaryBtn>
-          </>
+            <PrimaryBtn onClick={handleGenerate} disabled={loading}>✨ Generate</PrimaryBtn>
+          </div>
         ) : undefined
       }
     >
@@ -114,6 +127,20 @@ export function WeeklyBriefPage() {
             <h2 className="text-2xl font-bold text-slate-900 mb-4">Executive Summary</h2>
             <p className="text-slate-700 leading-relaxed">{brief.summary}</p>
           </div>
+
+          {brief.items.some(i => i.type === "trend_comparison") && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
+              <h2 className="text-xl font-bold text-slate-900 mb-4">📈 Trend Analysis</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {brief.items.filter(i => i.type === "trend_comparison").map((item, idx) => (
+                  <div key={idx} className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                    <h4 className="font-semibold text-blue-900 mb-1">{item.title}</h4>
+                    <p className="text-sm text-blue-800">{item.detail}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
