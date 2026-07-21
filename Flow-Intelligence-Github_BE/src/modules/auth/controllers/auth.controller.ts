@@ -24,9 +24,13 @@ interface GitHubEmail {
   verified: boolean;
 }
 
-const getGithubAuthUrl = () => {
+const getGithubAuthUrl = (promptConsent: boolean = true) => {
   const state = Math.random().toString(36).substring(7);
-  return `https://github.com/login/oauth/authorize?client_id=${env.GITHUB_CLIENT_ID}&redirect_uri=http://localhost:3001/api/auth/github/callback&scope=repo,user,notifications&state=${state}`;
+  let url = `https://github.com/login/oauth/authorize?client_id=${env.GITHUB_CLIENT_ID}&redirect_uri=http://localhost:3001/api/auth/github/callback&scope=repo,user,notifications&state=${state}`;
+  if (promptConsent) {
+    url += '&prompt=consent';
+  }
+  return url;
 };
 
 const exchangeCodeForToken = async (code: string): Promise<string> => {
@@ -79,8 +83,9 @@ const generateJwt = (userId: string): string => {
   return jwt.sign({ userId }, env.JWT_SECRET, { expiresIn: '30d' });
 };
 
-export const githubLogin = (_req: Request, res: Response) => {
-  const authUrl = getGithubAuthUrl();
+export const githubLogin = (req: Request, res: Response) => {
+  const promptConsent = req.query.prompt !== 'false';
+  const authUrl = getGithubAuthUrl(promptConsent);
   res.json({ url: authUrl });
 };
 

@@ -7,6 +7,8 @@ export const createBriefRoutes = (controller: BriefController): Router => {
   
   router.get("/:id/briefs", authenticate, controller.getBriefs);
   router.post("/:id/briefs/generate", authenticate, controller.generateBrief);
+  router.post("/:id/briefs/send-notification", authenticate, controller.sendBriefNotification);
+  router.patch("/:id/notification-settings", authenticate, controller.updateNotificationSettings);
 
   return router;
 };

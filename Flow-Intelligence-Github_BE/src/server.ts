@@ -24,6 +24,8 @@ import { PrivacyService } from './services/privacy.service';
 import { PrivacyController } from './controllers/privacy.controller';
 import { createPrivacyRoutes } from './routes/privacy.routes';
 
+import { NotificationService } from './services/notification.service';
+import { SchedulerService } from './services/scheduler.service';
 import { AiPayloadBuilderService } from './services/aiPayloadBuilder.service';
 import { BriefService } from './services/brief.service';
 import { BriefController } from './controllers/brief.controller';
@@ -74,9 +76,11 @@ const dataQualityController = new DataQualityController(dataQualityService);
 const privacyService = new PrivacyService();
 const privacyController = new PrivacyController();
 
+const notificationService = new NotificationService();
 const aiPayloadBuilderService = new AiPayloadBuilderService(privacyService);
 const briefService = new BriefService(aiPayloadBuilderService);
-const briefController = new BriefController(briefService);
+const briefController = new BriefController(briefService, notificationService);
+const schedulerService = new SchedulerService(briefService, notificationService);
 
 // Register routes
 app.use('/api/auth', authRoutes);
@@ -96,6 +100,16 @@ app.use("/api/metrics", metricsRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/risk", riskRouter);
 app.use("/api/chat", chatRouter);
+
+// Manual notification trigger endpoint (for testing/admin)
+app.post("/api/notifications/trigger-weekly", async (_req: Request, res: Response) => {
+  const result = await schedulerService.runWeeklyBriefJob();
+  res.json({
+    success: true,
+    message: "Weekly AI Brief notification job triggered manually.",
+    result,
+  });
+});
 
 // Unhandled route fallback
 app.use((_req: Request, res: Response) => {
@@ -128,6 +142,7 @@ const startServer = async (): Promise<void> => {
     }
 
     await startSyncWorker();
+    schedulerService.startWeeklyBriefCron();
 
     app.listen(env.PORT, env.HOST, () => {
       console.log(`Server running on http://${env.HOST}:${env.PORT}`);
