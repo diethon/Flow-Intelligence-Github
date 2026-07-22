@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import { AiPayloadBuilderService } from "./aiPayloadBuilder.service";
 import { AiBrief } from "../models/AiBrief";
-import { GoogleGenAI } from "@google/genai";
+import { GeminiClientService } from "./geminiClient.service";
 
 export class BriefService {
   constructor(private aiPayloadBuilderService: AiPayloadBuilderService) {}
@@ -11,11 +11,12 @@ export class BriefService {
     const payload = await this.aiPayloadBuilderService.buildWeeklyBriefPayload(repositoryId, windowStart, windowEnd);
 
     try {
-      if (!process.env.GEMINI_API_KEY) {
-        throw new Error("GEMINI_API_KEY is missing. Falling back to deterministic brief.");
+      const geminiClient = GeminiClientService.getInstance();
+
+      if (!geminiClient.hasKeys()) {
+        throw new Error("No Gemini API keys configured. Falling back to deterministic brief.");
       }
 
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const prompt = `Analyze the following team workflow metrics and evidence cards. Note that 'metrics' and 'predictions' represent the current period, while 'previousMetrics' and 'previousPredictions' represent the preceding historical period.
 Compare the current period with the previous period to identify trends. If there are significant changes, highlight them in the executive summary or add items with type 'trend_comparison'.
 Provide an executive summary, list of limitations, and an array of items (each item having type 'risk_summary' | 'recommendation' | 'trend_comparison', title, detail, severity 'high'|'medium'|'low'|'info').
@@ -23,8 +24,8 @@ Output strictly in valid JSON matching this schema: { "summary": "string", "conf
 
 Payload data: ${JSON.stringify(payload)}`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
+      const response = await geminiClient.generateContent({
+        model: "gemini-2.5-flash",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
