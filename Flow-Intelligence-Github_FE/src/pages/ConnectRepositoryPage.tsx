@@ -483,6 +483,15 @@ export const ConnectRepositoryPage: React.FC = () => {
                         View Dashboard
                       </button>
                       <button
+                        onClick={() => {
+                          localStorage.setItem("selectedRepositoryId", repo.id);
+                          navigate(`/repositories/${repo.id}/sync-status`);
+                        }}
+                        className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors"
+                      >
+                        Sync Status
+                      </button>
+                      <button
                         onClick={() => handleDisconnect({ id: repo.id, fullName: repo.fullName })}
                         className="px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       >
