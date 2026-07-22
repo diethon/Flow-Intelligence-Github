@@ -1,6 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useEvidenceCards } from '../hooks/useEvidence';
+import { fetchDashboardRepositories } from '../api/dashboardApi';
+import { PageShell, RepoSelect } from '../components/PageShell';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { EvidenceCardRow } from '../components/EvidenceCardRow';
 import { SEVERITY, SEVERITY_ORDER, SOURCE, severityRank } from '../components/evidenceMeta';
@@ -27,6 +30,17 @@ const parseErrorMessage = (error: unknown): string => {
 };
 
 export const EvidencePage: React.FC<EvidencePageProps> = ({ repositoryId }) => {
+  const navigate = useNavigate();
+
+  // Repo switcher — lets the user jump between connected repos from the header.
+  const reposQuery = useQuery({ queryKey: ['dashboard', 'repositories'], queryFn: fetchDashboardRepositories });
+  const repos = reposQuery.data ?? [];
+  const handleRepoChange = (id: string) => {
+    if (!id || id === repositoryId) return;
+    localStorage.setItem('selectedRepositoryId', id);
+    navigate(`/repositories/${id}/evidence`);
+  };
+
   // Fetch a generous page, then filter/sort/paginate on the client (matches the
   // Dashboard pattern and keeps the severity counts accurate).
   const query = useEvidenceCards(repositoryId, { limit: 100 });
@@ -76,26 +90,28 @@ export const EvidencePage: React.FC<EvidencePageProps> = ({ repositoryId }) => {
   ];
 
   return (
-    <div className="max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <Link
-          to={`/repositories/${repositoryId}/risk`}
-          className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 transition-colors"
-        >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-          Risk rules
-        </Link>
-        <h1 className="mt-2 text-2xl font-bold text-slate-900">Evidence</h1>
-        <p className="mt-1 text-slate-500">
-          Every card is backed by linked GitHub records — open one to see the evidence behind it.
-        </p>
-      </div>
+    <PageShell
+      title="Evidence"
+      subtitle="Every card is backed by linked GitHub records — open one to see the evidence behind it."
+      actions={
+        repos.length > 0 ? (
+          <RepoSelect repos={repos} value={repositoryId} onChange={handleRepoChange} />
+        ) : undefined
+      }
+    >
+      {/* Back link up to the Risk rules */}
+      <Link
+        to={`/repositories/${repositoryId}/risk`}
+        className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 transition-colors"
+      >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+        Risk rules
+      </Link>
 
       {/* Severity filter strip with counts */}
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {severityTabs.map((tab) => {
           const active = severity === tab.key;
           const dot = tab.key === 'all' ? null : SEVERITY[tab.key as EvidenceSeverity].dot;
@@ -229,7 +245,7 @@ export const EvidencePage: React.FC<EvidencePageProps> = ({ repositoryId }) => {
           )}
         </>
       )}
-    </div>
+    </PageShell>
   );
 };
 

@@ -8,16 +8,20 @@
       "offHoursPct": 45,
       "weekendCount": 20,
       "nightCount": 34,
+      "commitCount": 78,
+      "reviewCount": 42,
+      "offHoursCommitCount": 33,
+      "offHoursReviewCount": 21,
       "distinctContributorsOffHours": 4,
       "windowStart": "2026-07-12T00:00:00.000Z",
       "windowEnd": "2026-07-19T00:00:00.000Z",
       "dataStatus": "ok"
     },
     "breakdown": [
-      { "label": "octofan", "totalCommits": 30, "offHoursEvents": 18, "weekend": 7, "night": 11 },
-      { "label": "reviewbot", "totalCommits": 22, "offHoursEvents": 15, "weekend": 6, "night": 9 },
-      { "label": "devlin", "totalCommits": 19, "offHoursEvents": 12, "weekend": 4, "night": 8 },
-      { "label": "mkuznetsova", "totalCommits": 14, "offHoursEvents": 9, "weekend": 3, "night": 6 }
+      { "label": "octofan", "totalEvents": 30, "commits": 21, "reviews": 9, "offHoursEvents": 18, "offHoursCommits": 12, "offHoursReviews": 6, "weekend": 7, "night": 11 },
+      { "label": "reviewbot", "totalEvents": 22, "commits": 8, "reviews": 14, "offHoursEvents": 15, "offHoursCommits": 6, "offHoursReviews": 9, "weekend": 6, "night": 9 },
+      { "label": "devlin", "totalEvents": 19, "commits": 14, "reviews": 5, "offHoursEvents": 12, "offHoursCommits": 9, "offHoursReviews": 3, "weekend": 4, "night": 8 },
+      { "label": "mkuznetsova", "totalEvents": 14, "commits": 10, "reviews": 4, "offHoursEvents": 9, "offHoursCommits": 6, "offHoursReviews": 3, "weekend": 3, "night": 6 }
     ],
     "card": {
       "_id": "64c0aa11bb22cc33dd44ee55",
@@ -66,6 +70,32 @@
           "title": "Rebalance review and delivery load",
           "detail": "Check whether deadlines or review bottlenecks are pushing work into evenings and weekends, and redistribute where possible.",
           "severity": "info"
+        }
+      ],
+      "contributorInsights": [
+        {
+          "contributor": "octofan",
+          "note": "Contributed 21 commits and 9 reviews. 18 of 30 (60%) landed off-hours — 11 at night and 7 on weekends (UTC). Carries the largest share of off-hours coding load this window.",
+          "suggestion": "Protect their evenings by moving non-urgent work into business hours and sharing feature ownership.",
+          "totalEvents": 30, "offHoursEvents": 18, "commits": 21, "reviews": 9, "night": 11, "weekend": 7
+        },
+        {
+          "contributor": "reviewbot",
+          "note": "Contributed 8 commits and 14 reviews. 15 of 22 (68%) landed off-hours — 9 at night and 6 on weekends (UTC). Acts as a primary reviewer, often unblocking peers late.",
+          "suggestion": "Add a backup reviewer so review turnaround does not depend on their off-hours availability.",
+          "totalEvents": 22, "offHoursEvents": 15, "commits": 8, "reviews": 14, "night": 9, "weekend": 6
+        },
+        {
+          "contributor": "devlin",
+          "note": "Contributed 14 commits and 5 reviews. 12 of 19 (63%) landed off-hours — 8 at night and 4 on weekends (UTC).",
+          "suggestion": "Check whether task deadlines are forcing evening work and adjust scope for the next cycle.",
+          "totalEvents": 19, "offHoursEvents": 12, "commits": 14, "reviews": 5, "night": 8, "weekend": 4
+        },
+        {
+          "contributor": "mkuznetsova",
+          "note": "Contributed 10 commits and 4 reviews. 9 of 14 (64%) landed off-hours — 6 at night and 3 on weekends (UTC).",
+          "suggestion": "Encourage protecting weekends and flag if the current sprint load is unsustainable.",
+          "totalEvents": 14, "offHoursEvents": 9, "commits": 10, "reviews": 4, "night": 6, "weekend": 3
         }
       ],
       "isFallback": false

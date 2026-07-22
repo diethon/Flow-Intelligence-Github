@@ -1,15 +1,35 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useWorkloadRisk } from "../hooks/useWorkloadRisk.js";
+import { fetchDashboardRepositories } from "../api/dashboardApi.js";
 import {
-  PageShell, SectionHeading, PrimaryBtn, ErrorAlert, EmptyState,
+  PageShell, SectionHeading, PrimaryBtn, ErrorAlert, EmptyState, RepoSelect,
 } from "../components/PageShell.js";
 import { RiskBadge } from "../components/RiskBadge.js";
 import type {
-  WorkloadRiskResult, WorkloadAiItem, WorkloadContributorBreakdown,
+  WorkloadRiskResult, WorkloadAiItem, WorkloadContributorBreakdown, WorkloadContributorInsight,
 } from "../types/workload.js";
-import type { EvidenceCard, EvidenceItem } from "../types";
 
-const WINDOW_PRESETS = [7, 14, 30, 90];
+// ─── Date range helpers ───────────────────────────────────────────────────────
+
+const RANGE_PRESETS = [7, 14, 30, 90];
+
+/** Local YYYY-MM-DD for an <input type="date"> value. */
+function toDateInput(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function daysAgo(n: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - n);
+  return toDateInput(d);
+}
+
+function rangeDays(startDate: string, endDate: string): number {
+  const ms = new Date(endDate).getTime() - new Date(startDate).getTime();
+  return Math.max(1, Math.round(ms / (24 * 60 * 60 * 1000)) + 1);
+}
 
 // ─── Hero ───────────────────────────────────────────────────────────────────
 
@@ -35,8 +55,8 @@ function WorkloadHero({ result, windowDays }: { result: WorkloadRiskResult; wind
 
         <div className="sm:border-l sm:border-slate-200 sm:pl-6 flex-1">
           <p className="text-base text-slate-700 leading-relaxed font-medium">
-            {a.offHoursEvents} of {a.totalEvents} commit/review events happened outside business hours
-            (weekends or nights, UTC), across {a.distinctContributorsOffHours} contributors.
+            {a.offHoursEvents} of {a.totalEvents} events ({a.commitCount} commits · {a.reviewCount} reviews) happened
+            outside business hours (weekends or nights, UTC), across {a.distinctContributorsOffHours} contributors.
           </p>
         </div>
       </div>
@@ -46,11 +66,18 @@ function WorkloadHero({ result, windowDays }: { result: WorkloadRiskResult; wind
 
 // ─── Stat card ──────────────────────────────────────────────────────────────
 
-function Stat({ label, value, accent }: { label: string; value: number; accent?: string }) {
+// Shows a headline count with an optional "N off-hours" sub-line so it's clear
+// at a glance how much of each kind happened outside business hours.
+function Stat({
+  label, value, sub, icon, accent,
+}: { label: string; value: number; sub?: string; icon?: string; accent?: string }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-      <p className={`text-2xl font-extrabold tabular-nums ${accent ?? "text-slate-800"}`}>{value}</p>
+      <p className={`text-2xl font-extrabold tabular-nums ${accent ?? "text-slate-800"}`}>
+        {icon && <span className="mr-1 text-base">{icon}</span>}{value}
+      </p>
       <p className="text-xs text-slate-400 mt-0.5 font-semibold">{label}</p>
+      {sub && <p className="text-[11px] text-indigo-500 font-semibold mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -114,83 +141,67 @@ function AiAnalysis({ ai }: { ai: NonNullable<WorkloadRiskResult["aiAnalysis"]> 
           <AiItemList items={recommendations} emptyText="No specific recommendations at this time." accent="border-emerald-400" />
         </div>
       </div>
-
-      {ai.limitations.length > 0 && (
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
-          <h3 className="text-sm font-bold text-slate-600 uppercase tracking-wider mb-3">Limitations &amp; Context</h3>
-          <ul className="list-disc pl-5 space-y-1 text-sm text-slate-500">
-            {ai.limitations.map((l, i) => (
-              <li key={i} className="leading-relaxed">{l}</li>
-            ))}
-          </ul>
-        </div>
-      )}
     </section>
   );
 }
 
-// ─── Evidence card ──────────────────────────────────────────────────────────
+// ─── Per-member insights ──────────────────────────────────────────────────────
 
-function EvidenceItemRow({ item }: { item: EvidenceItem }) {
-  const inner = (
-    <>
-      <span className="text-xs font-bold text-slate-500 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 flex-shrink-0">
-        {item.sourceLabel}
-      </span>
-      <span className="text-sm text-slate-600 truncate">{item.summary}</span>
-    </>
-  );
-  return item.sourceUrl ? (
-    <a href={item.sourceUrl} target="_blank" rel="noreferrer"
-       className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors">
-      {inner}
-      <span className="ml-auto text-xs text-indigo-500 flex-shrink-0">↗</span>
-    </a>
-  ) : (
-    <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
-      {inner}
-    </div>
-  );
-}
-
-function EvidenceCardBlock({ card }: { card: EvidenceCard }) {
+// Detailed, supportive commentary on each contributor's activity & load. Names
+// are real (page shows identities) but were never sent to the AI — the notes are
+// generated against pseudonyms and re-labelled on the server.
+function ContributorInsights({ insights }: { insights: WorkloadContributorInsight[] }) {
+  if (insights.length === 0) return null;
   return (
     <section className="space-y-4">
       <SectionHeading
-        title="Evidence Card"
-        subtitle="Every signal is backed by real GitHub records — shown here only, not in the shared Evidence list"
+        title="Per-member insights"
+        subtitle="Workflow-oriented notes on each contributor's activity & load — meant to support the team, not to rank or evaluate individuals"
       />
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h3 className="text-base font-bold text-slate-900">{card.title}</h3>
-            <p className="text-sm text-slate-600 mt-1 leading-relaxed">{card.summary}</p>
-          </div>
-          <RiskBadge level={card.severity} size="sm" />
-        </div>
-
-        <div className="space-y-2">
-          {card.evidence.map((item, i) => <EvidenceItemRow key={i} item={item} />)}
-        </div>
-
-        <div className="grid sm:grid-cols-2 gap-3 border-t border-slate-100 pt-4">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Suggested action</p>
-            <p className="text-sm text-slate-700 leading-relaxed">{card.suggestedAction}</p>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">
-              Limitation · confidence: {card.confidence}
-            </p>
-            <p className="text-sm text-slate-500 leading-relaxed">{card.limitation}</p>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {insights.map((c) => {
+          const pct = c.totalEvents > 0 ? Math.round((c.offHoursEvents / c.totalEvents) * 100) : 0;
+          return (
+            <div key={c.contributor} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <h4 className="font-bold text-slate-900 truncate">{c.contributor}</h4>
+                <span className="text-xs font-bold text-amber-600 bg-amber-50 border border-amber-100 px-2 py-1 rounded-lg flex-shrink-0">
+                  {pct}% off-hours
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 font-semibold mb-3">
+                <span>📝 {c.commits} commits</span>
+                <span>👀 {c.reviews} reviews</span>
+                <span>🌙 {c.night} night</span>
+                <span>📅 {c.weekend} weekend</span>
+              </div>
+              <p className="text-sm text-slate-600 leading-relaxed">{c.note}</p>
+              {c.suggestion && (
+                <p className="mt-2 text-sm text-emerald-700 leading-relaxed border-l-2 border-emerald-300 pl-3">
+                  💡 {c.suggestion}
+                </p>
+              )}
+            </div>
+          );
+        })}
       </div>
     </section>
   );
 }
 
 // ─── Per-contributor breakdown (drill-down) ───────────────────────────────────
+
+/** A count cell that also shows how many of those were off-hours. */
+function CountCell({ total, offHours }: { total: number; offHours: number }) {
+  return (
+    <td className="py-2.5 text-right tabular-nums">
+      <span className="text-slate-700 font-medium">{total}</span>
+      {offHours > 0 && (
+        <span className="block text-[11px] text-amber-600 font-semibold">{offHours} off-hrs</span>
+      )}
+    </td>
+  );
+}
 
 function BreakdownDrilldown({ breakdown }: { breakdown: WorkloadContributorBreakdown[] }) {
   if (breakdown.length === 0) return null;
@@ -199,33 +210,45 @@ function BreakdownDrilldown({ breakdown }: { breakdown: WorkloadContributorBreak
       <summary className="cursor-pointer list-none px-6 py-4 flex items-center justify-between">
         <div>
           <p className="text-sm font-bold text-slate-800">Per-contributor breakdown</p>
-          <p className="text-xs text-slate-400 mt-0.5">Total vs off-hours commits per contributor</p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Commits &amp; reviews per contributor, and how many landed at night or on weekends (UTC)
+          </p>
         </div>
         <span className="text-slate-400 text-sm group-open:rotate-180 transition-transform">▾</span>
       </summary>
-      <div className="px-6 pb-5">
-        <table className="w-full text-sm">
+      <div className="px-6 pb-5 overflow-x-auto">
+        <table className="w-full text-sm min-w-[560px]">
           <thead>
             <tr className="text-left text-[10px] font-bold uppercase tracking-widest text-slate-400 border-b border-slate-100">
               <th className="py-2">Contributor</th>
-              <th className="py-2 text-right">Commits</th>
+              <th className="py-2 text-right">📝 Commits</th>
+              <th className="py-2 text-right">👀 Reviews</th>
+              <th className="py-2 text-right">🌙 Night</th>
+              <th className="py-2 text-right">📅 Weekend</th>
               <th className="py-2 text-right">Off-hours</th>
-              <th className="py-2 text-right">Weekend</th>
-              <th className="py-2 text-right">Night</th>
             </tr>
           </thead>
           <tbody>
             {breakdown.map((b) => (
-              <tr key={b.label} className="border-b border-slate-50 last:border-0">
+              <tr key={b.label} className="border-b border-slate-50 last:border-0 align-top">
                 <td className="py-2.5 font-medium text-slate-700">{b.label}</td>
-                <td className="py-2.5 text-right tabular-nums text-slate-500">{b.totalCommits}</td>
-                <td className="py-2.5 text-right tabular-nums text-slate-800 font-semibold">{b.offHoursEvents}</td>
-                <td className="py-2.5 text-right tabular-nums text-slate-500">{b.weekend}</td>
-                <td className="py-2.5 text-right tabular-nums text-slate-500">{b.night}</td>
+                <CountCell total={b.commits} offHours={b.offHoursCommits} />
+                <CountCell total={b.reviews} offHours={b.offHoursReviews} />
+                <td className="py-2.5 text-right tabular-nums text-slate-600">{b.night}</td>
+                <td className="py-2.5 text-right tabular-nums text-slate-600">{b.weekend}</td>
+                <td className="py-2.5 text-right tabular-nums">
+                  <span className="text-slate-900 font-bold">{b.offHoursEvents}</span>
+                  <span className="text-slate-400"> / {b.totalEvents}</span>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+        <p className="text-[11px] text-slate-400 mt-3 leading-relaxed">
+          <span className="font-semibold text-amber-600">off-hrs</span> = commits/reviews made outside business hours ·
+          <span className="font-semibold"> 🌙 Night</span> = 20:00–06:00 UTC ·
+          <span className="font-semibold"> 📅 Weekend</span> = Saturday/Sunday (UTC).
+        </p>
       </div>
     </details>
   );
@@ -238,59 +261,122 @@ interface WorkloadRiskPageProps {
 }
 
 export function WorkloadRiskPage({ repositoryId }: WorkloadRiskPageProps) {
-  const [windowDays, setWindowDays] = useState(() => {
-    const cached = localStorage.getItem("selectedWorkloadWindowDays");
-    return cached ? parseInt(cached, 10) : 7;
-  });
+  const navigate = useNavigate();
 
-  const { data, isLoading, isFetching, error, refetch } = useWorkloadRisk(repositoryId, windowDays);
-  const result = data?.data;
-
-  const changeWindow = (days: number) => {
-    setWindowDays(days);
-    localStorage.setItem("selectedWorkloadWindowDays", String(days));
+  // Repo switcher — jump between connected repos from the header.
+  const reposQuery = useQuery({ queryKey: ["dashboard", "repositories"], queryFn: fetchDashboardRepositories });
+  const repos = reposQuery.data ?? [];
+  const handleRepoChange = (id: string) => {
+    if (!id || id === repositoryId) return;
+    localStorage.setItem("selectedRepositoryId", id);
+    navigate(`/repositories/${id}/workload-risk`);
   };
+
+  // The user picks a date range and clicks Analyze — nothing runs automatically.
+  const [startDate, setStartDate] = useState<string>(() => localStorage.getItem("workloadStartDate") || daysAgo(7));
+  const [endDate, setEndDate] = useState<string>(() => localStorage.getItem("workloadEndDate") || daysAgo(0));
+
+  const mutation = useWorkloadRisk(repositoryId);
+  const result = mutation.data?.data;
+  // Days covered by whatever range produced the current result.
+  const analyzedDays = result
+    ? rangeDays(result.aggregate.windowStart.slice(0, 10), result.aggregate.windowEnd.slice(0, 10))
+    : rangeDays(startDate, endDate);
+
+  const applyPreset = (days: number) => {
+    const start = daysAgo(days);
+    const end = daysAgo(0);
+    setStartDate(start);
+    setEndDate(end);
+    localStorage.setItem("workloadStartDate", start);
+    localStorage.setItem("workloadEndDate", end);
+  };
+
+  const runAnalysis = () => {
+    if (!repositoryId || !startDate || !endDate) return;
+    localStorage.setItem("workloadStartDate", startDate);
+    localStorage.setItem("workloadEndDate", endDate);
+    mutation.mutate({
+      windowStart: new Date(`${startDate}T00:00:00.000Z`).toISOString(),
+      windowEnd: new Date(`${endDate}T23:59:59.999Z`).toISOString(),
+    });
+  };
+
+  const invalidRange = Boolean(startDate && endDate && startDate > endDate);
 
   return (
     <PageShell
       title="Workload Risk"
       subtitle="Developer burnout signal from off-hours commit & review activity"
       actions={
-        <>
+        <div className="flex flex-wrap items-center gap-2">
+          {repos.length > 0 && (
+            <RepoSelect repos={repos} value={repositoryId} onChange={handleRepoChange} />
+          )}
+          <div className="flex items-center gap-1 bg-slate-100 border border-slate-200 rounded-lg px-2 py-1.5">
+            <label className="text-[11px] font-semibold text-slate-500">From</label>
+            <input
+              type="date"
+              value={startDate}
+              max={endDate || undefined}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-white border border-slate-200 rounded-md px-2 py-1 text-xs font-medium text-slate-700"
+            />
+            <label className="text-[11px] font-semibold text-slate-500 ml-1">To</label>
+            <input
+              type="date"
+              value={endDate}
+              min={startDate || undefined}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="bg-white border border-slate-200 rounded-md px-2 py-1 text-xs font-medium text-slate-700"
+            />
+          </div>
           <div className="flex items-center gap-1 bg-slate-100 border border-slate-200 rounded-lg p-1">
-            {WINDOW_PRESETS.map((d) => (
+            {RANGE_PRESETS.map((d) => (
               <button
                 key={d}
-                onClick={() => changeWindow(d)}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
-                  windowDays === d ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-800"
-                }`}
+                onClick={() => applyPreset(d)}
+                className="px-2.5 py-1 rounded-md text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-white transition-colors"
               >
                 {d}d
               </button>
             ))}
           </div>
-          <PrimaryBtn onClick={() => refetch()} disabled={!repositoryId} loading={isFetching}>
+          <PrimaryBtn onClick={runAnalysis} disabled={!repositoryId || invalidRange} loading={mutation.isPending}>
             ⚡ Analyze
           </PrimaryBtn>
-        </>
+        </div>
       }
     >
-      {error && <ErrorAlert message="Failed to analyze workload risk. Make sure the backend is running and the repository has synced data." />}
+      {invalidRange && (
+        <ErrorAlert message="The start date must be on or before the end date." />
+      )}
+      {mutation.isError && !invalidRange && (
+        <ErrorAlert message="Failed to analyze workload risk. Make sure the backend is running and the repository has synced data." />
+      )}
+
+      {/* Initial state — nothing has been analyzed yet */}
+      {!result && !mutation.isPending && !mutation.isError && (
+        <EmptyState
+          icon="🗓️"
+          title="Pick a date range, then click Analyze"
+          description="Choose a From / To date (or a quick preset) and press ⚡ Analyze to scan off-hours commit & review activity for that window. Nothing runs until you click."
+        />
+      )}
 
       {/* Loading */}
-      {isLoading && !result && (
+      {mutation.isPending && (
         <div className="space-y-4">
           <div className="h-36 rounded-2xl bg-white animate-pulse border border-slate-200" />
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-20 rounded-xl bg-white animate-pulse border border-slate-200" />)}
+          <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-20 rounded-xl bg-white animate-pulse border border-slate-200" />)}
           </div>
           <div className="h-48 rounded-2xl bg-white animate-pulse border border-slate-200" />
         </div>
       )}
 
       {/* Insufficient data (privacy guard) */}
-      {result && result.aggregate.dataStatus === "insufficient_data" && !error && (
+      {result && result.aggregate.dataStatus === "insufficient_data" && !mutation.isPending && (
         <EmptyState
           icon="🕊️"
           title="Not enough activity to report"
@@ -299,25 +385,38 @@ export function WorkloadRiskPage({ repositoryId }: WorkloadRiskPageProps) {
       )}
 
       {/* Content */}
-      {result && result.aggregate.dataStatus === "ok" && (
+      {result && result.aggregate.dataStatus === "ok" && !mutation.isPending && (
         <>
-          <WorkloadHero result={result} windowDays={windowDays} />
+          <WorkloadHero result={result} windowDays={analyzedDays} />
 
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            <Stat label="total events" value={result.aggregate.totalEvents} />
+          <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
+            <Stat
+              label="commits"
+              value={result.aggregate.commitCount}
+              sub={`${result.aggregate.offHoursCommitCount} off-hours`}
+              icon="📝"
+            />
+            <Stat
+              label="reviews"
+              value={result.aggregate.reviewCount}
+              sub={`${result.aggregate.offHoursReviewCount} off-hours`}
+              icon="👀"
+            />
             <Stat label="off-hours" value={result.aggregate.offHoursEvents} accent="text-indigo-600" />
-            <Stat label="on weekends" value={result.aggregate.weekendCount} />
-            <Stat label="at night" value={result.aggregate.nightCount} />
+            <Stat label="at night" value={result.aggregate.nightCount} icon="🌙" />
+            <Stat label="on weekends" value={result.aggregate.weekendCount} icon="📅" />
             <Stat label="contributors" value={result.aggregate.distinctContributorsOffHours} />
           </div>
 
-          {result.aiAnalysis && <AiAnalysis ai={result.aiAnalysis} />}
-          {result.card && <EvidenceCardBlock card={result.card} />}
           <BreakdownDrilldown breakdown={result.breakdown} />
+          {result.aiAnalysis && <AiAnalysis ai={result.aiAnalysis} />}
+          {result.aiAnalysis && <ContributorInsights insights={result.aiAnalysis.contributorInsights} />}
 
           <div className="rounded-xl border border-slate-200 bg-slate-100/30 px-5 py-4">
             <p className="text-xs text-slate-500 leading-relaxed">
               Off-hours are computed from commit &amp; review timestamps in UTC (no timezone normalization).
+              Bot commits (e.g. actions-user, *[bot]) are credited to the real person in their
+              Co-authored-by trailer when present, otherwise excluded — so the signal reflects people.
               The per-contributor breakdown shows real GitHub identities; use it to support the team, not to
               rank or evaluate individuals. Names are never sent to the AI provider.
             </p>

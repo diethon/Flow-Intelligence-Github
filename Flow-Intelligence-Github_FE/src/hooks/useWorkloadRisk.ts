@@ -1,19 +1,15 @@
-import { useQuery } from '@tanstack/react-query';
-import { analyzeWorkloadRisk } from '../services/workloadRiskService';
+import { useMutation } from '@tanstack/react-query';
+import { analyzeWorkloadRisk, type WorkloadRiskRange } from '../services/workloadRiskService';
 
 /**
- * Runs the Workload Risk (burnout) analysis for a repository. The backend
- * POST endpoint computes the signal, builds an Evidence Card and (optionally)
- * calls the AI. We model it as a query so the page gets loading/error/refetch
- * for free; call `refetch()` to re-run the analysis.
+ * Runs the Workload Risk (burnout) analysis for a repository. The analysis is
+ * relatively expensive (it may call the AI provider), so it must only run when
+ * the user picks a date range and clicks Analyze — never automatically. We model
+ * it as a mutation: call `mutate({ windowStart, windowEnd })` to run it, and read
+ * the last result from `data`.
  */
-export const useWorkloadRisk = (repositoryId: string, windowDays = 7) => {
-  return useQuery({
-    queryKey: ['repositories', repositoryId, 'workload-risk', windowDays],
-    queryFn: () => analyzeWorkloadRisk(repositoryId, windowDays),
-    enabled: Boolean(repositoryId),
-    // Analysis is relatively expensive (AI call) — don't auto-refetch.
-    staleTime: 5 * 60 * 1000,
-    refetchOnMount: false,
+export const useWorkloadRisk = (repositoryId: string) => {
+  return useMutation({
+    mutationFn: (range: WorkloadRiskRange) => analyzeWorkloadRisk(repositoryId, range),
   });
 };

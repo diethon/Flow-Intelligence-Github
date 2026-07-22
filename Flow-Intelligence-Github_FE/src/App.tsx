@@ -168,9 +168,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <AppLayout>
-                  <div className="px-4 sm:px-6 py-5 sm:py-8">
-                    <EvidencePageWrapper />
-                  </div>
+                  <EvidencePageWrapper />
                 </AppLayout>
               </ProtectedRoute>
             }
@@ -180,9 +178,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <AppLayout>
-                  <div className="px-4 sm:px-6 py-5 sm:py-8">
-                    <WorkloadRiskPageWrapper />
-                  </div>
+                  <WorkloadRiskPageWrapper />
                 </AppLayout>
               </ProtectedRoute>
             }
@@ -192,9 +188,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <AppLayout>
-                  <div className="px-4 sm:px-6 py-5 sm:py-8">
-                    <EvidenceCardDetailPageWrapper />
-                  </div>
+                  <EvidenceCardDetailPageWrapper />
                 </AppLayout>
               </ProtectedRoute>
             }
@@ -265,7 +259,9 @@ const WorkloadRiskPageWrapper = () => {
   if (!id) {
     return <Navigate to="/repositories/connect" replace />;
   }
-  return <WorkloadRiskPage repositoryId={id} />;
+  // Key by repo id so switching repos remounts with fresh state (clears the
+  // previous repo's analysis result instead of showing it as stale).
+  return <WorkloadRiskPage key={id} repositoryId={id} />;
 };
 
 const EvidenceCardDetailPageWrapper = () => {
