@@ -738,21 +738,30 @@ export async function calculateWorkloadRisk(
   const insufficient = totalEvents === 0 || distinctContributorsOffHours < WORKLOAD_MIN_GROUP_THRESHOLD;
 
   // Per-contributor breakdown with real identity + total vs off-hours commits.
+  // Built from EVERY contributor with attributable activity (not just those with
+  // off-hours events) so the table reconciles with the aggregate totals — a person
+  // who only worked in-hours still shows up with their commits/reviews and 0 off-
+  // hours, instead of silently dropping their (in-hours) commits from the table.
+  const NO_OFF_HOURS = { offHoursEvents: 0, offHoursCommits: 0, offHoursReviews: 0, weekend: 0, night: 0 };
   const breakdown: WorkloadContributorBreakdown[] = insufficient
     ? []
-    : Array.from(byContributor.entries())
-        .map(([cid, stats]) => ({
-          label: displayName(cid),
-          totalEvents: totalEventsByContributor.get(cid) ?? 0,
-          commits: commitsByContributor.get(cid) ?? 0,
-          reviews: reviewsByContributor.get(cid) ?? 0,
-          offHoursEvents: stats.offHoursEvents,
-          offHoursCommits: stats.offHoursCommits,
-          offHoursReviews: stats.offHoursReviews,
-          weekend: stats.weekend,
-          night: stats.night,
-        }))
-        .sort((a, b) => b.offHoursEvents - a.offHoursEvents);
+    : Array.from(totalEventsByContributor.keys())
+        .map((cid) => {
+          const stats = byContributor.get(cid) ?? NO_OFF_HOURS;
+          return {
+            label: displayName(cid),
+            totalEvents: totalEventsByContributor.get(cid) ?? 0,
+            commits: commitsByContributor.get(cid) ?? 0,
+            reviews: reviewsByContributor.get(cid) ?? 0,
+            offHoursEvents: stats.offHoursEvents,
+            offHoursCommits: stats.offHoursCommits,
+            offHoursReviews: stats.offHoursReviews,
+            weekend: stats.weekend,
+            night: stats.night,
+          };
+        })
+        // Off-hours load first (the signal), then overall activity.
+        .sort((a, b) => b.offHoursEvents - a.offHoursEvents || b.totalEvents - a.totalEvents);
 
   const evidenceRefs: WorkloadEvidenceRef[] = insufficient
     ? []

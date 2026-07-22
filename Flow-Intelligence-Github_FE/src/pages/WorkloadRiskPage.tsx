@@ -150,6 +150,14 @@ function AiAnalysis({ ai }: { ai: NonNullable<WorkloadRiskResult["aiAnalysis"]> 
 // Detailed, supportive commentary on each contributor's activity & load. Names
 // are real (page shows identities) but were never sent to the AI — the notes are
 // generated against pseudonyms and re-labelled on the server.
+// AI's per-member off-hours load level — a burnout-risk signal, not a performance
+// score. Kept deliberately supportive in wording.
+const LEVEL_BADGE: Record<WorkloadContributorInsight["level"], { label: string; className: string }> = {
+  high: { label: "Heavy off-hours load", className: "text-rose-600 bg-rose-50 border-rose-100" },
+  medium: { label: "Moderate off-hours load", className: "text-amber-600 bg-amber-50 border-amber-100" },
+  low: { label: "Balanced load", className: "text-emerald-600 bg-emerald-50 border-emerald-100" },
+};
+
 function ContributorInsights({ insights }: { insights: WorkloadContributorInsight[] }) {
   if (insights.length === 0) return null;
   return (
@@ -161,17 +169,31 @@ function ContributorInsights({ insights }: { insights: WorkloadContributorInsigh
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {insights.map((c) => {
           const pct = c.totalEvents > 0 ? Math.round((c.offHoursEvents / c.totalEvents) * 100) : 0;
+          const badge = LEVEL_BADGE[c.level];
           return (
             <div key={c.contributor} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex items-start justify-between gap-3 mb-3">
                 <h4 className="font-bold text-slate-900 truncate">{c.contributor}</h4>
-                <span className="text-xs font-bold text-amber-600 bg-amber-50 border border-amber-100 px-2 py-1 rounded-lg flex-shrink-0">
-                  {pct}% off-hours
-                </span>
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                  <span className={`text-xs font-bold border px-2 py-1 rounded-lg ${badge.className}`}>
+                    {badge.label}
+                  </span>
+                  <span className="text-[11px] font-semibold text-slate-400">{pct}% off-hours</span>
+                </div>
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 font-semibold mb-3">
-                <span>📝 {c.commits} commits</span>
-                <span>👀 {c.reviews} reviews</span>
+                <span>
+                  📝 {c.commits} commits
+                  {c.offHoursCommits > 0 && (
+                    <span className="text-amber-600"> · {c.offHoursCommits} off-hrs</span>
+                  )}
+                </span>
+                <span>
+                  👀 {c.reviews} reviews
+                  {c.offHoursReviews > 0 && (
+                    <span className="text-amber-600"> · {c.offHoursReviews} off-hrs</span>
+                  )}
+                </span>
                 <span>🌙 {c.night} night</span>
                 <span>📅 {c.weekend} weekend</span>
               </div>

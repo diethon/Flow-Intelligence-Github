@@ -47,12 +47,17 @@ export interface WorkloadAiItem {
 /** Per-member commentary. `contributor` is the real GitHub login (page shows identities). */
 export interface WorkloadContributorInsight {
   contributor: string;
+  /** AI's off-hours workload-load assessment (burnout-risk signal, not performance). */
+  level: "high" | "medium" | "low";
   note: string;
   suggestion?: string;
   totalEvents: number;
   offHoursEvents: number;
   commits: number;
   reviews: number;
+  /** How many of this person's commits / reviews landed off-hours. */
+  offHoursCommits: number;
+  offHoursReviews: number;
   night: number;
   weekend: number;
 }

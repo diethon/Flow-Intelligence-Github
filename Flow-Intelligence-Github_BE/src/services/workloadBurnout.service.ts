@@ -16,12 +16,21 @@ export interface WorkloadAiItem {
  */
 export interface WorkloadContributorInsight {
   contributor: string;
+  /**
+   * AI's off-hours workload-load assessment for this person — a burnout-risk
+   * signal, NOT a performance/productivity score. "high" = carrying a heavy
+   * off-hours load, "low" = balanced.
+   */
+  level: "high" | "medium" | "low";
   note: string;
   suggestion?: string;
   totalEvents: number;
   offHoursEvents: number;
   commits: number;
   reviews: number;
+  /** How many of this person's commits / reviews landed off-hours. */
+  offHoursCommits: number;
+  offHoursReviews: number;
   night: number;
   weekend: number;
 }
@@ -158,11 +167,11 @@ Your job:
 3. In the 'recommendation' items, give practical, actionable remediation the team can adopt — e.g. rebalancing workload and review load, adjusting deadlines/scope, setting healthy off-hours norms, adding backup reviewers, protecting weekends, and monitoring the trend.
 4. Include AT LEAST one recommendation on how to protect delivery timelines WHEN THE PROJECT IS GENUINELY URGENT, without relying on sustained overtime — e.g. ruthless prioritization / cutting or deferring non-critical scope (MoSCoW), parallelizing work and adding temporary help, timeboxing any crunch to a short, explicit, agreed period followed by recovery time, rotating who takes on-call/late work so no one carries it alone, and unblocking the critical path (fast reviews, removing dependencies) rather than adding hours. Make clear that occasional short bursts can be acceptable but a permanent crunch is not.
 
-5. For EACH contributor in the payload 'breakdown', produce a 'perContributor' entry giving a detailed, supportive note about that person's activity pattern and their contribution. Base it strictly on their numbers: how much they contributed (commits and reviews), how much of it landed off-hours, and the night vs weekend split. Point out if someone is carrying a lot of off-hours load or is the main reviewer, and add a short workflow-oriented suggestion for them (e.g. share review load, protect their evenings). You MAY comment on each contributor individually here.
+5. For EACH contributor in the payload 'breakdown', produce a 'perContributor' entry giving a detailed, supportive note about that person's activity pattern and their contribution. Base it strictly on their numbers: how much they contributed (total commits and total reviews), how many of those commits and reviews specifically landed off-hours (fields 'offHoursCommits' and 'offHoursReviews' — e.g. "5 commits, 4 of them off-hours"), and the night vs weekend split. Be explicit about the commit vs review off-hours split so the reader sees exactly where each person's overtime is concentrated. Point out if someone is carrying a lot of off-hours load or is the main reviewer, and add a short workflow-oriented suggestion for them (e.g. share review load, protect their evenings). Also assign each contributor a 'level' — an OFF-HOURS WORKLOAD-LOAD assessment (a burnout-risk signal, NOT a performance/productivity score and NOT a ranking against teammates): "high" when a large share of their activity is off-hours and the volume is meaningful, "medium" for a moderate off-hours share, "low" when their work is mostly within business hours. Judge each person only against their own numbers, never relative to others. You MAY comment on each contributor individually here.
 
 Rules: Refer to each contributor ONLY by the given pseudonym label and 'id' (e.g. "Contributor A") — never invent or guess real names. Keep it supportive and workflow-oriented: do NOT rank contributors against each other, do NOT score productivity, and do NOT frame anything as HR/performance evaluation. Be specific and reference the numbers where relevant. Do NOT produce any item about timezones, timezone normalization/distribution, mapping contributor locations, verifying where people work, or adjusting a UTC baseline — treat the off-hours numbers as given and focus only on workload, scope, review flow, and delivery.
 
-Provide an executive summary, a list of limitations, an array of items, and a 'perContributor' array with one entry per contributor. Output strictly in valid JSON matching this schema: { "summary": "string", "confidence": "high"|"medium"|"low", "limitations": ["string"], "items": [{ "type": "risk_summary"|"recommendation", "title": "string", "detail": "string", "severity": "high"|"medium"|"low"|"info" }], "perContributor": [{ "id": number, "label": "string", "note": "string", "suggestion": "string" }] }
+Provide an executive summary, a list of limitations, an array of items, and a 'perContributor' array with one entry per contributor. Output strictly in valid JSON matching this schema: { "summary": "string", "confidence": "high"|"medium"|"low", "limitations": ["string"], "items": [{ "type": "risk_summary"|"recommendation", "title": "string", "detail": "string", "severity": "high"|"medium"|"low"|"info" }], "perContributor": [{ "id": number, "label": "string", "level": "high"|"medium"|"low", "note": "string", "suggestion": "string" }] }
 
 Payload data: ${JSON.stringify(payload)}`;
 
@@ -217,19 +226,42 @@ Payload data: ${JSON.stringify(payload)}`;
 
       const aiNote = typeof match?.note === "string" ? match.note.trim() : "";
       const aiSuggestion = typeof match?.suggestion === "string" ? match.suggestion.trim() : "";
+      const aiLevel = typeof match?.level === "string" ? match.level.toLowerCase() : "";
+      const level: WorkloadContributorInsight["level"] =
+        aiLevel === "high" || aiLevel === "medium" || aiLevel === "low"
+          ? aiLevel
+          : this.defaultContributorLevel(b);
 
       return {
         contributor: b.label,
+        level,
         note: aiNote || this.defaultContributorNote(b),
         suggestion: aiSuggestion || undefined,
         totalEvents: b.totalEvents,
         offHoursEvents: b.offHoursEvents,
         commits: b.commits,
         reviews: b.reviews,
+        offHoursCommits: b.offHoursCommits,
+        offHoursReviews: b.offHoursReviews,
         night: b.night,
         weekend: b.weekend,
       };
     });
+  }
+
+  /**
+   * Deterministic off-hours load level from a person's own numbers — used when
+   * the AI omits a level or the AI call fails. Based on the share of their
+   * activity that landed off-hours, with a volume guard so one-off late events
+   * don't read as "high".
+   */
+  private defaultContributorLevel(
+    b: WorkloadRiskResult["breakdown"][number]
+  ): WorkloadContributorInsight["level"] {
+    const pct = b.totalEvents > 0 ? (b.offHoursEvents / b.totalEvents) * 100 : 0;
+    if (pct >= 60 && b.offHoursEvents >= 3) return "high";
+    if (pct >= 30 && b.offHoursEvents >= 2) return "medium";
+    return "low";
   }
 
   /** Deterministic, numbers-only per-member note (no AI, no ranking language). */
@@ -237,7 +269,8 @@ Payload data: ${JSON.stringify(payload)}`;
     const pct = b.totalEvents > 0 ? Math.round((b.offHoursEvents / b.totalEvents) * 100) : 0;
     const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
     return (
-      `Contributed ${plural(b.commits, "commit")} and ${plural(b.reviews, "review")}. ` +
+      `Contributed ${plural(b.commits, "commit")} (${b.offHoursCommits} off-hours) and ` +
+      `${plural(b.reviews, "review")} (${b.offHoursReviews} off-hours). ` +
       `${b.offHoursEvents} of ${b.totalEvents} (${pct}%) landed off-hours — ` +
       `${b.night} at night and ${b.weekend} on weekends (UTC).`
     );
