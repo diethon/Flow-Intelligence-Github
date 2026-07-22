@@ -40,7 +40,7 @@ export class GitHubConnectionService {
     let tokenEncrypted: string;
 
     if (existingConnection) {
-      tokenEncrypted = existingConnection.tokenEncrypted;
+      tokenEncrypted = this.encryptToken(data.token);
       connectionId = existingConnection._id.toString();
       await repositoryConnectionRepo.updateStatus(
         existingConnection._id.toString(),

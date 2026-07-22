@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { PageShell, SectionHeading, PrimaryBtn, GhostBtn } from "../components/PageShell";
+import { PageShell, PrimaryBtn, GhostBtn } from "../components/PageShell";
 import { briefApi, type AiBriefData } from "../api/briefApi";
 import { RepoSelect } from "../components/PageShell";
 import { fetchDashboardRepositories } from "../api/dashboardApi";
@@ -27,7 +27,7 @@ export function WeeklyBriefPage() {
           setLoading(false);
         }
       })
-      .catch((err) => {
+      .catch(() => {
         setError("Failed to load repositories");
         setLoading(false);
       });

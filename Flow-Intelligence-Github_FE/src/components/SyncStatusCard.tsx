@@ -176,7 +176,7 @@ export const SyncStatusCard: React.FC<SyncStatusCardProps> = ({
                     </div>
                     {job.status === 'failed' && job.error && (
                       <p className="ml-7 text-[10px] text-red-500 italic max-w-full truncate" title={job.error}>
-                        Lỗi: {job.error}
+                        Error: {job.error}
                       </p>
                     )}
                   </div>

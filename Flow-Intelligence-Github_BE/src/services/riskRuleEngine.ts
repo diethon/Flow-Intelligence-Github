@@ -633,25 +633,42 @@ export class RiskEvaluationService {
         }
       } else if (rule.ruleCode === "R3") {
         // Query Reviews
-        const reviews = await Review.find({ _id: { $in: evalResult.affectedEntityRefs } }).select("_id userLogin").lean();
+        const reviews = await Review.find({ _id: { $in: evalResult.affectedEntityRefs } }).select("_id userLogin pullRequestId githubReviewId").lean();
+        const prIds = reviews.map(r => r.pullRequestId).filter(Boolean);
+        const prs = await PullRequest.find({ _id: { $in: prIds } }).select("_id prUrl").lean();
+        const prUrlMap = new Map(prs.map(pr => [pr._id.toString(), pr.prUrl]));
+
         for (const rev of reviews) {
+          const prUrl = rev.pullRequestId ? prUrlMap.get(rev.pullRequestId.toString()) : null;
+          const reviewUrl = prUrl && rev.githubReviewId ? `${prUrl}#pullrequestreview-${rev.githubReviewId}` : "";
           evidenceItems.push({
             entityType: "review",
             entityId: rev._id,
             sourceLabel: `Review by ${rev.userLogin}`,
-            sourceUrl: "",
+            sourceUrl: reviewUrl,
             summary: noteById.get(rev._id.toString()) ?? `Review by ${rev.userLogin}`,
           });
         }
       } else if (rule.ruleCode === "R4") {
         // Query Checks
-        const checks = await CheckRun.find({ _id: { $in: evalResult.affectedEntityRefs } }).select("_id name conclusion").lean();
+        const checks = await CheckRun.find({ _id: { $in: evalResult.affectedEntityRefs } }).select("_id name conclusion pullRequestId githubCheckId repositoryId").lean();
+        const prIds = checks.map(c => c.pullRequestId).filter(Boolean);
+        const prs = await PullRequest.find({ _id: { $in: prIds } }).select("_id prUrl").lean();
+        const prUrlMap = new Map(prs.map(pr => [pr._id.toString(), pr.prUrl]));
+        
         for (const check of checks) {
+          const prUrl = check.pullRequestId ? prUrlMap.get(check.pullRequestId.toString()) : null;
+          // If we have PR URL, append /checks. Otherwise just use PR URL or empty string.
+          // In a real app we might construct the GitHub Action run URL, but PR checks tab is a good fallback.
+          let checkUrl = "";
+          if (prUrl) {
+            checkUrl = `${prUrl}/checks`;
+          }
           evidenceItems.push({
             entityType: "check_run",
             entityId: check._id,
             sourceLabel: `${check.name}: ${check.conclusion}`,
-            sourceUrl: "",
+            sourceUrl: checkUrl,
             summary: noteById.get(check._id.toString()) ?? `${check.name}: ${check.conclusion}`,
           });
         }
