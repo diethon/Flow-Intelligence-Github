@@ -1,0 +1,6 @@
+{
+  "pseudonymizeContributors": true,
+  "minimumGroupSize": 5,
+  "excludeRawComments": true,
+  "excludeRawCode": true
+}

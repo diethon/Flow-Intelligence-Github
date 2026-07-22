@@ -1,0 +1,20 @@
+{
+  "contributors": [
+    { "githubUserId": 2001, "login": "valid-user", "type": "User" },
+    { "login": "missing-id" },
+    { "githubUserId": "not-a-number", "login": "bad-id" }
+  ],
+  "issues": [
+    {
+      "githubIssueId": 6001,
+      "number": 30,
+      "title": "Valid issue",
+      "state": "open",
+      "authorGithubId": 2001,
+      "authorLogin": "valid-user",
+      "issueCreatedAt": "2026-06-01T00:00:00.000Z",
+      "issueUpdatedAt": "2026-06-01T00:00:00.000Z",
+      "issueUrl": "not-a-valid-url"
+    }
+  ]
+}

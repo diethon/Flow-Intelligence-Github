@@ -1,0 +1,12 @@
+[
+  {
+    "_id": { "$oid": "6a302e5040dc9a966cb8dce5" },
+    "userId": { "$oid": "6a302e5040dc9a966cb8dce4" },
+    "providerType": "oauth",
+    "installationId": null,
+    "tokenEncrypted": "mock_encrypted_token_123456",
+    "status": "active",
+    "createdAt": { "$date": "2026-06-19T09:20:00.000Z" },
+    "updatedAt": { "$date": "2026-06-19T09:20:00.000Z" }
+  }
+]

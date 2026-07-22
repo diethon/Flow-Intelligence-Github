@@ -1,0 +1,108 @@
+[
+  {
+    "_id": "664000000000000000000a01",
+    "repositoryId": "664000000000000000000001",
+    "riskEventId": "664000000000000000000b01",
+    "sourceType": "risk_event",
+    "title": "Review pickup time spiked this week",
+    "severity": "high",
+    "summary": "Median time to first review rose from 9h to 28h across open pull requests.",
+    "evidence": [
+      {
+        "entityType": "pull_request",
+        "entityId": "664000000000000000000c01",
+        "sourceLabel": "PR #42",
+        "sourceUrl": "https://github.com/demo/repo/pull/42",
+        "summary": "Refactor sync worker retry logic"
+      },
+      {
+        "entityType": "pull_request",
+        "entityId": "664000000000000000000c02",
+        "sourceLabel": "PR #45",
+        "sourceUrl": "https://github.com/demo/repo/pull/45",
+        "summary": "Add webhook signature verification"
+      }
+    ],
+    "suggestedAction": "Assign a backup reviewer and set a review pickup SLA.",
+    "confidence": "medium",
+    "limitation": "Only GitHub PR/review metadata was analyzed.",
+    "createdAt": "2026-06-20T08:00:00.000Z",
+    "updatedAt": "2026-06-20T08:00:00.000Z"
+  },
+  {
+    "_id": "664000000000000000000a02",
+    "repositoryId": "664000000000000000000001",
+    "predictionId": "664000000000000000000d01",
+    "sourceType": "prediction",
+    "title": "PR #51 is likely to be delayed",
+    "severity": "high",
+    "summary": "Predicted delay probability 82% (High risk).",
+    "evidence": [
+      {
+        "entityType": "pull_request",
+        "entityId": "664000000000000000000c03",
+        "sourceLabel": "PR #51",
+        "sourceUrl": "https://github.com/demo/repo/pull/51",
+        "summary": "Migrate auth module to JWT rotation"
+      }
+    ],
+    "suggestedAction": "Assign a backup reviewer and set a review pickup SLA.",
+    "confidence": "high",
+    "limitation": "Prediction from model prdelay-v1; based on GitHub PR/review metadata only.",
+    "createdAt": "2026-06-20T07:30:00.000Z",
+    "updatedAt": "2026-06-20T07:30:00.000Z"
+  },
+  {
+    "_id": "664000000000000000000a03",
+    "repositoryId": "664000000000000000000001",
+    "riskEventId": "664000000000000000000b02",
+    "sourceType": "risk_event",
+    "title": "CI friction: build is failing",
+    "severity": "medium",
+    "summary": "A required check failed on the latest commit to the default branch.",
+    "evidence": [
+      {
+        "entityType": "check_run",
+        "entityId": "664000000000000000000c04",
+        "sourceLabel": "Check: build",
+        "sourceUrl": "https://github.com/demo/repo/actions/runs/7001",
+        "summary": "Conclusion: failure"
+      },
+      {
+        "entityType": "commit",
+        "entityId": "664000000000000000000c05",
+        "sourceLabel": "Commit a1b2c3d",
+        "sourceUrl": "",
+        "summary": "Fix retry logic in sync worker"
+      }
+    ],
+    "suggestedAction": "Inspect failing checks, rerun them, and prioritize CI fixes.",
+    "confidence": "high",
+    "limitation": "Only GitHub check-run and commit metadata was analyzed.",
+    "createdAt": "2026-06-19T15:10:00.000Z",
+    "updatedAt": "2026-06-19T15:10:00.000Z"
+  },
+  {
+    "_id": "664000000000000000000a04",
+    "repositoryId": "664000000000000000000001",
+    "riskEventId": "664000000000000000000b03",
+    "sourceType": "risk_event",
+    "title": "Review load is concentrated on one reviewer",
+    "severity": "low",
+    "summary": "A single reviewer accounts for most review activity this week.",
+    "evidence": [
+      {
+        "entityType": "issue",
+        "entityId": "664000000000000000000c06",
+        "sourceLabel": "Issue #12",
+        "sourceUrl": "https://github.com/demo/repo/issues/12",
+        "summary": "Flaky test in CI pipeline"
+      }
+    ],
+    "suggestedAction": "Distribute review ownership and rotate reviewers.",
+    "confidence": "low",
+    "limitation": "Group-level signal only; minimum group threshold applied, no individual scoring.",
+    "createdAt": "2026-06-18T11:45:00.000Z",
+    "updatedAt": "2026-06-18T11:45:00.000Z"
+  }
+]

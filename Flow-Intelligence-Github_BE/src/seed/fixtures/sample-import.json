@@ -1,0 +1,52 @@
+{
+  "contributors": [
+    {
+      "githubUserId": 1001,
+      "login": "octofan",
+      "displayNameMasked": "Contributor A",
+      "type": "User"
+    },
+    {
+      "githubUserId": 1002,
+      "login": "review-bot",
+      "displayNameMasked": "Contributor B",
+      "type": "Bot"
+    }
+  ],
+  "issues": [
+    {
+      "githubIssueId": 5001,
+      "number": 12,
+      "title": "Flaky test in CI pipeline",
+      "state": "open",
+      "authorGithubId": 1001,
+      "authorLogin": "octofan",
+      "labels": ["bug", "ci"],
+      "assignees": ["octofan"],
+      "issueCreatedAt": "2026-06-10T09:00:00.000Z",
+      "issueUpdatedAt": "2026-06-12T09:00:00.000Z",
+      "issueUrl": "https://github.com/demo/repo/issues/12"
+    }
+  ],
+  "commits": [
+    {
+      "githubSha": "a1b2c3d4e5f600112233445566778899aabbccdd",
+      "authorGithubId": 1001,
+      "authorLogin": "octofan",
+      "message": "Fix retry logic in sync worker",
+      "committedAt": "2026-06-11T14:30:00.000Z"
+    }
+  ],
+  "checkRuns": [
+    {
+      "githubCheckId": 7001,
+      "name": "build",
+      "status": "completed",
+      "conclusion": "failure",
+      "headSha": "a1b2c3d4e5f600112233445566778899aabbccdd",
+      "startedAt": "2026-06-11T14:31:00.000Z",
+      "completedAt": "2026-06-11T14:36:00.000Z",
+      "detailsUrl": "https://github.com/demo/repo/actions/runs/7001"
+    }
+  ]
+}
