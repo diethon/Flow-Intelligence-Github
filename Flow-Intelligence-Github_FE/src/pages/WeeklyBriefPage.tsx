@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { PageShell, SectionHeading, PrimaryBtn, GhostBtn } from "../components/PageShell";
+import { PageShell, PrimaryBtn, GhostBtn } from "../components/PageShell";
 import { briefApi, type AiBriefData } from "../api/briefApi";
 import { RepoSelect } from "../components/PageShell";
 import { fetchDashboardRepositories } from "../api/dashboardApi";
@@ -7,6 +7,12 @@ import type { Repository } from "../types/dashboard";
 import { LoadingState } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { PartialDataState } from "../components/PartialDataState";
+import { getEvidenceCards } from "../services/evidenceService";
+import { fetchReviewCIMetrics } from "../api/metricsApi";
+import type { EvidenceCard } from "../types";
+import type { UC10MetricsResult } from "../types/metrics";
+import { exportWeeklyReportCsv, exportWeeklyReportPdf } from "../utils/reportExport";
+import { BriefComparisonView } from "../components/BriefComparisonView";
 
 export function WeeklyBriefPage() {
   const [repos, setRepos] = useState<Repository[]>([]);
@@ -14,6 +20,10 @@ export function WeeklyBriefPage() {
   const [brief, setBrief] = useState<AiBriefData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [evidenceCards, setEvidenceCards] = useState<EvidenceCard[]>([]);
+  const [metrics, setMetrics] = useState<UC10MetricsResult | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [showComparison, setShowComparison] = useState(false);
   const [startDate, setStartDate] = useState(
     new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
   );
@@ -33,7 +43,7 @@ export function WeeklyBriefPage() {
           setLoading(false);
         }
       })
-      .catch((err) => {
+      .catch(() => {
         setError("Failed to load repositories");
         setLoading(false);
       });
@@ -57,9 +67,29 @@ export function WeeklyBriefPage() {
     }
   };
 
+  const loadReportDetails = async () => {
+    if (!selectedRepoId) return;
+    const [evidenceResult, metricsResult] = await Promise.allSettled([
+      getEvidenceCards(selectedRepoId, { limit: 100 }),
+      fetchReviewCIMetrics(selectedRepoId, 7, startDate, endDate),
+    ]);
+    if (evidenceResult.status === "fulfilled") {
+      const from = new Date(`${startDate}T00:00:00.000Z`).getTime();
+      const to = new Date(`${endDate}T23:59:59.999Z`).getTime();
+      setEvidenceCards((evidenceResult.value.data ?? []).filter(card => {
+        const createdAt = new Date(card.createdAt).getTime();
+        return createdAt >= from && createdAt <= to;
+      }));
+    } else {
+      setEvidenceCards([]);
+    }
+    setMetrics(metricsResult.status === "fulfilled" ? metricsResult.value : null);
+  };
+
   useEffect(() => {
     if (selectedRepoId) {
       loadBriefs();
+      loadReportDetails();
     }
   }, [selectedRepoId]);
 
@@ -72,6 +102,7 @@ export function WeeklyBriefPage() {
       const endIso = new Date(endDate + 'T23:59:59.999Z').toISOString();
       const generated = await briefApi.generateBrief(selectedRepoId, startIso, endIso);
       setBrief(generated);
+      await loadReportDetails();
     } catch (err: any) {
       setError(err.message || "Failed to generate brief");
     } finally {
@@ -82,6 +113,23 @@ export function WeeklyBriefPage() {
   const handleSelectRepo = (id: string) => {
     setSelectedRepoId(id);
     localStorage.setItem("selectedRepositoryId", id);
+  };
+
+  const handleExport = (format: "pdf" | "csv") => {
+    if (!brief) return;
+    setExportError(null);
+    const report = {
+      brief,
+      repositoryName: repos.find(repo => repo._id === selectedRepoId)?.fullName ?? "Repository",
+      evidenceCards,
+      metrics,
+    };
+    try {
+      if (format === "pdf") exportWeeklyReportPdf(report);
+      else exportWeeklyReportCsv(report);
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : "Could not export report");
+    }
   };
 
   return (
@@ -97,12 +145,17 @@ export function WeeklyBriefPage() {
               <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent border-none focus:ring-0 text-slate-700 py-1.5 outline-none cursor-pointer" />
             </div>
             <GhostBtn onClick={loadBriefs} disabled={loading}>↻ Refresh</GhostBtn>
+            <GhostBtn onClick={() => setShowComparison(value => !value)} disabled={loading || !brief}>{showComparison ? "Hide Comparison" : "Compare Periods"}</GhostBtn>
+            <GhostBtn onClick={() => handleExport("csv")} disabled={loading || !brief}>Export CSV</GhostBtn>
+            <GhostBtn onClick={() => handleExport("pdf")} disabled={loading || !brief}>Export PDF</GhostBtn>
             <PrimaryBtn onClick={handleGenerate} disabled={loading}>✨ Generate</PrimaryBtn>
           </div>
         ) : undefined
       }
     >
       {error && <ErrorState message={error} retryAction={loadBriefs} />}
+      {exportError && <ErrorState message={exportError} />}
+      {showComparison && selectedRepoId && <BriefComparisonView repositoryId={selectedRepoId} onClose={() => setShowComparison(false)} />}
       
       {loading && !brief && <LoadingState message="Fetching your latest AI Brief..." />}
 

@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { AiPayloadBuilderService } from "./aiPayloadBuilder.service";
 import { AiBrief } from "../models/AiBrief";
 import { GeminiClientService } from "./geminiClient.service";
+import env from "../config/env";
 
 export class BriefService {
   constructor(private aiPayloadBuilderService: AiPayloadBuilderService) {}
@@ -24,13 +25,26 @@ Output strictly in valid JSON matching this schema: { "summary": "string", "conf
 
 Payload data: ${JSON.stringify(payload)}`;
 
-      const response = await geminiClient.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-        },
-      });
+      const models = [...new Set([env.GEMINI_MODEL, env.GEMINI_FALLBACK_MODEL])];
+      let response: { text: string } | null = null;
+      let lastModelError: unknown;
+
+      for (const model of models) {
+        try {
+          response = await geminiClient.generateContent({
+            model,
+            contents: prompt,
+            config: { responseMimeType: "application/json" },
+          });
+          break;
+        } catch (error) {
+          lastModelError = error;
+          if (!this.isUnavailableModelError(error)) throw error;
+          console.warn(`[BriefService] Gemini model '${model}' is unavailable. Trying the next configured model.`);
+        }
+      }
+
+      if (!response) throw lastModelError ?? new Error("No Gemini model is available.");
 
       const responseText = response.text || "{}";
       const parsed = JSON.parse(responseText);
@@ -53,6 +67,14 @@ Payload data: ${JSON.stringify(payload)}`;
       // 5. Deterministic Fallback
       return this.generateDeterministicBrief(repositoryId, windowStart, windowEnd, payload);
     }
+  }
+
+  private isUnavailableModelError(error: unknown): boolean {
+    if (!error || typeof error !== "object") return false;
+    const candidate = error as { code?: number; status?: number; statusCode?: number; message?: string };
+    const status = candidate.status ?? candidate.statusCode ?? candidate.code;
+    const message = (candidate.message ?? "").toLowerCase();
+    return status === 404 || message.includes("not found") || message.includes("no longer available") || message.includes("model") && message.includes("unavailable");
   }
 
   private async generateDeterministicBrief(repositoryId: string, windowStart: Date, windowEnd: Date, payload: any) {

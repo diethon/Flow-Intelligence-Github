@@ -7,6 +7,7 @@ export const createPrivacyRoutes = (controller: PrivacyController): Router => {
   
   router.get("/:id/privacy", authenticate, controller.getSettings);
   router.put("/:id/privacy", authenticate, controller.updateSettings);
+  router.delete("/:id/privacy/data", authenticate, controller.deleteData);
 
   return router;
 };
