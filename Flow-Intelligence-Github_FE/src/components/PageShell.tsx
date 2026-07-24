@@ -298,7 +298,7 @@ export function WindowSelector({
 // ─── Repo selector ────────────────────────────────────────────────────────────
 
 export function RepoSelect({ repos, value, onChange }: {
-  repos: { _id: string; fullName: string }[];
+  repos: { _id: string; fullName: string; role?: string }[];
   value: string;
   onChange: (id: string) => void;
 }) {
@@ -306,10 +306,14 @@ export function RepoSelect({ repos, value, onChange }: {
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 hover:border-slate-400 transition-colors w-auto min-w-[180px] max-w-xs cursor-pointer"
+      className="bg-slate-50/50 border border-slate-200 text-slate-800 text-xs font-semibold rounded-xl px-3.5 py-2 focus:outline-none focus:ring-1 focus:ring-slate-300 hover:bg-white hover:border-slate-300 transition-all w-auto min-w-[190px] max-w-xs cursor-pointer shadow-sm"
     >
       {repos.length === 0 && <option value="">No repositories connected</option>}
-      {repos.map((r) => <option key={r._id} value={r._id}>{r.fullName}</option>)}
+      {repos.map((r) => (
+        <option key={r._id} value={r._id}>
+          {r.fullName}
+        </option>
+      ))}
     </select>
   );
 }

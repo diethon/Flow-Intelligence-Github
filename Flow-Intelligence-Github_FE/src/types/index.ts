@@ -30,6 +30,7 @@ export interface GitHubRepository {
   watchers?: number;
   openIssues?: number;
   lastSyncedAt?: string;
+  role?: 'leader' | 'dev' | 'viewer';
   createdAt: string;
   updatedAt: string;
 }

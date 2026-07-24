@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { apiClient } from "../services/axiosClient";
+import { useAuth } from "../hooks/useAuth";
 
 const NAV = [
   {
@@ -31,9 +32,45 @@ const NAV = [
 
 function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
   const { pathname } = useLocation();
+  const { user } = useAuth();
+
+  const navItems = [
+    {
+      group: "Analytics",
+      items: [
+        { to: "/dashboard", label: "Team Dashboard",      icon: "▣", done: true  },
+        { to: "/review-ci", label: "Review & CI Metrics", icon: "◈", done: true  },
+        { to: "/rulebook",  label: "Flow Risk Rulebook",  icon: "◉", done: true  },
+      ],
+    },
+    {
+      group: "Insights",
+      items: [
+        { to: "/risk",  label: "Risk & Evidence", icon: "◆", done: true  },
+        { to: "/brief", label: "AI Weekly Brief", icon: "◇", done: true },
+      ],
+    },
+    {
+      group: "Settings",
+      items: [
+        { to: "/repositories/connect", label: "Connected Repos", icon: "🔌", done: true  },
+        { to: "/privacy", label: "Privacy Settings", icon: "◌", done: true },
+      ],
+    },
+  ];
+
+  if (user && user.role === 'admin') {
+    navItems.unshift({
+      group: "Administration",
+      items: [
+        { to: "/users", label: "Users Management", icon: "👥", done: true }
+      ]
+    });
+  }
+
   return (
     <nav className="flex-1 px-3 py-5 space-y-6 overflow-y-auto">
-      {NAV.map((group) => (
+      {navItems.map((group) => (
         <div key={group.group}>
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest px-3 mb-2">
             {group.group}
@@ -121,12 +158,28 @@ function LogoutButton() {
 // ─── Desktop Sidebar ──────────────────────────────────────────────────────────
 
 export function DesktopSidebar() {
+  const { user } = useAuth();
   return (
     <aside className="hidden lg:flex flex-col w-60 min-h-screen bg-white border-r border-slate-200 fixed left-0 top-0 bottom-0 z-30">
       <div className="px-5 pt-6 pb-5 border-b border-slate-100">
         <Logo />
       </div>
       <NavLinks />
+      {user && (
+        <div className="px-5 py-4 border-t border-slate-100 flex items-center gap-3">
+          {user.avatarUrl ? (
+            <img src={user.avatarUrl} alt="Avatar" className="w-9 h-9 rounded-full border border-slate-200 flex-shrink-0" />
+          ) : (
+            <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold flex-shrink-0">
+              {user.username.slice(0, 2).toUpperCase()}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold text-slate-800 truncate">{user.username}</p>
+            <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider">{user.role}</p>
+          </div>
+        </div>
+      )}
       <div className="px-4 py-4 border-t border-slate-100">
         <LogoutButton />
       </div>
@@ -138,6 +191,7 @@ export function DesktopSidebar() {
 
 export function MobileNav() {
   const [open, setOpen] = useState(false);
+  const { user } = useAuth();
 
   return (
     <>
@@ -186,6 +240,21 @@ export function MobileNav() {
           </button>
         </div>
         <NavLinks onItemClick={() => setOpen(false)} />
+        {user && (
+          <div className="px-5 py-4 border-t border-slate-100 flex items-center gap-3">
+            {user.avatarUrl ? (
+              <img src={user.avatarUrl} alt="Avatar" className="w-9 h-9 rounded-full border border-slate-200 flex-shrink-0" />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold flex-shrink-0">
+                {user.username.slice(0, 2).toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-slate-800 truncate">{user.username}</p>
+              <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider">{user.role}</p>
+            </div>
+          </div>
+        )}
         <div className="px-4 py-4 border-t border-slate-100">
           <LogoutButton />
         </div>
