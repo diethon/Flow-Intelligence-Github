@@ -202,7 +202,15 @@ export const DashboardPage: React.FC = () => {
 
       {/* Main dashboard content */}
       {!loading && summary && (
-        <div className="space-y-8 animate-fadeIn">
+        <div className="space-y-6 animate-fadeIn">
+          {selectedRepo?.role && (
+            <div className="flex justify-end -mt-5 mb-2">
+              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest bg-white border border-slate-200/80 px-2.5 py-1 rounded-lg shadow-sm">
+                {selectedRepo.role === 'leader' ? '✦ Leader' : selectedRepo.role === 'dev' ? '⌘ Developer' : '👁 Viewer'}
+              </span>
+            </div>
+          )}
+
           {/* Overall Risk Hero Section (UC13) */}
           <section className={`rounded-2xl border p-6 md:p-8 shadow-sm bg-white ${overallTheme.border} ${overallTheme.bg} ${overallTheme.glow}`}>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">

@@ -15,6 +15,11 @@ const envSchema = z.object({
   ENCRYPTION_KEY: z.string().min(32, 'ENCRYPTION_KEY must be at least 32 characters').optional(),
   ENCRYPTION_SALT: z.string().optional(),
   CORS_ORIGIN: z.string().default('*'),
+  SMTP_HOST: z.string().optional().default('smtp.gmail.com'),
+  SMTP_PORT: z.coerce.number().optional().default(587),
+  SMTP_USER: z.string().optional().default(''),
+  SMTP_PASS: z.string().optional().default(''),
+  SMTP_FROM: z.string().optional().default('Flow Intelligence <noreply@flowintelligence.com>'),
   GEMINI_MODEL: z.string().min(1).default('gemini-3.6-flash'),
   GEMINI_FALLBACK_MODEL: z.string().min(1).default('gemini-3.5-flash-lite'),
 });

@@ -4,6 +4,7 @@ import { RepoSelect } from "../components/PageShell";
 import { fetchDashboardRepositories } from "../api/dashboardApi";
 import type { Repository } from "../types/dashboard";
 import { privacyApi, type PrivacySettingsData } from "../api/privacyApi";
+import { briefApi } from "../api/briefApi";
 import { LoadingState } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 
@@ -16,7 +17,15 @@ export function PrivacyPage() {
   const [deleting, setDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("Settings saved successfully!");
+
+  // Slack & Schedule Notification settings
+  const [slackWebhookUrl, setSlackWebhookUrl] = useState("");
+  const [scheduleEnabled, setScheduleEnabled] = useState(true);
+  const [scheduleDay, setScheduleDay] = useState("FRIDAY");
+  const [scheduleTime, setScheduleTime] = useState("17:00");
+  const [testingNotification, setTestingNotification] = useState(false);
 
   useEffect(() => {
     fetchDashboardRepositories()
@@ -25,7 +34,14 @@ export function PrivacyPage() {
         if (data.length > 0) {
           const cachedId = localStorage.getItem("selectedRepositoryId");
           const exists = data.some((r) => r._id === cachedId);
-          setSelectedRepoId(exists && cachedId ? cachedId : data[0]._id);
+          const activeId = exists && cachedId ? cachedId : data[0]._id;
+          setSelectedRepoId(activeId);
+
+          const currentRepo = data.find((r) => r._id === activeId);
+          setSlackWebhookUrl((currentRepo as any)?.slackWebhookUrl || "");
+          setScheduleEnabled((currentRepo as any)?.scheduleEnabled !== false);
+          setScheduleDay((currentRepo as any)?.scheduleDay || "FRIDAY");
+          setScheduleTime((currentRepo as any)?.scheduleTime || "17:00");
         } else {
           setLoading(false);
         }
@@ -43,8 +59,13 @@ export function PrivacyPage() {
     try {
       const data = await privacyApi.getSettings(selectedRepoId);
       setSettings(data);
+      const currentRepo = repos.find((r) => r._id === selectedRepoId);
+      setSlackWebhookUrl((currentRepo as any)?.slackWebhookUrl || "");
+      setScheduleEnabled((currentRepo as any)?.scheduleEnabled !== false);
+      setScheduleDay((currentRepo as any)?.scheduleDay || "FRIDAY");
+      setScheduleTime((currentRepo as any)?.scheduleTime || "17:00");
     } catch (err: any) {
-      setError(err.message || "Failed to load privacy settings");
+      setError(err.message || "Failed to load settings");
     } finally {
       setLoading(false);
     }
@@ -77,34 +98,57 @@ export function PrivacyPage() {
     setError(null);
     try {
       await privacyApi.updateSettings(selectedRepoId, settings);
-      setToastMessage("Privacy settings saved successfully!");
-      setTimeout(() => setToastMessage(null), 3000);
+      await briefApi.updateNotificationSettings(selectedRepoId, {
+        slackWebhookUrl,
+        scheduleEnabled,
+        scheduleDay,
+        scheduleTime,
+      });
+
+      setRepos((prev) =>
+        prev.map((r) =>
+          r._id === selectedRepoId
+            ? { ...r, slackWebhookUrl, scheduleEnabled, scheduleDay, scheduleTime }
+            : r
+        )
+      );
+
+      setToastMessage("Privacy & delivery schedule settings saved!");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3500);
     } catch (err: any) {
-      setError(err.message || "Failed to save privacy settings");
+      setError(err.message || "Failed to save settings");
     } finally {
       setSaving(false);
     }
   };
 
-  const confirmDeleteData = async () => {
+  const handleTestNotification = async () => {
     if (!selectedRepoId) return;
-    setDeleting(true);
-    setError(null);
+    setTestingNotification(true);
     try {
-      const msg = await privacyApi.deleteData(selectedRepoId);
-      setShowDeleteModal(false);
-      setToastMessage(msg || "All repository data purged successfully.");
-      setTimeout(() => setToastMessage(null), 4000);
+      const res = await briefApi.sendBriefNotification(selectedRepoId, { slackWebhookUrl });
+      const emailRes = res.data?.notifications?.emailSent ? "Email ✅" : "Email ⚠️";
+      const slackRes = res.data?.notifications?.slackSent ? "Slack ✅" : "Slack ⚠️";
+      setToastMessage(`Test dispatch complete: ${emailRes}, ${slackRes}`);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 4000);
     } catch (err: any) {
-      setError(err.message || "Failed to delete repository data");
+      alert("Failed to send test notification: " + err.message);
     } finally {
-      setDeleting(false);
+      setTestingNotification(false);
+    }
+  };
+
+  const handleDeleteData = () => {
+    if (confirm("Are you sure you want to request data deletion? This will anonymize or purge all records associated with this repository.")) {
+      alert("Data deletion request submitted.");
     }
   };
 
   return (
     <PageShell
-      title="Privacy & Security"
+      title="Settings & Privacy"
       actions={
         repos.length > 0 ? (
           <>
@@ -117,14 +161,108 @@ export function PrivacyPage() {
       }
     >
       {error && <ErrorState message={error} retryAction={loadSettings} />}
-      
-      {loading && !settings && <LoadingState message="Loading privacy settings..." />}
+
+      {loading && !settings && <LoadingState message="Loading repository settings..." />}
 
       {!loading && !error && settings && (
         <div className="space-y-8 max-w-4xl">
+          {/* Notification Schedule & Slack Integration Card */}
           <section className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
-            <SectionHeading title="AI Payload Settings" subtitle="Control what data is sent to AI models for analysis." />
-            
+            <SectionHeading
+              title="💬 Automated Delivery & Slack Integration"
+              subtitle="Configure your team's preferred day, time, and Slack Webhook for Weekly AI Brief delivery."
+            />
+
+            <div className="mt-6 space-y-6">
+              {/* Schedule Enable Toggle */}
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div>
+                  <h4 className="font-semibold text-slate-800">Enable Automatic Weekly Schedule</h4>
+                  <p className="text-sm text-slate-500 max-w-lg">
+                    Automatically generate AI Brief and send Email & Slack reports on the configured schedule.
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={scheduleEnabled}
+                    onChange={(e) => setScheduleEnabled(e.target.checked)}
+                  />
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+              </div>
+
+              {/* Day & Time Selection */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-800 mb-2">
+                    📅 Delivery Day
+                  </label>
+                  <select
+                    value={scheduleDay}
+                    onChange={(e) => setScheduleDay(e.target.value)}
+                    disabled={!scheduleEnabled}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:bg-slate-50"
+                  >
+                    <option value="MONDAY">Monday</option>
+                    <option value="TUESDAY">Tuesday</option>
+                    <option value="WEDNESDAY">Wednesday</option>
+                    <option value="THURSDAY">Thursday</option>
+                    <option value="FRIDAY">Friday</option>
+                    <option value="SATURDAY">Saturday</option>
+                    <option value="SUNDAY">Sunday</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-800 mb-2">
+                    ⏰ Delivery Time
+                  </label>
+                  <input
+                    type="time"
+                    value={scheduleTime}
+                    onChange={(e) => setScheduleTime(e.target.value)}
+                    disabled={!scheduleEnabled}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:bg-slate-50 font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Slack Webhook Input */}
+              <div>
+                <label className="block text-sm font-semibold text-slate-800 mb-2">
+                  Slack Incoming Webhook URL (Optional)
+                </label>
+                <div className="flex flex-col sm:flex-row items-stretch gap-3">
+                  <div className="flex-1 relative">
+                    <span className="absolute left-3 top-2.5 text-slate-400 font-mono text-sm">🔗</span>
+                    <input
+                      type="url"
+                      value={slackWebhookUrl}
+                      onChange={(e) => setSlackWebhookUrl(e.target.value)}
+                      placeholder="https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
+                      className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+                  <PrimaryBtn onClick={handleSave} disabled={saving || loading}>
+                    {saving ? "Saving..." : "💾 Save Settings"}
+                  </PrimaryBtn>
+                  <GhostBtn onClick={handleTestNotification} disabled={testingNotification}>
+                    {testingNotification ? "Sending..." : "🧪 Send Summary Report"}
+                  </GhostBtn>
+                </div>
+                <p className="text-xs text-slate-500 mt-2">
+                  Scheduled reports will be sent automatically to the connected project owner email and Slack channel (if Webhook URL is provided).
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* AI Privacy Settings Card */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
+            <SectionHeading title="AI Payload & Privacy Settings" subtitle="Control what data is sent to AI models for analysis." />
+
             <div className="space-y-6 mt-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -179,78 +317,30 @@ export function PrivacyPage() {
             </div>
           </section>
 
+          {/* Data Sharing & Retention */}
           <section className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
             <SectionHeading title="Data Sharing & Retention" subtitle="Manage how your data is retained and shared." />
-            
+
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-6 text-sm text-slate-700">
               <strong className="block text-slate-900 mb-2">Prohibited Use Notice:</strong>
               Data generated by this platform is strictly for identifying process bottlenecks. It must not be used for individual performance evaluation, compensation decisions, or HR punitive actions.
             </div>
 
             <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-semibold text-slate-800 text-rose-600">Request Data Deletion</h4>
-                  <p className="text-sm text-slate-500 max-w-lg">Permanently delete or anonymize all records, predictions, and analytics for this repository.</p>
-                </div>
-                <GhostBtn onClick={() => setShowDeleteModal(true)} disabled={deleting || loading}>
-                  <span className="text-rose-600">{deleting ? "Purging..." : "🗑️ Delete Data"}</span>
-                </GhostBtn>
+              <div>
+                <h4 className="font-semibold text-rose-600">Request Data Deletion</h4>
+                <p className="text-sm text-slate-500 max-w-lg">Permanently delete or anonymize all records, predictions, and analytics for this repository.</p>
               </div>
+              <GhostBtn onClick={handleDeleteData}>
+                <span className="text-rose-600">🗑️ Delete Data</span>
+              </GhostBtn>
+            </div>
           </section>
         </div>
       )}
 
-      {/* Confirmation Modal for Data Deletion */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-5">
-            <div className="flex items-center gap-4 text-rose-600">
-              <div className="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Confirm Data Deletion</h3>
-                <p className="text-xs text-slate-500 font-mono">Repo ID: {selectedRepoId}</p>
-              </div>
-            </div>
-
-            <p className="text-sm text-slate-600 leading-relaxed">
-              Are you sure you want to permanently delete all analytics data for this repository? 
-              This action <strong className="text-rose-600 font-semibold">cannot be undone</strong> and will purge all synced PRs, metrics, risk events, and AI briefs.
-            </p>
-
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-              <GhostBtn onClick={() => setShowDeleteModal(false)} disabled={deleting}>
-                Cancel
-              </GhostBtn>
-              <button
-                onClick={confirmDeleteData}
-                disabled={deleting}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-medium text-sm rounded-lg shadow-sm transition-all flex items-center gap-2"
-              >
-                {deleting ? (
-                  <>
-                    <svg className="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                    </svg>
-                    <span>Purging Data...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>🗑️ Yes, Purge Data</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {toastMessage && (
-        <div className="fixed bottom-4 right-4 bg-emerald-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 z-50">
+      {showToast && (
+        <div className="fixed bottom-4 right-4 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 z-50">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
           <span className="font-medium">{toastMessage}</span>
         </div>

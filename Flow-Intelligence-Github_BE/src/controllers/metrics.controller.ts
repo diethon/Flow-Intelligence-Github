@@ -85,7 +85,7 @@ export class MetricsController {
       const connections = await GitHubConnection.find({ userId }).select("_id").lean();
       const connectionIds = connections.map(c => c._id);
 
-      const repos = await Repository.find({ connectionId: { $in: connectionIds } }).select("_id owner name fullName lastSyncedAt").lean();
+      const repos = await Repository.find({ connectionId: { $in: connectionIds } }).select("_id owner name fullName lastSyncedAt isPrivate slackWebhookUrl scheduleEnabled scheduleDay scheduleTime").lean();
       res.json({ repositories: repos });
     } catch (err) {
       res.status(500).json({ error: "Failed to fetch repositories", detail: String(err) });

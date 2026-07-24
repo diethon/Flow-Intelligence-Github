@@ -12,6 +12,9 @@ import mongoose, { Schema, Model, Types } from 'mongoose';
 export { User } from "./User.js";
 export type { IUser, UserRole } from "./User.js";
 
+export { RepositoryRole } from "./RepositoryRole.js";
+export type { IRepositoryRole } from "./RepositoryRole.js";
+
 export { GitHubConnection } from "./GitHubConnection.js";
 export type { IGitHubConnection, ConnectionStatus, ProviderType } from "./GitHubConnection.js";
 

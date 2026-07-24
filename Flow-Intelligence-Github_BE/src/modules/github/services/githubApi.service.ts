@@ -38,6 +38,28 @@ export class GitHubApiService {
     }
   }
 
+  async getUserRepoPermission(owner: string, repo: string, username: string): Promise<string> {
+    try {
+      const response = await this.octokit.request('GET /repos/{owner}/{repo}/collaborators/{username}/permission', {
+        owner,
+        repo,
+        username,
+        headers: {
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+      });
+      // response.data contains { permission: 'admin' | 'write' | 'read' | 'none', ... }
+      return (response.data as any).permission;
+    } catch (error: any) {
+      // Trả về 'none' nếu gặp lỗi 404 hoặc 403 (không có quyền xem thông tin collaborator của repo)
+      if (error.status === 404 || error.status === 403) {
+        return 'none';
+      }
+      this.handleApiError(error, 'getUserRepoPermission');
+      throw error;
+    }
+  }
+
   async getRepository(owner: string, repo: string) {
     try {
       const response = await this.octokit.request('GET /repos/{owner}/{repo}', {
