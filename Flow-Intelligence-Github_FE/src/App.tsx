@@ -1,8 +1,9 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
-import { DashboardPage, ConnectRepositoryPage, SyncStatusPage, LoginPage, PullRequestsPage } from './pages';
+import { DashboardPage, ConnectRepositoryPage, SyncStatusPage, LoginPage, PullRequestsPage, UsersManagementPage, AdminDashboardPage } from './pages';
 import { EvidencePage, EvidenceCardDetailPage } from './pages';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect } from 'react';
+import { AuthProvider, useAuth } from './components/AuthContext';
 import { AppLayout } from './components/AppLayout.js';
 import { ReviewCIMetricsPage } from "./pages/ReviewCIMetricsPage.js";
 import { RulebookPage } from "./pages/RulebookPage.js";
@@ -46,21 +47,73 @@ const AuthCallback = () => {
 };
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const token = localStorage.getItem('accessToken');
-  if (!token) {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent mx-auto" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
+  return <>{children}</>;
+};
+
+const RoleProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode; allowedRoles: string[] }) => {
+  const { user, isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent mx-auto" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!user || !allowedRoles.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return <>{children}</>;
 };
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/auth/callback" element={<AuthCallback />} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route
+              path="/users"
+              element={
+                <RoleProtectedRoute allowedRoles={["admin"]}>
+                  <AppLayout>
+                    <UsersManagementPage />
+                  </AppLayout>
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/dashboard"
+              element={
+                <RoleProtectedRoute allowedRoles={["admin"]}>
+                  <AppLayout>
+                    <AdminDashboardPage />
+                  </AppLayout>
+                </RoleProtectedRoute>
+              }
+            />
           <Route
             path="/repositories/connect"
             element={
@@ -218,6 +271,7 @@ function App() {
           <Route path="/repositories/:id/risk-evidence/:cardId" element={<LegacyEvidenceRedirect />} />
         </Routes>
       </Router>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

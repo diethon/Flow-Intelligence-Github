@@ -2,6 +2,7 @@ import { type Request, type Response } from "express";
 import mongoose from "mongoose";
 import { Repository } from "../models/Repository.js";
 import { GitHubConnection } from "../models/GitHubConnection.js";
+import { RepositoryRole } from "../models/RepositoryRole.js";
 import { buildDashboard, getRulebook } from "../services/dashboardService.js";
 
 export class DashboardController {
@@ -22,7 +23,20 @@ export class DashboardController {
       const repos = await Repository.find({ connectionId: { $in: connectionIds } })
         .select("_id owner name fullName lastSyncedAt isPrivate slackWebhookUrl scheduleEnabled scheduleDay scheduleTime")
         .lean();
-      res.json({ success: true, data: repos });
+
+      // Fetch repository roles for this user
+      const repoRoles = await RepositoryRole.find({ userId: new mongoose.Types.ObjectId(userId) }).lean();
+      const roleMap = new Map<string, string>();
+      for (const r of repoRoles) {
+        roleMap.set(r.repositoryId.toString(), r.role);
+      }
+
+      const reposWithRole = repos.map(repo => ({
+        ...repo,
+        role: roleMap.get(repo._id.toString()) || 'viewer' // mặc định là viewer
+      }));
+
+      res.json({ success: true, data: reposWithRole });
     } catch (err) {
       res.status(500).json({ error: "Failed to fetch repositories", detail: String(err) });
     }
