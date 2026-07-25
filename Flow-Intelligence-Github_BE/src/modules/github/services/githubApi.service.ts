@@ -48,8 +48,15 @@ export class GitHubApiService {
           'X-GitHub-Api-Version': '2022-11-28',
         },
       });
-      // response.data contains { permission: 'admin' | 'write' | 'read' | 'none', ... }
-      return (response.data as any).permission;
+      const permissionData = response.data as {
+        permission?: string;
+        role_name?: string;
+      };
+      // GitHub may expose "maintain" through role_name while the legacy
+      // permission field reports "write".
+      return permissionData.role_name === "maintain"
+        ? "maintain"
+        : permissionData.permission ?? "none";
     } catch (error: any) {
       // Trả về 'none' nếu gặp lỗi 404 hoặc 403 (không có quyền xem thông tin collaborator của repo)
       if (error.status === 404 || error.status === 403) {

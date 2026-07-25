@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { apiClient } from "../services/axiosClient";
 import { useAuth } from "../hooks/useAuth";
+import { useSelectedRepositoryPermissions } from "../hooks/useSelectedRepositoryPermissions";
 
 const NAV = [
   {
@@ -33,6 +34,7 @@ const NAV = [
 function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
   const { pathname } = useLocation();
   const { user } = useAuth();
+  const { canManagePrivacy } = useSelectedRepositoryPermissions();
 
   const navItems = [
     {
@@ -66,6 +68,12 @@ function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
         { to: "/users", label: "Users Management", icon: "👥", done: true }
       ]
     });
+  }
+
+  for (const group of navItems) {
+    if (group.group === "Settings" && !canManagePrivacy) {
+      group.items = group.items.filter((item) => item.to !== "/privacy");
+    }
   }
 
   return (

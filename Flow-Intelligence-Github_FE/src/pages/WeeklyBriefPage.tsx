@@ -13,8 +13,11 @@ import type { EvidenceCard } from "../types";
 import type { UC10MetricsResult } from "../types/metrics";
 import { exportWeeklyReportCsv, exportWeeklyReportPdf } from "../utils/reportExport";
 import { BriefComparisonView } from "../components/BriefComparisonView";
+import { useAuth } from "../hooks/useAuth";
+import { canManageWeeklyBrief, getPermissionErrorMessage } from "../utils/modulePermissions";
 
 export function WeeklyBriefPage() {
+  const { user } = useAuth();
   const [repos, setRepos] = useState<Repository[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState("");
   const [brief, setBrief] = useState<AiBriefData | null>(null);
@@ -24,6 +27,11 @@ export function WeeklyBriefPage() {
   const [metrics, setMetrics] = useState<UC10MetricsResult | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [showComparison, setShowComparison] = useState(false);
+  const selectedRepository = repos.find((repo) => repo._id === selectedRepoId);
+  const canManage = canManageWeeklyBrief({
+    globalRole: user?.role,
+    repositoryRole: selectedRepository?.role,
+  });
   const [startDate, setStartDate] = useState(
     new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
   );
@@ -60,8 +68,8 @@ export function WeeklyBriefPage() {
       } else {
         setBrief(null);
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to load briefs");
+    } catch (err: unknown) {
+      setError(getPermissionErrorMessage(err, "Failed to load briefs"));
     } finally {
       setLoading(false);
     }
@@ -69,6 +77,11 @@ export function WeeklyBriefPage() {
 
   const loadReportDetails = async () => {
     if (!selectedRepoId) return;
+    if (!canManage) {
+      setEvidenceCards([]);
+      setMetrics(null);
+      return;
+    }
     const [evidenceResult, metricsResult] = await Promise.allSettled([
       getEvidenceCards(selectedRepoId, { limit: 100 }),
       fetchReviewCIMetrics(selectedRepoId, 7, startDate, endDate),
@@ -91,7 +104,7 @@ export function WeeklyBriefPage() {
       loadBriefs();
       loadReportDetails();
     }
-  }, [selectedRepoId]);
+  }, [selectedRepoId, canManage]);
 
   const handleGenerate = async () => {
     if (!selectedRepoId) return;
@@ -103,8 +116,8 @@ export function WeeklyBriefPage() {
       const generated = await briefApi.generateBrief(selectedRepoId, startIso, endIso);
       setBrief(generated);
       await loadReportDetails();
-    } catch (err: any) {
-      setError(err.message || "Failed to generate brief");
+    } catch (err: unknown) {
+      setError(getPermissionErrorMessage(err, "Failed to generate brief"));
     } finally {
       setLoading(false);
     }
@@ -113,6 +126,20 @@ export function WeeklyBriefPage() {
   const handleSelectRepo = (id: string) => {
     setSelectedRepoId(id);
     localStorage.setItem("selectedRepositoryId", id);
+    window.dispatchEvent(new Event("selectedRepositoryChanged"));
+  };
+
+  const handlePublish = async () => {
+    if (!brief || !selectedRepoId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      setBrief(await briefApi.publishBrief(selectedRepoId, brief._id));
+    } catch (err: unknown) {
+      setError(getPermissionErrorMessage(err, "Failed to publish brief"));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleExport = (format: "pdf" | "csv") => {
@@ -148,7 +175,10 @@ export function WeeklyBriefPage() {
             <GhostBtn onClick={() => setShowComparison(value => !value)} disabled={loading || !brief}>{showComparison ? "Hide Comparison" : "Compare Periods"}</GhostBtn>
             <GhostBtn onClick={() => handleExport("csv")} disabled={loading || !brief}>Export CSV</GhostBtn>
             <GhostBtn onClick={() => handleExport("pdf")} disabled={loading || !brief}>Export PDF</GhostBtn>
-            <PrimaryBtn onClick={handleGenerate} disabled={loading}>✨ Generate</PrimaryBtn>
+            {canManage && brief?.publicationStatus === "draft" && (
+              <GhostBtn onClick={handlePublish} disabled={loading}>Publish</GhostBtn>
+            )}
+            {canManage && <PrimaryBtn onClick={handleGenerate} disabled={loading}>✨ Generate</PrimaryBtn>}
           </div>
         ) : undefined
       }
@@ -166,12 +196,23 @@ export function WeeklyBriefPage() {
           <p className="text-slate-500 mb-6 max-w-md text-center text-sm">
             Generate your first AI-powered Weekly Brief to get a quick summary of team workflow risks and predictions.
           </p>
-          <PrimaryBtn onClick={handleGenerate}>✨ Generate Brief Now</PrimaryBtn>
+          {canManage ? (
+            <PrimaryBtn onClick={handleGenerate}>✨ Generate Brief Now</PrimaryBtn>
+          ) : (
+            <p className="text-sm font-medium text-slate-600">
+              No published Weekly Brief is available.
+            </p>
+          )}
         </div>
       )}
 
       {brief && !loading && (
         <div className="space-y-6">
+          {canManage && (
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              {brief.publicationStatus === "published" ? "Published" : "Draft"}
+            </div>
+          )}
           {brief.isFallback && (
             <PartialDataState message="AI Service Unavailable" missingData={["Deterministic rules used for fallback brief."]} />
           )}

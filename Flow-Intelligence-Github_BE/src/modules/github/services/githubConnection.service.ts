@@ -94,7 +94,7 @@ export class GitHubConnectionService {
         let repoRole: 'leader' | 'dev' | 'viewer' = 'viewer';
         if (gitHubPermission === 'admin') {
           repoRole = 'leader';
-        } else if (['write', 'read'].includes(gitHubPermission)) {
+        } else if (['write', 'maintain'].includes(gitHubPermission)) {
           repoRole = 'dev';
         }
 

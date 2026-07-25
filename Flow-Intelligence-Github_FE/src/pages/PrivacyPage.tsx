@@ -5,6 +5,7 @@ import { fetchDashboardRepositories } from "../api/dashboardApi";
 import type { Repository } from "../types/dashboard";
 import { privacyApi, type PrivacySettingsData } from "../api/privacyApi";
 import { briefApi } from "../api/briefApi";
+import { getPermissionErrorMessage } from "../utils/modulePermissions";
 import { LoadingState } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 
@@ -64,8 +65,8 @@ export function PrivacyPage() {
       setScheduleEnabled((currentRepo as any)?.scheduleEnabled !== false);
       setScheduleDay((currentRepo as any)?.scheduleDay || "FRIDAY");
       setScheduleTime((currentRepo as any)?.scheduleTime || "17:00");
-    } catch (err: any) {
-      setError(err.message || "Failed to load settings");
+    } catch (err: unknown) {
+      setError(getPermissionErrorMessage(err, "Failed to load settings"));
     } finally {
       setLoading(false);
     }
@@ -80,6 +81,7 @@ export function PrivacyPage() {
   const handleSelectRepo = (id: string) => {
     setSelectedRepoId(id);
     localStorage.setItem("selectedRepositoryId", id);
+    window.dispatchEvent(new Event("selectedRepositoryChanged"));
   };
 
   const handleToggle = (key: keyof PrivacySettingsData) => {

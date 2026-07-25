@@ -30,6 +30,7 @@ import { AiPayloadBuilderService } from './services/aiPayloadBuilder.service';
 import { BriefService } from './services/brief.service';
 import { BriefController } from './controllers/brief.controller';
 import { createBriefRoutes } from './routes/brief.routes';
+import { authenticate, requireGlobalAdmin } from './middlewares';
 
 import metricsRouter from "./routes/metricsRoutes.js";
 import dashboardRouter from "./routes/dashboardRoutes.js";
@@ -100,7 +101,7 @@ app.use("/api/dashboard", dashboardRouter);
 app.use("/api/risk", riskRouter);
 
 // Manual notification trigger endpoint (for testing/admin)
-app.post("/api/notifications/trigger-weekly", async (_req: Request, res: Response) => {
+app.post("/api/notifications/trigger-weekly", authenticate, requireGlobalAdmin, async (_req: Request, res: Response) => {
   const result = await schedulerService.runWeeklyBriefJob();
   res.json({
     success: true,
