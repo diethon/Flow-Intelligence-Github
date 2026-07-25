@@ -15,19 +15,10 @@ export class ChatService {
     const repoObjectId = new mongoose.Types.ObjectId(repositoryId);
 
     // 1. Latest MetricSnapshot
-    const metricKeys: MetricKey[] = [
-      'open_pr_count',
-      'pr_cycle_time_avg_hours',
-      'failed_check_rate_pct',
-      'stale_pr_count',
-      'review_load_concentration_pct',
-    ];
-    
-    // Fetch recent snapshots for these metrics
+    // Fetch recent snapshots for all metrics
     const snapshots = await MetricSnapshot.find({ 
-      repositoryId: repoObjectId,
-      metricKey: { $in: metricKeys }
-    }).sort({ computedAt: -1 }).limit(20); 
+      repositoryId: repoObjectId
+    }).sort({ computedAt: -1 }).limit(100); 
 
     // Keep only the latest for each key
     const latestSnapshotsMap = new Map();

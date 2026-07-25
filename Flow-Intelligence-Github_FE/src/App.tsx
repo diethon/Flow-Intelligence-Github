@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
-import { DashboardPage, ConnectRepositoryPage, SyncStatusPage, LoginPage, PullRequestsPage, UsersManagementPage } from './pages';
+import { DashboardPage, ConnectRepositoryPage, SyncStatusPage, LoginPage, PullRequestsPage, UsersManagementPage, AdminDashboardPage } from './pages';
 import { EvidencePage, EvidenceCardDetailPage } from './pages';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect } from 'react';
@@ -100,6 +100,16 @@ function App() {
                 <RoleProtectedRoute allowedRoles={["admin"]}>
                   <AppLayout>
                     <UsersManagementPage />
+                  </AppLayout>
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/dashboard"
+              element={
+                <RoleProtectedRoute allowedRoles={["admin"]}>
+                  <AppLayout>
+                    <AdminDashboardPage />
                   </AppLayout>
                 </RoleProtectedRoute>
               }
@@ -267,8 +277,8 @@ function App() {
             <Route path="/repositories/:id/risk-evidence/:cardId" element={<LegacyEvidenceRedirect />} />
           </Routes>
         </Router>
-      </AuthProvider>
-    </QueryClientProvider>
+      </AuthProvider >
+    </QueryClientProvider >
   );
 }
 

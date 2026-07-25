@@ -66,6 +66,7 @@ function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
     navItems.unshift({
       group: "Administration",
       items: [
+        { to: "/admin/dashboard", label: "System Overview", icon: "📊", done: true },
         { to: "/users", label: "Users Management", icon: "👥", done: true }
       ]
     });
@@ -207,7 +208,7 @@ function useSelectedRepoRole() {
 export function DesktopSidebar() {
   const { user } = useAuth();
   const repoRole = useSelectedRepoRole();
-  const displayRole = user?.role === 'admin' ? 'admin' : (repoRole ? repoRole : user?.role);
+  const displayRole = user?.role === 'admin' ? 'admin' : (repoRole || '');
 
   return (
     <aside className="hidden lg:flex flex-col w-60 min-h-screen bg-white border-r border-slate-200 fixed left-0 top-0 bottom-0 z-30">
@@ -243,7 +244,7 @@ export function MobileNav() {
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
   const repoRole = useSelectedRepoRole();
-  const displayRole = user?.role === 'admin' ? 'admin' : (repoRole ? repoRole : user?.role);
+  const displayRole = user?.role === 'admin' ? 'admin' : (repoRole || '');
 
   return (
     <>

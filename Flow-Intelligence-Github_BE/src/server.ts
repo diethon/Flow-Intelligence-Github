@@ -38,6 +38,9 @@ import dashboardRouter from "./routes/dashboardRoutes.js";
 import riskRouter from "./routes/riskRoutes.js";
 import { createPredictionRouter } from './routes/prediction.routes.js';
 import { seedRulebook } from "./seeds/seedRulebook.js";
+import { authenticate } from './middlewares/authenticate.js';
+import { checkGlobalAdmin } from './middlewares/checkGlobalAdmin.js';
+import { AdminController, createAdminRoutes } from './modules/admin/index.js';
 import chatRouter from "./routes/chatRoutes.js";
 
 const app: Express = express();
@@ -69,6 +72,7 @@ const syncService = new SyncService(githubApiService);
 const webhookService = new WebhookService(githubApiService);
 
 const githubController = new GitHubController(connectionService, syncService, githubApiService);
+const adminController = new AdminController(connectionService, syncService);
 const importController = new ImportController();
 const evidenceController = new EvidenceController();
 const workloadBurnoutController = new WorkloadBurnoutController();
@@ -103,6 +107,7 @@ app.use('/api/webhooks', createWebhookRoutes(webhookService));
 app.use("/api/metrics", metricsRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/risk", riskRouter);
+app.use("/api/admin", authenticate, checkGlobalAdmin, createAdminRoutes(adminController));
 app.use("/api/chat", chatRouter);
 
 // Manual notification trigger endpoint (for testing/admin)

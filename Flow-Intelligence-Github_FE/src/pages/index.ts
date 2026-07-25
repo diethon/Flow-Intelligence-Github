@@ -6,5 +6,6 @@ export { default as PullRequestsPage } from './PullRequestsPage';
 export { default as EvidencePage } from './EvidencePage';
 export { default as EvidenceCardDetailPage } from './EvidenceCardDetailPage';
 export { default as UsersManagementPage } from './UsersManagementPage';
+export { default as AdminDashboardPage } from './AdminDashboardPage';
 
 export { default as WorkloadRiskPage } from './WorkloadRiskPage';
