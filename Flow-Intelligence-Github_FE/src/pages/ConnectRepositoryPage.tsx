@@ -493,7 +493,7 @@ export const ConnectRepositoryPage: React.FC = () => {
                               {repo.role === 'leader' ? '✦ Leader' : repo.role === 'dev' ? '⌘ Developer' : '👁 Viewer'}
                             </span>
                           )}
-                          <span>Last synced: {repo.lastSyncedAt ? new Date(repo.lastSyncedAt).toLocaleString() : 'Never'}</span>
+                          <span>Last synced: {repo.lastSyncedAt ? new Date(repo.lastSyncedAt).toLocaleString('en-GB') : 'Never'}</span>
                         </div>
                       </div>
                     </div>

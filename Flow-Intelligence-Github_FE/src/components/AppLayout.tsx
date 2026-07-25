@@ -63,6 +63,7 @@ function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
     navItems.unshift({
       group: "Administration",
       items: [
+        { to: "/admin/dashboard", label: "System Overview", icon: "📊", done: true },
         { to: "/users", label: "Users Management", icon: "👥", done: true }
       ]
     });
