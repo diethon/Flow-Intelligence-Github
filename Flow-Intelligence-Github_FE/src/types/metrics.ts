@@ -10,6 +10,7 @@ export interface Repository {
   scheduleEnabled?: boolean;
   scheduleDay?: string;
   scheduleTime?: string;
+  role?: 'leader' | 'dev' | 'viewer';
 }
 
 // ─── UC-10 Review and CI Metrics ─────────────────────────────────────────────

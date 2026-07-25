@@ -1,4 +1,5 @@
-import { GitHubApiService } from "./githubApi.service";
+import { GitHubApiService } from './githubApi.service';
+import { User, RepositoryRole } from '../../../models/index.js';
 import {
   RepositoryConnectionRepository,
   GitHubRepositoryRepository,
@@ -100,6 +101,34 @@ export class GitHubConnectionService {
       // Proceed without failing the connection
     }
 
+    // Tự động kiểm tra quyền GitHub và cập nhật vai trò vào RepositoryMember
+    try {
+      const userObj = await User.findById(data.userId);
+      if (userObj) {
+        const gitHubPermission = await userApiService.getUserRepoPermission(data.owner, data.repo, userObj.username);
+
+        let repoRole: 'leader' | 'dev' | 'viewer' = 'viewer';
+        if (gitHubPermission === 'admin') {
+          repoRole = 'leader';
+        } else if (['write', 'read'].includes(gitHubPermission)) {
+          repoRole = 'dev';
+        }
+
+        await RepositoryRole.findOneAndUpdate(
+          { repositoryId: repositoryRecord._id, userId: new mongoose.Types.ObjectId(data.userId) },
+          {
+            githubUsername: userObj.username,
+            role: repoRole,
+            cachedUntil: new Date(Date.now() + 15 * 60 * 1000), // Cache 15 phút
+          },
+          { upsert: true, new: true }
+        );
+        console.log(`Successfully updated repository role for user ${userObj.username}: ${repoRole}`);
+      }
+    } catch (roleError) {
+      console.error('Failed to update repository member role during connection:', roleError);
+    }
+
     return {
       success: true,
       data: {
@@ -135,6 +164,7 @@ export class GitHubConnectionService {
 
     await githubRepositoryRepo.delete(repositoryId);
     await webhookEventRepo.deleteMany({ repositoryId });
+    await RepositoryRole.deleteMany({ repositoryId: new mongoose.Types.ObjectId(repositoryId) });
 
     return {
       success: true,
@@ -186,13 +216,25 @@ export class GitHubConnectionService {
     return `${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted}`;
   }
 
-  async getRepositoryById(repositoryId: string): Promise<unknown> {
+  async getRepositoryById(repositoryId: string, userId?: string): Promise<unknown> {
     const repository = await githubRepositoryRepo.findById(repositoryId);
     if (!repository) {
       throw new AppError("Repository not found", 404, "REPOSITORY_NOT_FOUND", {
         repositoryId,
       });
     }
+
+    let role = 'viewer';
+    if (userId) {
+      const repoRole = await RepositoryRole.findOne({
+        repositoryId: new mongoose.Types.ObjectId(repositoryId),
+        userId: new mongoose.Types.ObjectId(userId),
+      });
+      if (repoRole) {
+        role = repoRole.role;
+      }
+    }
+
     return {
       id: repository._id.toString(),
       connectionId: repository.connectionId.toString(),
@@ -205,6 +247,7 @@ export class GitHubConnectionService {
       lastSyncedAt: repository.lastSyncedAt,
       createdAt: repository.createdAt,
       updatedAt: repository.updatedAt,
+      role,
     };
   }
 
@@ -238,6 +281,13 @@ export class GitHubConnectionService {
       },
     );
 
+    // Fetch repository roles for this user
+    const repoRoles = await RepositoryRole.find({ userId: new mongoose.Types.ObjectId(userId) });
+    const roleMap = new Map<string, string>();
+    for (const r of repoRoles) {
+      roleMap.set(r.repositoryId.toString(), r.role);
+    }
+
     return {
       success: true,
       data: repositories.map((repo) => ({
@@ -252,6 +302,7 @@ export class GitHubConnectionService {
         lastSyncedAt: repo.lastSyncedAt,
         createdAt: repo.createdAt,
         updatedAt: repo.updatedAt,
+        role: roleMap.get(repo._id.toString()) || 'viewer', // Mặc định là viewer
       })),
       pagination: {
         page: pagination.page,

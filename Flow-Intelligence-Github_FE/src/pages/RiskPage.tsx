@@ -115,7 +115,13 @@ export function RiskPage({ repositoryId }: RiskPageProps) {
         endDate || undefined
       );
       setEvents(data ? data.events : []);
-    } catch { setError("Failed to load risk events."); }
+    } catch (err: any) {
+      if (err.response?.status === 403) {
+        setError("You do not have permission to view risk evaluation for this repository.");
+      } else {
+        setError("Failed to load risk events.");
+      }
+    }
     finally { setLoading(false); }
   }, [repositoryId, windowDays, startDate, endDate]);
 
@@ -132,7 +138,13 @@ export function RiskPage({ repositoryId }: RiskPageProps) {
         endDate || undefined
       );
       setEvents(result.events);
-    } catch { setError("Evaluation failed. Make sure backend is running."); }
+    } catch (err: any) {
+      if (err.response?.status === 403) {
+        setError("You do not have permission to run risk evaluation for this repository.");
+      } else {
+        setError("Evaluation failed. Make sure backend is running.");
+      }
+    }
     finally { setEvaluating(false); }
   };
 

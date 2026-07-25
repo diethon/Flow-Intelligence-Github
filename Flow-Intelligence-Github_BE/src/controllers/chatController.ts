@@ -19,11 +19,15 @@ export const chatWithData = async (req: Request, res: Response): Promise<void> =
   try {
     const { repositoryId, message, conversationHistory } = chatRequestSchema.parse(req.body);
 
+    // Extract userRepoRole set by repoAuthorize middleware
+    const userRole = (req as any).userRepoRole || 'viewer';
+
     // Call the ChatService
     const result = await ChatService.generateChatResponse(
       repositoryId,
       message,
-      conversationHistory
+      conversationHistory,
+      userRole
     );
 
     res.status(200).json({

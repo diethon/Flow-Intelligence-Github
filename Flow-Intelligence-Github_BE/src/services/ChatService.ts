@@ -71,13 +71,13 @@ export class ChatService {
     };
   }
 
-  static async generateChatResponse(repositoryId: string, message: string, history: Array<{role: string, content: string}>) {
+  static async generateChatResponse(repositoryId: string, message: string, history: Array<{role: string, content: string}>, userRole: string = 'viewer') {
     const contextData = await this.getContextForRepository(repositoryId);
     
     // Create a map for Evidence IDs to hide raw IDs from LLM
     const evidenceList = contextData.evidence.map((e, idx) => ({ index: idx + 1, data: e }));
 
-    const systemPrompt = `You are a helpful AI assistant for a software engineering team. Your job is to analyze the GitHub repository data provided below and answer the user's questions based strictly on this data. Do not make up any information. If the answer is not in the data, say "I don't have enough data to answer that."
+    let systemPrompt = `You are a helpful AI assistant for a software engineering team. Your job is to analyze the GitHub repository data provided below and answer the user's questions based strictly on this data. Do not make up any information. If the answer is not in the data, say "I don't have enough data to answer that."
 
 Context Data for this Repository:
 
@@ -118,6 +118,11 @@ Format your final response as a JSON object with two fields:
 }
 Respond strictly with valid JSON.
 `;
+
+    if (userRole === 'viewer') {
+      systemPrompt += `\n\nAUTHORIZATION RULE: The current user is a 'viewer'. They are FORBIDDEN from asking about specific individuals. If the user asks about individual people or personal stats (e.g., "what did user X do?", "how many PRs does Y have?"), you MUST politely reply exactly with: "You do not have permission to view personal information of members." Do not answer the question.`;
+    }
+
 
     // Convert history to genai format
     const contents: Array<{ role: 'user' | 'model', parts: Array<{ text: string }> }> = [];

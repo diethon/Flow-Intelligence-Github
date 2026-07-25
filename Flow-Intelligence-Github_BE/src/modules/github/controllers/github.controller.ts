@@ -100,8 +100,9 @@ export class GitHubController {
   }
 
   async getRepositoryById(req: Request, res: Response) {
+    const userId = (req as Request & { userId?: string }).userId;
     const id = req.params.id as string;
-    const repository = await this.connectionService.getRepositoryById(id);
+    const repository = await this.connectionService.getRepositoryById(id, userId);
     res.json({ success: true, data: repository });
   }
 

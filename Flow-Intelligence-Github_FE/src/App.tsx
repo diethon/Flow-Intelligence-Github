@@ -1,8 +1,9 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
-import { DashboardPage, ConnectRepositoryPage, SyncStatusPage, LoginPage, PullRequestsPage } from './pages';
+import { DashboardPage, ConnectRepositoryPage, SyncStatusPage, LoginPage, PullRequestsPage, UsersManagementPage } from './pages';
 import { EvidencePage, EvidenceCardDetailPage } from './pages';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect } from 'react';
+import { AuthProvider, useAuth } from './components/AuthContext';
 import { AppLayout } from './components/AppLayout.js';
 import { ReviewCIMetricsPage } from "./pages/ReviewCIMetricsPage.js";
 import { RulebookPage } from "./pages/RulebookPage.js";
@@ -46,184 +47,227 @@ const AuthCallback = () => {
 };
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const token = localStorage.getItem('accessToken');
-  if (!token) {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent mx-auto" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
+  return <>{children}</>;
+};
+
+const RoleProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode; allowedRoles: string[] }) => {
+  const { user, isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent mx-auto" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!user || !allowedRoles.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return <>{children}</>;
 };
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/auth/callback" element={<AuthCallback />} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route
-            path="/repositories/connect"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <div className="px-4 sm:px-6 py-5 sm:py-8">
-                    <ConnectRepositoryPage />
-                  </div>
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/repositories/:id/sync-status"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <div className="px-4 sm:px-6 py-5 sm:py-8">
-                    <SyncStatusPageWrapper />
-                  </div>
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/repositories/:id/pull-requests"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <div className="px-4 sm:px-6 py-5 sm:py-8">
-                    <PullRequestsPageWrapper />
-                  </div>
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <DashboardPage />
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/review-ci"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <ReviewCIMetricsPage />
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/rulebook"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <RulebookPage />
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/risk"
-            element={
-              <ProtectedRoute>
-                <SelectedRepoRedirect section="risk" />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/evidence"
-            element={
-              <ProtectedRoute>
-                <SelectedRepoRedirect section="evidence" />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/workload-risk"
-            element={
-              <ProtectedRoute>
-                <SelectedRepoRedirect section="workload-risk" />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/repositories/:id/risk"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <div className="px-4 sm:px-6 py-5 sm:py-8">
-                    <RiskPageWrapper />
-                  </div>
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/repositories/:id/evidence"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <div className="px-4 sm:px-6 py-5 sm:py-8">
-                    <EvidencePageWrapper />
-                  </div>
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/repositories/:id/workload-risk"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <div className="px-4 sm:px-6 py-5 sm:py-8">
-                    <WorkloadRiskPageWrapper />
-                  </div>
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/repositories/:id/evidence/:cardId"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <div className="px-4 sm:px-6 py-5 sm:py-8">
-                    <EvidenceCardDetailPageWrapper />
-                  </div>
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/brief"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <WeeklyBriefPage />
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/privacy"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <PrivacyPage />
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          {/* Legacy routes — redirect to the split Evidence pages. */}
-          <Route path="/repositories/:id/risk-evidence" element={<LegacyEvidenceRedirect />} />
-          <Route path="/repositories/:id/risk-evidence/:cardId" element={<LegacyEvidenceRedirect />} />
-        </Routes>
-      </Router>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route
+              path="/users"
+              element={
+                <RoleProtectedRoute allowedRoles={["admin"]}>
+                  <AppLayout>
+                    <UsersManagementPage />
+                  </AppLayout>
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/repositories/connect"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <div className="px-4 sm:px-6 py-5 sm:py-8">
+                      <ConnectRepositoryPage />
+                    </div>
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/repositories/:id/sync-status"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <div className="px-4 sm:px-6 py-5 sm:py-8">
+                      <SyncStatusPageWrapper />
+                    </div>
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/repositories/:id/pull-requests"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <div className="px-4 sm:px-6 py-5 sm:py-8">
+                      <PullRequestsPageWrapper />
+                    </div>
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <DashboardPage />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/review-ci"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <ReviewCIMetricsPage />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/rulebook"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <RulebookPage />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/risk"
+              element={
+                <ProtectedRoute>
+                  <SelectedRepoRedirect section="risk" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/evidence"
+              element={
+                <ProtectedRoute>
+                  <SelectedRepoRedirect section="evidence" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/workload-risk"
+              element={
+                <ProtectedRoute>
+                  <SelectedRepoRedirect section="workload-risk" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/repositories/:id/risk"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <div className="px-4 sm:px-6 py-5 sm:py-8">
+                      <RiskPageWrapper />
+                    </div>
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/repositories/:id/evidence"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <div className="px-4 sm:px-6 py-5 sm:py-8">
+                      <EvidencePageWrapper />
+                    </div>
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/repositories/:id/workload-risk"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <div className="px-4 sm:px-6 py-5 sm:py-8">
+                      <WorkloadRiskPageWrapper />
+                    </div>
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/repositories/:id/evidence/:cardId"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <div className="px-4 sm:px-6 py-5 sm:py-8">
+                      <EvidenceCardDetailPageWrapper />
+                    </div>
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/brief"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <WeeklyBriefPage />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/privacy"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <PrivacyPage />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            {/* Legacy routes — redirect to the split Evidence pages. */}
+            <Route path="/repositories/:id/risk-evidence" element={<LegacyEvidenceRedirect />} />
+            <Route path="/repositories/:id/risk-evidence/:cardId" element={<LegacyEvidenceRedirect />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

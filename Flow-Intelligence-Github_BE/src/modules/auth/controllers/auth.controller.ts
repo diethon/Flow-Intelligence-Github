@@ -116,6 +116,7 @@ export const githubCallback = async (req: Request, res: Response): Promise<void>
         email,
         avatarUrl: githubUser.avatar_url,
         accessToken,
+        role: 'user',
       });
       await user.save();
     } else {
