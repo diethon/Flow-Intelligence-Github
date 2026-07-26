@@ -36,7 +36,7 @@ const formatPeriod = (period: Period) => `${new Date(`${period.start}T00:00:00`)
 function PeriodPicker({ title, value, onChange }: { title: string; value: Period; onChange: (period: Period) => void }) {
   return <fieldset className="rounded-xl border border-slate-200 bg-white p-4">
     <legend className="px-2 text-sm font-bold text-slate-700">{title}</legend>
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <label className="text-xs font-medium text-slate-500">From<input type="date" value={value.start} max={value.end} onChange={e => onChange({ ...value, start: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700" /></label>
       <label className="text-xs font-medium text-slate-500">To<input type="date" value={value.end} min={value.start} onChange={e => onChange({ ...value, end: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700" /></label>
     </div>
@@ -46,9 +46,9 @@ function PeriodPicker({ title, value, onChange }: { title: string; value: Period
 function BriefColumn({ label, brief, period }: { label: string; brief: AiBriefData; period: Period }) {
   const risks = itemsOf(brief, "risk_summary");
   const recommendations = itemsOf(brief, "recommendation");
-  return <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+  return <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
     <div className="mb-4 border-b border-slate-100 pb-3"><p className="text-xs font-bold uppercase tracking-wider text-indigo-600">{label}</p><h3 className="font-bold text-slate-900">{formatPeriod(period)}</h3><p className="text-xs text-slate-500">Confidence: {brief.confidence}</p></div>
-    <h4 className="mb-2 text-sm font-bold text-slate-800">Executive Summary</h4><p className="mb-5 text-sm leading-relaxed text-slate-600">{brief.summary}</p>
+    <h4 className="mb-2 text-sm font-bold text-slate-800">Executive Summary</h4><p className="mb-5 break-words text-sm leading-relaxed text-slate-600">{brief.summary}</p>
     <h4 className="mb-2 text-sm font-bold text-slate-800">Risks ({risks.length})</h4><div className="mb-5 space-y-2">{risks.length ? risks.map((item, i) => <div key={`${item.title}-${i}`} className="rounded-lg bg-amber-50 p-3"><p className="text-sm font-semibold text-amber-900">{item.title}</p><p className="text-xs text-amber-800">{item.detail}</p></div>) : <p className="text-sm italic text-slate-400">No risks recorded.</p>}</div>
     <h4 className="mb-2 text-sm font-bold text-slate-800">Recommendations ({recommendations.length})</h4><div className="space-y-2">{recommendations.length ? recommendations.map((item, i) => <div key={`${item.title}-${i}`} className="rounded-lg bg-emerald-50 p-3"><p className="text-sm font-semibold text-emerald-900">{item.title}</p><p className="text-xs text-emerald-800">{item.detail}</p></div>) : <p className="text-sm italic text-slate-400">No recommendations recorded.</p>}</div>
   </section>;
@@ -93,8 +93,8 @@ export function BriefComparisonView({ repositoryId, onClose }: { repositoryId: s
   const laterRecommendations = comparison ? itemsOf(comparison.later, "recommendation") : [];
   const potentiallyEffective = resolvedRisks.length ? difference(earlierRecommendations, laterRecommendations) : [];
 
-  return <div className="space-y-6 rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4 md:p-6">
-    <div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-bold text-slate-900">Brief Comparison</h2><p className="text-sm text-slate-500">Compare delivery health and actions between two saved reporting periods.</p></div><GhostBtn onClick={onClose}>Close</GhostBtn></div>
+  return <div className="min-w-0 space-y-6 overflow-hidden rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4 md:p-6">
+    <div className="flex min-w-0 items-start justify-between gap-4"><div className="min-w-0"><h2 className="text-xl font-bold text-slate-900">Brief Comparison</h2><p className="break-words text-sm text-slate-500">Compare delivery health and actions between two saved reporting periods.</p></div><div className="shrink-0"><GhostBtn onClick={onClose}>Close</GhostBtn></div></div>
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><PeriodPicker title="Period A · Earlier" value={earlierPeriod} onChange={period => { setEarlierPeriod(period); setComparison(null); }} /><PeriodPicker title="Period B · Later" value={laterPeriod} onChange={period => { setLaterPeriod(period); setComparison(null); }} /></div>
     <div className="flex justify-end"><PrimaryBtn onClick={compare} loading={loading} disabled={loading}>Compare periods</PrimaryBtn></div>
     {error && <ErrorState message={error} retryAction={compare} />}
