@@ -5,6 +5,7 @@ import { fetchDashboardRepositories } from "../api/dashboardApi";
 import type { Repository } from "../types/dashboard";
 import { privacyApi, type PrivacySettingsData } from "../api/privacyApi";
 import { briefApi } from "../api/briefApi";
+import { getPermissionErrorMessage } from "../utils/modulePermissions";
 import { LoadingState } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 
@@ -14,6 +15,8 @@ export function PrivacyPage() {
   const [settings, setSettings] = useState<PrivacySettingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("Settings saved successfully!");
@@ -62,8 +65,8 @@ export function PrivacyPage() {
       setScheduleEnabled((currentRepo as any)?.scheduleEnabled !== false);
       setScheduleDay((currentRepo as any)?.scheduleDay || "FRIDAY");
       setScheduleTime((currentRepo as any)?.scheduleTime || "17:00");
-    } catch (err: any) {
-      setError(err.message || "Failed to load settings");
+    } catch (err: unknown) {
+      setError(getPermissionErrorMessage(err, "Failed to load settings"));
     } finally {
       setLoading(false);
     }
@@ -78,11 +81,17 @@ export function PrivacyPage() {
   const handleSelectRepo = (id: string) => {
     setSelectedRepoId(id);
     localStorage.setItem("selectedRepositoryId", id);
+    window.dispatchEvent(new Event("selectedRepositoryChanged"));
   };
 
   const handleToggle = (key: keyof PrivacySettingsData) => {
     if (!settings) return;
     setSettings({ ...settings, [key]: !settings[key] });
+  };
+
+  const handleNumberChange = (key: keyof PrivacySettingsData, val: number) => {
+    if (!settings) return;
+    setSettings({ ...settings, [key]: val });
   };
 
   const handleSave = async () => {
@@ -146,7 +155,7 @@ export function PrivacyPage() {
         repos.length > 0 ? (
           <>
             <RepoSelect repos={repos} value={selectedRepoId} onChange={handleSelectRepo} />
-            <PrimaryBtn onClick={handleSave} disabled={saving || loading}>
+            <PrimaryBtn onClick={handleSave} disabled={saving || loading || deleting}>
               {saving ? "Saving..." : "💾 Save Changes"}
             </PrimaryBtn>
           </>
@@ -268,7 +277,25 @@ export function PrivacyPage() {
                 </label>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between border-t border-slate-100 pt-5">
+                <div>
+                  <h4 className="font-semibold text-slate-800">Minimum Group Size</h4>
+                  <p className="text-sm text-slate-500 max-w-lg">Minimum number of contributors required in a group before generating per-group breakdowns (prevents individual performance tracking).</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={settings.minimumGroupSize ?? 3}
+                    onChange={(e) => handleNumberChange("minimumGroupSize", parseInt(e.target.value) || 3)}
+                    className="w-20 px-3 py-1.5 border border-slate-300 rounded-lg text-center font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                  <span className="text-sm text-slate-500 font-medium">members</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-slate-100 pt-5">
                 <div>
                   <h4 className="font-semibold text-slate-800">Exclude Raw Comments</h4>
                   <p className="text-sm text-slate-500 max-w-lg">Prevent raw pull request comments and review text from being included in AI payloads.</p>
@@ -279,7 +306,7 @@ export function PrivacyPage() {
                 </label>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between border-t border-slate-100 pt-5">
                 <div>
                   <h4 className="font-semibold text-slate-800">Exclude Source Code Diffs</h4>
                   <p className="text-sm text-slate-500 max-w-lg">Ensure no actual source code snippets are sent to external AI providers.</p>

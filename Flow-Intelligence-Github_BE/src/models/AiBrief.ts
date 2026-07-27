@@ -2,6 +2,7 @@ import mongoose, { Document, Schema } from "mongoose";
 
 export type AiBriefStatus = "generating" | "completed" | "failed" | "fallback";
 export type AiBriefConfidence = "high" | "medium" | "low";
+export type AiBriefPublicationStatus = "draft" | "published";
 
 /** A single item in the brief — embedded in AiBrief */
 export interface IBriefItem {
@@ -27,6 +28,9 @@ export interface IAiBrief extends Document {
   createdBy: mongoose.Types.ObjectId | null;
   /** True if produced by deterministic fallback, not AI */
   isFallback: boolean;
+  publicationStatus: AiBriefPublicationStatus;
+  publishedAt: Date | null;
+  publishedBy: mongoose.Types.ObjectId | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -58,6 +62,14 @@ const aiBriefSchema = new Schema<IAiBrief>(
     items: { type: [briefItemSchema], default: [] },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
     isFallback: { type: Boolean, default: false },
+    publicationStatus: {
+      type: String,
+      enum: ["draft", "published"],
+      default: "draft",
+      index: true,
+    },
+    publishedAt: { type: Date, default: null },
+    publishedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
   },
   { timestamps: true }
 );

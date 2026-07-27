@@ -19,6 +19,8 @@ export interface AiBriefData {
   limitations: string[];
   items: BriefItem[];
   isFallback: boolean;
+  publicationStatus: "draft" | "published";
+  publishedAt?: string | null;
   createdAt: string;
 }
 
@@ -39,6 +41,12 @@ export const briefApi = {
   },
   getBriefs: async (repositoryId: string): Promise<AiBriefData[]> => {
     const res = await apiClient.get<{ success: boolean; data: AiBriefData[] }>(`/repositories/${repositoryId}/briefs`);
+    return res.data.data;
+  },
+  publishBrief: async (repositoryId: string, briefId: string): Promise<AiBriefData> => {
+    const res = await apiClient.patch<{ success: boolean; data: AiBriefData }>(
+      `/repositories/${repositoryId}/briefs/${briefId}/publish`
+    );
     return res.data.data;
   },
   updateNotificationSettings: async (

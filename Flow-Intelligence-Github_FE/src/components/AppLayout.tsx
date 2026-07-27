@@ -2,7 +2,11 @@ import { useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { apiClient } from "../services/axiosClient";
 import { useAuth } from "../hooks/useAuth";
+<<<<<<< HEAD
 import { ChatWidget } from "./ChatWidget.js";
+=======
+import { useSelectedRepositoryPermissions } from "../hooks/useSelectedRepositoryPermissions";
+>>>>>>> origin/anhquan
 
 const NAV = [
   {
@@ -36,29 +40,47 @@ const NAV = [
 function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
   const { pathname } = useLocation();
   const { user } = useAuth();
+<<<<<<< HEAD
+=======
+  const { canManagePrivacy } = useSelectedRepositoryPermissions();
+>>>>>>> origin/anhquan
 
   const navItems = [
     {
       group: "Analytics",
       items: [
+<<<<<<< HEAD
         { to: "/dashboard", label: "Team Dashboard", icon: "▣", done: true },
         { to: "/review-ci", label: "Review & CI Metrics", icon: "◈", done: true },
         { to: "/rulebook", label: "Flow Risk Rulebook", icon: "◉", done: true },
+=======
+        { to: "/dashboard", label: "Team Dashboard",      icon: "▣", done: true  },
+        { to: "/review-ci", label: "Review & CI Metrics", icon: "◈", done: true  },
+        { to: "/rulebook",  label: "Flow Risk Rulebook",  icon: "◉", done: true  },
+>>>>>>> origin/anhquan
       ],
     },
     {
       group: "Insights",
       items: [
+<<<<<<< HEAD
         { to: "/risk", label: "Risk", icon: "◆", done: true },
         { to: "/evidence", label: "Evidence", icon: "◈", done: true },
         { to: "/workload-risk", label: "Workload Risk", icon: "▲", done: true },
+=======
+        { to: "/risk",  label: "Risk & Evidence", icon: "◆", done: true  },
+>>>>>>> origin/anhquan
         { to: "/brief", label: "AI Weekly Brief", icon: "◇", done: true },
       ],
     },
     {
       group: "Settings",
       items: [
+<<<<<<< HEAD
         { to: "/repositories/connect", label: "Connected Repos", icon: "🔌", done: true },
+=======
+        { to: "/repositories/connect", label: "Connected Repos", icon: "🔌", done: true  },
+>>>>>>> origin/anhquan
         { to: "/privacy", label: "Privacy Settings", icon: "◌", done: true },
       ],
     },
@@ -68,12 +90,24 @@ function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
     navItems.unshift({
       group: "Administration",
       items: [
+<<<<<<< HEAD
         { to: "/admin/dashboard", label: "System Overview", icon: "📊", done: true },
+=======
+>>>>>>> origin/anhquan
         { to: "/users", label: "Users Management", icon: "👥", done: true }
       ]
     });
   }
 
+<<<<<<< HEAD
+=======
+  for (const group of navItems) {
+    if (group.group === "Settings" && !canManagePrivacy) {
+      group.items = group.items.filter((item) => item.to !== "/privacy");
+    }
+  }
+
+>>>>>>> origin/anhquan
   return (
     <nav className="flex-1 px-3 py-5 space-y-6 overflow-y-auto">
       {navItems.map((group) => (
@@ -209,9 +243,12 @@ function useSelectedRepoRole() {
 
 export function DesktopSidebar() {
   const { user } = useAuth();
+<<<<<<< HEAD
   const repoRole = useSelectedRepoRole();
   const displayRole = user?.role === 'admin' ? 'admin' : (repoRole || '');
 
+=======
+>>>>>>> origin/anhquan
   return (
     <aside className="hidden lg:flex flex-col w-60 min-h-screen bg-white border-r border-slate-200 fixed left-0 top-0 bottom-0 z-30">
       <div className="px-5 pt-6 pb-5 border-b border-slate-100">
@@ -229,7 +266,11 @@ export function DesktopSidebar() {
           )}
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold text-slate-800 truncate">{user.username}</p>
+<<<<<<< HEAD
             <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider">{displayRole}</p>
+=======
+            <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider">{user.role}</p>
+>>>>>>> origin/anhquan
           </div>
         </div>
       )}
@@ -245,8 +286,11 @@ export function DesktopSidebar() {
 export function MobileNav() {
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
+<<<<<<< HEAD
   const repoRole = useSelectedRepoRole();
   const displayRole = user?.role === 'admin' ? 'admin' : (repoRole || '');
+=======
+>>>>>>> origin/anhquan
 
   return (
     <>
@@ -305,7 +349,11 @@ export function MobileNav() {
             )}
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-slate-800 truncate">{user.username}</p>
+<<<<<<< HEAD
               <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider">{displayRole}</p>
+=======
+              <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider">{user.role}</p>
+>>>>>>> origin/anhquan
             </div>
           </div>
         )}

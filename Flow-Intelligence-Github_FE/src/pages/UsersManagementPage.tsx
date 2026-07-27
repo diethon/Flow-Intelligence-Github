@@ -429,7 +429,7 @@ export const UsersManagementPage: React.FC = () => {
                   Showing connected repositories for <strong className="text-slate-700">{selectedUserForRepos.username}</strong> ({selectedUserForRepos.email})
                 </p>
               </div>
-              <button 
+              <button
                 onClick={() => setSelectedUserForRepos(null)}
                 className="text-slate-400 hover:text-slate-650 font-bold text-xl p-1 leading-none"
               >
@@ -470,8 +470,8 @@ export const UsersManagementPage: React.FC = () => {
                           </td>
                           <td className="px-4 py-3">
                             <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold border
-                              ${repo.isPrivate 
-                                ? 'bg-slate-100 border-slate-200 text-slate-600' 
+                              ${repo.isPrivate
+                                ? 'bg-slate-100 border-slate-200 text-slate-600'
                                 : 'bg-green-50 border-green-200 text-green-700'
                               }`}
                             >

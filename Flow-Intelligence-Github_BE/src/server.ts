@@ -32,13 +32,13 @@ import { AiPayloadBuilderService } from './services/aiPayloadBuilder.service';
 import { BriefService } from './services/brief.service';
 import { BriefController } from './controllers/brief.controller';
 import { createBriefRoutes } from './routes/brief.routes';
+import { authenticate, requireGlobalAdmin } from './middlewares';
 
 import metricsRouter from "./routes/metricsRoutes.js";
 import dashboardRouter from "./routes/dashboardRoutes.js";
 import riskRouter from "./routes/riskRoutes.js";
 import { createPredictionRouter } from './routes/prediction.routes.js';
 import { seedRulebook } from "./seeds/seedRulebook.js";
-import { authenticate } from './middlewares/authenticate.js';
 import { checkGlobalAdmin } from './middlewares/checkGlobalAdmin.js';
 import { AdminController, createAdminRoutes } from './modules/admin/index.js';
 import chatRouter from "./routes/chatRoutes.js";
@@ -112,6 +112,16 @@ app.use("/api/chat", chatRouter);
 
 // Manual notification trigger endpoint (for testing/admin)
 app.post("/api/notifications/trigger-weekly", async (_req: Request, res: Response) => {
+  const result = await schedulerService.runWeeklyBriefJob();
+  res.json({
+    success: true,
+    message: "Weekly AI Brief notification job triggered manually.",
+    result,
+  });
+});
+
+// Manual notification trigger endpoint (for testing/admin)
+app.post("/api/notifications/trigger-weekly", authenticate, requireGlobalAdmin, async (_req: Request, res: Response) => {
   const result = await schedulerService.runWeeklyBriefJob();
   res.json({
     success: true,

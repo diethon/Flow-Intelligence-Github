@@ -22,6 +22,8 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional().default(''),
   SMTP_PASS: z.string().optional().default(''),
   SMTP_FROM: z.string().optional().default('Flow Intelligence <noreply@flowintelligence.com>'),
+  GEMINI_MODEL: z.string().min(1).default('gemini-3.6-flash'),
+  GEMINI_FALLBACK_MODEL: z.string().min(1).default('gemini-3.5-flash-lite'),
 });
 
 export type Env = z.infer<typeof envSchema>;
