@@ -11,26 +11,26 @@ interface PageShellProps {
 
 export function PageShell({ title, subtitle, actions, children }: PageShellProps) {
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
-      {/* Sticky header — single row, title left / actions right */}
-      <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm">
-        <div className="max-w-screen-xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center gap-4">
-          {/* Title (shrinks if needed) */}
-          <div className="flex-1 min-w-0">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col overflow-x-hidden">
+      {/* Sticky header keeps controls within the visible app frame. */}
+      <header className="sticky top-14 lg:top-0 z-20 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 min-h-[4rem]">
+          {/* Title Area */}
+          <div className="min-w-0 flex-1">
             <h1 className="text-base sm:text-xl font-bold text-slate-900 leading-tight truncate">{title}</h1>
-            {subtitle && <p className="text-xs sm:text-sm text-slate-500 mt-0.5 truncate">{subtitle}</p>}
+            {subtitle && <p className="text-xs sm:text-sm text-slate-500 mt-0.5 break-words">{subtitle}</p>}
           </div>
 
-          {/* Actions — scrollable horizontally, never wrap */}
+          {/* Actions Area */}
           {actions && (
-            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 overflow-x-auto scrollbar-none max-w-[55%] sm:max-w-none">
+            <div className="flex flex-wrap items-center justify-start md:justify-end gap-2 sm:gap-3 min-w-0 max-w-full">
               {actions}
             </div>
           )}
         </div>
       </header>
 
-      <main className="flex-1 max-w-screen-xl mx-auto w-full px-4 sm:px-6 py-5 sm:py-8 space-y-6 sm:space-y-8">
+      <main className="flex-1 max-w-screen-2xl mx-auto w-full px-4 sm:px-6 py-5 sm:py-8 space-y-6 sm:space-y-8">
         {children}
       </main>
     </div>
@@ -81,12 +81,12 @@ export function SectionHeading({ title, subtitle, right }: {
   right?: ReactNode;
 }) {
   return (
-    <div className="flex items-end justify-between gap-4 mb-5">
-      <div>
+    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4 mb-5">
+      <div className="min-w-0">
         <h2 className="text-lg font-bold text-slate-900">{title}</h2>
         {subtitle && <p className="text-sm text-slate-500 mt-0.5">{subtitle}</p>}
       </div>
-      {right && <div className="flex-shrink-0">{right}</div>}
+      {right && <div className="w-full sm:w-auto sm:flex-shrink-0">{right}</div>}
     </div>
   );
 }
@@ -307,7 +307,7 @@ export function RepoSelect({ repos, value, onChange }: {
     <select
       value={value}
       onChange={handleChange}
-      className="bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 hover:border-slate-400 transition-colors w-auto min-w-[180px] max-w-xs cursor-pointer"
+      className="bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 hover:border-slate-400 transition-colors w-full sm:w-auto min-w-0 sm:min-w-[180px] max-w-full sm:max-w-xs cursor-pointer"
     >
       {repos.length === 0 && <option value="">No repositories connected</option>}
       {repos.map((r) => (
@@ -328,7 +328,7 @@ export function GhostBtn({ onClick, disabled, loading, children }: {
     <button
       onClick={onClick}
       disabled={disabled || loading}
-      className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-white hover:bg-slate-50 border border-slate-300 hover:border-slate-400 text-slate-700 hover:text-slate-900 disabled:opacity-40 transition-all shadow-sm"
+      className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-white hover:bg-slate-50 border border-slate-300 hover:border-slate-400 text-slate-700 hover:text-slate-900 disabled:opacity-40 transition-all shadow-sm whitespace-nowrap"
     >
       {loading ? <Spinner size={14} color="#64748b" /> : null}
       {children}
@@ -343,7 +343,7 @@ export function PrimaryBtn({ onClick, disabled, loading, children }: {
     <button
       onClick={onClick}
       disabled={disabled || loading}
-      className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40 transition-all shadow-md shadow-indigo-600/10"
+      className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40 transition-all shadow-md shadow-indigo-600/10 whitespace-nowrap"
     >
       {loading ? <Spinner size={14} color="white" /> : null}
       {children}
@@ -368,7 +368,7 @@ export function EmptyState({ icon, title, description, action }: {
   icon: string; title: string; description: string; action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center py-32 text-center gap-4">
+    <div className="flex flex-col items-center justify-center py-16 sm:py-24 lg:py-32 text-center gap-4">
       <span className="text-6xl">{icon}</span>
       <div>
         <h3 className="text-xl font-bold text-slate-900 mb-2">{title}</h3>

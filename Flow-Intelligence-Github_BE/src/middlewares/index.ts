@@ -12,3 +12,5 @@ export type {
 } from './repositoryAuthorization';
 export { validateWebhookSignature } from './validateWebhookSignature';
 export { checkGlobalAdmin } from './checkGlobalAdmin';
+export { checkWorkloadRiskAccess } from './checkWorkloadRiskAccess';
+
