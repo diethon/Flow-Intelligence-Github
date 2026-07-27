@@ -354,41 +354,41 @@ const RiskPageWrapper = () => {
     return <Navigate to="/repositories/connect" replace />;
   }
   return <RiskPage repositoryId={id} />;
-};
+  };
 
-const EvidencePageWrapper = () => {
-  const { id } = useParams<{ id: string }>();
-  if (!id) {
-    return <Navigate to="/repositories/connect" replace />;
-  }
-  return <EvidencePage repositoryId={id} />;
-};
+  const EvidencePageWrapper = () => {
+    const { id } = useParams<{ id: string }>();
+    if (!id) {
+      return <Navigate to="/repositories/connect" replace />;
+    }
+    return <EvidencePage repositoryId={id} />;
+  };
 
-const PRPredictionsPageWrapper = () => {
-  const { id } = useParams<{ id: string }>();
-  if (!id) {
-    return <Navigate to="/repositories/connect" replace />;
-  }
-  return <PRPredictionsPage repositoryId={id} />;
-};
+  const PRPredictionsPageWrapper = () => {
+    const { id } = useParams<{ id: string }>();
+    if (!id) {
+      return <Navigate to="/repositories/connect" replace />;
+    }
+    return <PRPredictionsPage repositoryId={id} />;
+  };
 
-const WorkloadRiskPageWrapper = () => {
-  const { id } = useParams<{ id: string }>();
-  if (!id) {
-    return <Navigate to="/repositories/connect" replace />;
-  }
-  // Key by repo id so switching repos remounts with fresh state (clears the
-  // previous repo's analysis result instead of showing it as stale).
-  return <WorkloadRiskPage key={id} repositoryId={id} />;
-};
+  const WorkloadRiskPageWrapper = () => {
+    const { id } = useParams<{ id: string }>();
+    if (!id) {
+      return <Navigate to="/repositories/connect" replace />;
+    }
+    // Key by repo id so switching repos remounts with fresh state (clears the
+    // previous repo's analysis result instead of showing it as stale).
+    return <WorkloadRiskPage key={id} repositoryId={id} />;
+  };
 
-const EvidenceCardDetailPageWrapper = () => {
-  const { id, cardId } = useParams<{ id: string, cardId: string }>();
-  if (!id || !cardId) {
-    return <Navigate to="/repositories/connect" replace />;
-  }
-  return <EvidenceCardDetailPage repositoryId={id} cardId={cardId} />;
-};
+  const EvidenceCardDetailPageWrapper = () => {
+    const { id, cardId } = useParams<{ id: string, cardId: string }>();
+    if (!id || !cardId) {
+      return <Navigate to="/repositories/connect" replace />;
+    }
+    return <EvidenceCardDetailPage repositoryId={id} cardId={cardId} />;
+  };
 
 // The sidebar links are global, but the Risk/Evidence pages are repo-scoped.
 // Redirect to the last-selected repository, falling back to the dashboard.

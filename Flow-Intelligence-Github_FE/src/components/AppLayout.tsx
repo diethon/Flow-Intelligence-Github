@@ -45,6 +45,10 @@ function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
     ? match[1]
     : selectedRepoId || localStorage.getItem("selectedRepositoryId");
   const activeRepo = repos.find((r) => r._id === activeRepoId) || repos[0];
+  const workloadRiskRepoId = activeRepo?._id ?? activeRepoId;
+  const workloadRiskPath = workloadRiskRepoId
+    ? `/repositories/${workloadRiskRepoId}/workload-risk`
+    : "/workload-risk";
 
   // Only render Workload Risk if global System Admin or Leader of the active repository
   const isLeader = activeRepo && activeRepo.role === "leader";
@@ -72,7 +76,9 @@ function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
         ...(isLeader
           ? [
               {
-                to: "/workload-risk",
+                // Avoid the extra redirect through the global route so the
+                // protected-route loading state is only shown once.
+                to: workloadRiskPath,
                 label: "Workload Risk",
                 icon: "▲",
                 done: true,
@@ -127,7 +133,7 @@ function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
           <div className="space-y-0.5">
             {group.items.map((item) => {
               const compactLabel =
-                item.to === "/workload-risk" || item.to === "/brief";
+                item.to.endsWith("/workload-risk") || item.to === "/brief";
               // Global nav targets (e.g. /risk, /evidence) also match their
               // repo-scoped routes (/repositories/:id/risk, .../evidence/:cardId).
               const active =
