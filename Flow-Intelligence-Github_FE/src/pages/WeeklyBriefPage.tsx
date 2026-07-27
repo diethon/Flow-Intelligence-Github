@@ -213,14 +213,14 @@ export function WeeklyBriefPage() {
       title="AI Weekly Brief"
       actions={
         repos.length > 0 ? (
-          <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 sm:justify-end">
-            <div className="min-w-0 max-w-full [&>select]:min-w-0 [&>select]:max-w-full">
+          <div className="flex min-w-max flex-nowrap items-center justify-start gap-2 lg:justify-end">
+            <div className="flex-shrink-0 [&>select]:w-[15.25rem] [&>select]:min-w-0 [&>select]:max-w-[15.25rem]">
               <RepoSelect repos={repos} value={selectedRepoId} onChange={handleSelectRepo} />
             </div>
-            <div className="hidden lg:flex items-center gap-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-lg px-2 shadow-sm">
-              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-transparent border-none focus:ring-0 text-slate-700 py-1.5 outline-none cursor-pointer" />
+            <div className="hidden lg:flex flex-shrink-0 items-center gap-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-lg px-2 shadow-sm">
+              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-[8.5rem] bg-transparent border-none focus:ring-0 text-slate-700 py-1.5 outline-none cursor-pointer" />
               <span>→</span>
-              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent border-none focus:ring-0 text-slate-700 py-1.5 outline-none cursor-pointer" />
+              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-[8.5rem] bg-transparent border-none focus:ring-0 text-slate-700 py-1.5 outline-none cursor-pointer" />
             </div>
             <GhostBtn onClick={loadBriefs} disabled={loading}>↻ Refresh</GhostBtn>
             <GhostBtn onClick={() => setShowComparison(value => !value)} disabled={loading || !brief}>{showComparison ? "Hide Comparison" : "Compare Periods"}</GhostBtn>
@@ -229,7 +229,7 @@ export function WeeklyBriefPage() {
                 Export <span aria-hidden="true" className="text-xs">▾</span>
               </GhostBtn>
             ) : (
-              <div className="relative">
+              <div className="relative flex-shrink-0">
                 <button
                   ref={exportButtonRef}
                   type="button"

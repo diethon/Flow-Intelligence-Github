@@ -346,18 +346,20 @@ export function WorkloadRiskPage({ repositoryId }: WorkloadRiskPageProps) {
       title="Workload Risk"
       subtitle="Developer burnout signal from off-hours commit & review activity"
       actions={
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-max flex-nowrap items-center justify-start gap-2 lg:justify-end">
           {repos.length > 0 && (
-            <RepoSelect repos={repos} value={repositoryId} onChange={handleRepoChange} />
+            <div className="flex-shrink-0 [&>select]:w-[15.25rem] [&>select]:min-w-0 [&>select]:max-w-[15.25rem]">
+              <RepoSelect repos={repos} value={repositoryId} onChange={handleRepoChange} />
+            </div>
           )}
-          <div className="flex items-center gap-1 bg-slate-100 border border-slate-200 rounded-lg px-2 py-1.5">
+          <div className="flex flex-shrink-0 items-center gap-1 bg-slate-100 border border-slate-200 rounded-lg px-2 py-1.5">
             <label className="text-[11px] font-semibold text-slate-500">From</label>
             <input
               type="date"
               value={startDate}
               max={endDate || undefined}
               onChange={(e) => setStartDate(e.target.value)}
-              className="bg-white border border-slate-200 rounded-md px-2 py-1 text-xs font-medium text-slate-700"
+              className="w-[8.25rem] min-w-0 max-w-full bg-white border border-slate-200 rounded-md px-2 py-1 text-xs font-medium text-slate-700"
             />
             <label className="text-[11px] font-semibold text-slate-500 ml-1">To</label>
             <input
@@ -365,15 +367,15 @@ export function WorkloadRiskPage({ repositoryId }: WorkloadRiskPageProps) {
               value={endDate}
               min={startDate || undefined}
               onChange={(e) => setEndDate(e.target.value)}
-              className="bg-white border border-slate-200 rounded-md px-2 py-1 text-xs font-medium text-slate-700"
+              className="w-[8.25rem] min-w-0 max-w-full bg-white border border-slate-200 rounded-md px-2 py-1 text-xs font-medium text-slate-700"
             />
           </div>
-          <div className="flex items-center gap-1 bg-slate-100 border border-slate-200 rounded-lg p-1">
+          <div className="flex flex-shrink-0 items-center gap-1 bg-slate-100 border border-slate-200 rounded-lg p-1">
             {RANGE_PRESETS.map((d) => (
               <button
                 key={d}
                 onClick={() => applyPreset(d)}
-                className="px-2.5 py-1 rounded-md text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-white transition-colors"
+                className="px-2 py-1 rounded-md text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-white transition-colors"
               >
                 {d}d
               </button>

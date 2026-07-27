@@ -1,4 +1,4 @@
-export type GlobalRole = "admin" | "user";
+export type GlobalRole = "admin" | "user" | "leader";
 export type RepositoryRole = "leader" | "dev" | "viewer";
 
 export interface ModulePermissionInput {

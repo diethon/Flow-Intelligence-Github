@@ -255,9 +255,7 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AppLayout>
-                    <div className="px-4 sm:px-6 py-5 sm:py-8">
-                      <RiskPageWrapper />
-                    </div>
+                    <RiskPageWrapper />
                   </AppLayout>
                 </ProtectedRoute>
               }
@@ -277,9 +275,7 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AppLayout>
-                    <div className="px-4 sm:px-6 py-5 sm:py-8">
-                      <EvidencePageWrapper />
-                    </div>
+                    <EvidencePageWrapper />
                   </AppLayout>
                 </ProtectedRoute>
               }
@@ -289,9 +285,7 @@ function App() {
               element={
                 <RoleProtectedRoute allowedRoles={["admin", "leader"]}>
                   <AppLayout>
-                    <div className="px-4 sm:px-6 py-5 sm:py-8">
-                      <WorkloadRiskPageWrapper />
-                    </div>
+                    <WorkloadRiskPageWrapper />
                   </AppLayout>
                 </RoleProtectedRoute>
               }
@@ -301,9 +295,7 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AppLayout>
-                    <div className="px-4 sm:px-6 py-5 sm:py-8">
-                      <EvidenceCardDetailPageWrapper />
-                    </div>
+                    <EvidenceCardDetailPageWrapper />
                   </AppLayout>
                 </ProtectedRoute>
               }
