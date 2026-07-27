@@ -1,0 +1,28 @@
+{
+  "known_repository": {
+    "beforeCalibration": {
+      "logLoss": 0.7493,
+      "brierScore": 0.4207,
+      "ece": 0.08
+    },
+    "afterCalibration": {
+      "logLoss": 0.7985,
+      "brierScore": 0.4602,
+      "ece": 0.075
+    },
+    "calibrationImproved": false
+  },
+  "cold_start": {
+    "beforeCalibration": {
+      "logLoss": 0.7652,
+      "brierScore": 0.4337,
+      "ece": 0.1173
+    },
+    "afterCalibration": {
+      "logLoss": 0.7006,
+      "brierScore": 0.3879,
+      "ece": 0.086
+    },
+    "calibrationImproved": true
+  }
+}

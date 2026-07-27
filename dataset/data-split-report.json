@@ -1,0 +1,59 @@
+{
+  "stratified": {
+    "train_size": 2226,
+    "test_size": 557,
+    "accuracy": 0.6589,
+    "f1_macro": 0.405
+  },
+  "group": {
+    "train_repos": [
+      "react/react",
+      "flutter/flutter",
+      "tensorflow/tensorflow",
+      "microsoft/vscode"
+    ],
+    "test_repos": [
+      "kubernetes/kubernetes"
+    ],
+    "accuracy": 0.3076,
+    "f1_macro": 0.1825
+  },
+  "chronological": {
+    "train_size": 2226,
+    "test_size": 557,
+    "accuracy": 0.842,
+    "f1_macro": 0.3716
+  },
+  "rolling_window": [
+    {
+      "fold": 1,
+      "train_size": 698,
+      "test_size": 695,
+      "accuracy": 0.5453,
+      "f1_macro": 0.3815,
+      "f1_weighted": 0.5197,
+      "high_risk_recall": 0.9524,
+      "log_loss": 0.896
+    },
+    {
+      "fold": 2,
+      "train_size": 1393,
+      "test_size": 695,
+      "accuracy": 0.6489,
+      "f1_macro": 0.4629,
+      "f1_weighted": 0.6029,
+      "high_risk_recall": 0.7519,
+      "log_loss": 0.8565
+    },
+    {
+      "fold": 3,
+      "train_size": 2088,
+      "test_size": 695,
+      "accuracy": 0.777,
+      "f1_macro": 0.3654,
+      "f1_weighted": 0.7157,
+      "high_risk_recall": 0.1818,
+      "log_loss": 0.6931
+    }
+  ]
+}

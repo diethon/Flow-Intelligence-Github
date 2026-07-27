@@ -13,6 +13,8 @@ export interface PredictionResult {
   probability: number;
   riskLabel: RiskLabel;
   featureSummary: Record<string, number | string | boolean>;
+  probabilities?: Record<string, number>;
+  topFactors?: any[];
   predictedAt: Date | string;
 }
 
