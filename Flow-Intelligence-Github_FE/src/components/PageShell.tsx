@@ -302,6 +302,8 @@ export function RepoSelect({ repos, value, onChange }: {
     const newVal = e.target.value;
     onChange(newVal);
     window.dispatchEvent(new Event("repoChanged"));
+    window.dispatchEvent(new Event("selectedRepoChanged"));
+    window.dispatchEvent(new Event("selectedRepositoryChanged"));
   };
   return (
     <select

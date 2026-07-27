@@ -162,6 +162,9 @@ export const PRPredictionsPage: React.FC<PRPredictionsPageProps> = ({ repository
   const handleRepoChange = (id: string) => {
     if (!id || id === repositoryId) return;
     localStorage.setItem('selectedRepositoryId', id);
+    window.dispatchEvent(new Event("repoChanged"));
+    window.dispatchEvent(new Event("selectedRepoChanged"));
+    window.dispatchEvent(new Event("selectedRepositoryChanged"));
     navigate(`/repositories/${id}/predictions`);
   };
 
