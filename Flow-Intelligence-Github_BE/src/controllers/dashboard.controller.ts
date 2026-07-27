@@ -6,7 +6,7 @@ import { RepositoryRole } from "../models/RepositoryRole.js";
 import { buildDashboard, getRulebook } from "../services/dashboardService.js";
 
 export class DashboardController {
-  
+
   // GET /api/dashboard/repositories
   async getRepositories(req: Request & { userId?: string }, res: Response): Promise<void> {
     try {
@@ -31,6 +31,7 @@ export class DashboardController {
         roleMap.set(r.repositoryId.toString(), r.role);
       }
 
+      // Repos returned here are connected by this user -> default role is 'leader' unless explicitly set in RepositoryRole
       const reposWithRole = repos.map(repo => ({
         ...repo,
         role: roleMap.get(repo._id.toString()) || 'viewer', // mặc định là viewer

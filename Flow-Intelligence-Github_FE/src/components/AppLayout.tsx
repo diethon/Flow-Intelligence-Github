@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "../services/axiosClient";
 import { useAuth } from "../hooks/useAuth";
+import { fetchDashboardRepositories } from "../api/dashboardApi.js";
 import { ChatWidget } from "./ChatWidget.js";
 
 import { useSelectedRepositoryPermissions } from "../hooks/useSelectedRepositoryPermissions";
@@ -43,6 +45,37 @@ function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
   const { pathname } = useLocation();
   const { user } = useAuth();
   const { canManagePrivacy } = useSelectedRepositoryPermissions();
+  const [selectedRepoId, setSelectedRepoId] = useState<string | null>(() =>
+    localStorage.getItem("selectedRepositoryId")
+  );
+
+  useEffect(() => {
+    const handleRepoChange = () => {
+      setSelectedRepoId(localStorage.getItem("selectedRepositoryId"));
+    };
+    window.addEventListener("selectedRepoChanged", handleRepoChange);
+    window.addEventListener("storage", handleRepoChange);
+    return () => {
+      window.removeEventListener("selectedRepoChanged", handleRepoChange);
+      window.removeEventListener("storage", handleRepoChange);
+    };
+  }, []);
+
+  const reposQuery = useQuery({
+    queryKey: ["dashboard", "repositories"],
+    queryFn: fetchDashboardRepositories,
+    enabled: !!user,
+  });
+  const repos = reposQuery.data ?? [];
+
+  // Determine active repository context from URL or state
+  const match = pathname.match(/\/repositories\/([^\/]+)/);
+  const activeRepoId = match ? match[1] : (selectedRepoId || localStorage.getItem("selectedRepositoryId"));
+  const activeRepo = repos.find((r) => r._id === activeRepoId) || repos[0];
+
+  // Only render Workload Risk if global System Admin or Leader of the active repository
+  const isLeaderOrAdmin =
+    user?.role === "admin" || (activeRepo && activeRepo.role === "leader");
 
   const navItems = [
     {
@@ -61,6 +94,10 @@ function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
         { to: "/predictions", label: "PR Predictions", icon: "P", done: true },
         { to: "/workload-risk", label: "Workload Risk", icon: "▲", done: true },
         { to: "/brief", label: "AI Weekly Brief", icon: "◇", done: true },
+        { to: "/risk",          label: "Risk",            icon: "◆", done: true  },
+        { to: "/evidence",      label: "Evidence",        icon: "◈", done: true  },
+        ...(isLeaderOrAdmin ? [{ to: "/workload-risk", label: "Workload Risk", icon: "▲", done: true }] : []),
+        { to: "/brief",         label: "AI Weekly Brief", icon: "◇", done: true },
       ],
     },
     {
