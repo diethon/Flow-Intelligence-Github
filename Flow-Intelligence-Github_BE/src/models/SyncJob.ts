@@ -67,4 +67,7 @@ const syncJobSchema = new Schema<ISyncJob>(
 // Query index per design doc — used to poll for available jobs
 syncJobSchema.index({ status: 1, runAfter: 1, lockedAt: 1 });
 
+// Tự động xóa jobs đã tạo sau 7 ngày để tránh phình to database (cái ni t phồng hờ thôi vì data sync nhiều quá)
+// syncJobSchema.index({ createdAt: 1 }, { expireAfterSeconds: 7 * 24 * 60 * 60 });
+
 export const SyncJob = mongoose.models.SyncJob || mongoose.model<ISyncJob>("SyncJob", syncJobSchema, "syncJobs");

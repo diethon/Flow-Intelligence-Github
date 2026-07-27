@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import mongoose from "mongoose";
 import { dashboardController } from "../controllers/dashboard.controller.js";
 import { authenticate } from "../middlewares/authenticate.js";
+import { repoAuthorize } from "../middlewares/repoAuthorize.js";
 
 const router = Router();
 
@@ -17,7 +18,7 @@ function validateRepoId(req: Request, res: Response, next: () => void): void {
 // ─── GET /api/dashboard/repositories ─────────────────────────────────────────
 router.get("/repositories", authenticate, dashboardController.getRepositories);
 
-router.get("/repositories/:repoId", authenticate, validateRepoId, dashboardController.getDashboard);
+router.get("/repositories/:repoId", authenticate, validateRepoId, repoAuthorize(['leader', 'dev', 'viewer']), dashboardController.getDashboard);
 
 // ─── GET /api/dashboard/rulebook ─────────────────────────────────────────────
 // UC-14: Flow Risk Rulebook with recommendations

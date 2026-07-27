@@ -41,6 +41,31 @@ export class AiPayloadBuilderService {
       delayedPrs,
     };
 
+    // Calculate previous window (same duration as current window)
+    const windowDurationMs = windowEnd.getTime() - windowStart.getTime();
+    const previousWindowStart = new Date(windowStart.getTime() - windowDurationMs);
+    const previousWindowEnd = windowStart;
+
+    const prevMetricSnapshots = await MetricSnapshot.find({
+      repositoryId: new mongoose.Types.ObjectId(repositoryId),
+      computedAt: { $gte: previousWindowStart, $lte: previousWindowEnd },
+    }).lean();
+
+    const previousMetrics = prevMetricSnapshots.reduce((acc, curr) => {
+      acc[curr.metricKey] = curr.value;
+      return acc;
+    }, {} as Record<string, any>);
+
+    const prevDelayedPrs = await PrDelayPrediction.countDocuments({
+      repositoryId: new mongoose.Types.ObjectId(repositoryId),
+      riskLabel: "High",
+      predictedAt: { $gte: previousWindowStart, $lte: previousWindowEnd },
+    });
+
+    const previousPredictions = {
+      delayedPrs: prevDelayedPrs,
+    };
+
     const rawLimitations = [
       "AI Service might hallucinate details",
       "Only analyzing data within the specified time window",
@@ -49,6 +74,8 @@ export class AiPayloadBuilderService {
     const rawPayload = {
       metrics: rawMetrics,
       predictions: rawPredictions,
+      previousMetrics,
+      previousPredictions,
       evidenceCards: rawEvidenceCards.map((c) => ({
         type: c.sourceType,
         severity: c.severity,
@@ -57,12 +84,12 @@ export class AiPayloadBuilderService {
       limitations: rawLimitations,
     };
 
-    // 4. Redact and Pseudonymize based on Privacy Settings
-    let finalPayload = this.privacyService.redact(rawPayload);
-
-    if (privacySettings?.pseudonymizeContributors) {
-      finalPayload = this.privacyService.pseudonymize(finalPayload);
-    }
+    // 4. Apply Privacy Settings (Redaction, Exclusions, Pseudonymization)
+    const finalPayload = this.privacyService.applySettings(rawPayload, privacySettings ? {
+      pseudonymizeContributors: privacySettings.pseudonymizeContributors,
+      excludeRawComments: privacySettings.excludeRawComments,
+      excludeRawCode: privacySettings.excludeRawCode,
+    } : undefined);
 
     return finalPayload;
   }

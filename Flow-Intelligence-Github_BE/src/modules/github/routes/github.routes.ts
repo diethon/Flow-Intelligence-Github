@@ -2,6 +2,7 @@ import type { Router } from 'express';
 import type { GitHubController } from '../controllers/github.controller';
 import type { WebhookService } from '../services';
 import { authenticate } from '../../../middlewares/authenticate';
+import { validateWebhookSignature } from '../../../middlewares/validateWebhookSignature';
 
 export const createGitHubRoutes = (controller: GitHubController): Router => {
   const router = require('express').Router();
@@ -37,7 +38,7 @@ export const createRepositoryRoutes = (controller: GitHubController): Router => 
 export const createWebhookRoutes = (_webhookService: WebhookService): Router => {
   const router = require('express').Router();
 
-  router.post('/github', (req: any, res: any) => {
+  router.post('/github', validateWebhookSignature, (req: any, res: any) => {
     res.json({ success: true, message: 'Webhook received' });
   });
 

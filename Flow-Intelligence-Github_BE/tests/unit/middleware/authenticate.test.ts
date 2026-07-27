@@ -1,7 +1,26 @@
 import { Request, Response, NextFunction } from 'express';
-import { authenticate, optionalAuthenticate } from '../../src/middlewares/authenticate';
+import { authenticate, optionalAuthenticate } from '../../../src/middlewares/authenticate';
+import jwt from 'jsonwebtoken';
+
+jest.mock('jsonwebtoken', () => ({
+  verify: jest.fn().mockImplementation((token: string) => {
+    if (token === 'abc123') {
+      return { userId: 'user_abc123' };
+    }
+    throw new Error('invalid token');
+  }),
+}));
 
 describe('authenticate middleware', () => {
+  beforeEach(() => {
+    (jwt.verify as jest.Mock).mockImplementation((token: string) => {
+      if (token === 'abc123') {
+        return { userId: 'user_abc123' };
+      }
+      throw new Error('invalid token');
+    });
+  });
+
   it('should reject missing authorization header', () => {
     const req = { headers: {} } as unknown as Request;
     const res = {} as unknown as Response;

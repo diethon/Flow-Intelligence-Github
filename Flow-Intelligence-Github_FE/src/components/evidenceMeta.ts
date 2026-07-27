@@ -2,7 +2,6 @@ import type {
   EvidenceConfidence,
   EvidenceEntityType,
   EvidenceSeverity,
-  EvidenceSourceType,
 } from '../types';
 
 /**
@@ -74,6 +73,8 @@ export const ENTITY_LABEL: Record<EvidenceEntityType, string> = {
   issue: 'Issue',
   commit: 'Commit',
   check_run: 'Check run',
+  review: 'Review',
+  contributor: 'Contributor',
 };
 
 /** Compact relative time, falling back to a date for anything older than a week. */

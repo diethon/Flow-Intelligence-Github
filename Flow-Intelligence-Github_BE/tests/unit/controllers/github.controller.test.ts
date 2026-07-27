@@ -1,7 +1,20 @@
-import { GitHubController } from '../../src/modules/github/controllers/github.controller';
-import { GitHubConnectionService } from '../../src/modules/github/services/githubConnection.service';
-import { SyncService } from '../../src/modules/github/services/sync.service';
-import { GitHubApiService } from '../../src/modules/github/services/githubApi.service';
+jest.mock('@octokit/rest', () => ({
+  Octokit: jest.fn().mockImplementation(() => ({
+    request: jest.fn(),
+  })),
+}));
+
+import { GitHubController } from '../../../src/modules/github/controllers/github.controller';
+import { GitHubConnectionService } from '../../../src/modules/github/services/githubConnection.service';
+import { SyncService } from '../../../src/modules/github/services/sync.service';
+import { GitHubApiService } from '../../../src/modules/github/services/githubApi.service';
+import { User } from '../../../src/modules/auth/models';
+
+jest.mock('../../../src/modules/auth/models', () => ({
+  User: {
+    findById: jest.fn(),
+  },
+}));
 
 describe('GitHubController', () => {
   let controller: GitHubController;
@@ -10,6 +23,11 @@ describe('GitHubController', () => {
   let githubApiService: jest.Mocked<GitHubApiService>;
 
   beforeEach(() => {
+    (User.findById as jest.Mock).mockResolvedValue({
+      _id: 'user_1',
+      accessToken: 'github-token',
+    });
+
     connectionService = {
       connectRepository: jest.fn(),
       disconnectRepository: jest.fn(),
@@ -19,6 +37,8 @@ describe('GitHubController', () => {
     syncService = {
       triggerSync: jest.fn(),
       getSyncStatus: jest.fn(),
+      cleanupStuckSyncs: jest.fn().mockResolvedValue(undefined),
+      getSyncStatusById: jest.fn().mockResolvedValue({ syncStatus: {} }),
     } as unknown as jest.Mocked<SyncService>;
 
     githubApiService = {
@@ -55,6 +75,7 @@ describe('GitHubController', () => {
       connectionService.connectRepository.mockResolvedValue(mockResult as never);
 
       const req = {
+        userId: 'user_1',
         body: {
           token: 'github-token',
           owner: 'facebook',

@@ -1,5 +1,83 @@
 export class PrivacyService {
   /**
+   * Apply all configured privacy rules to a payload based on PrivacySettings.
+   */
+  public applySettings(data: any, settings?: { pseudonymizeContributors?: boolean; excludeRawComments?: boolean; excludeRawCode?: boolean }): any {
+    console.log("\n=================== 🛡️ [PRIVACY PIPELINE LOG] ===================");
+    console.log("📥 ACTIVE PRIVACY SETTINGS:", JSON.stringify(settings || {}, null, 2));
+    console.log("🔍 [BEFORE] RAW PAYLOAD:");
+    console.log(JSON.stringify(data, null, 2));
+
+    let payload = this.redact(data);
+
+    if (settings?.excludeRawComments) {
+      payload = this.excludeComments(payload);
+    }
+
+    if (settings?.excludeRawCode) {
+      payload = this.excludeCode(payload);
+    }
+
+    if (settings?.pseudonymizeContributors) {
+      payload = this.pseudonymize(payload);
+    }
+
+    console.log("🔒 [AFTER] SANITIZED PAYLOAD SENT TO AI:");
+    console.log(JSON.stringify(payload, null, 2));
+    console.log("=================================================================\n");
+
+    return payload;
+  }
+
+  /**
+   * Exclude raw comment bodies from object payload.
+   */
+  public excludeComments(data: any): any {
+    if (Array.isArray(data)) {
+      return data.map((item) => this.excludeComments(item));
+    }
+
+    if (data !== null && typeof data === "object") {
+      const result: any = {};
+      for (const [key, value] of Object.entries(data)) {
+        const lowerKey = key.toLowerCase();
+        if (lowerKey.includes("comment") || lowerKey === "body" || lowerKey.includes("reviewbody")) {
+          result[key] = "[RAW_COMMENTS_EXCLUDED]";
+        } else {
+          result[key] = this.excludeComments(value);
+        }
+      }
+      return result;
+    }
+
+    return data;
+  }
+
+  /**
+   * Exclude raw source code diffs/snippets from object payload.
+   */
+  public excludeCode(data: any): any {
+    if (Array.isArray(data)) {
+      return data.map((item) => this.excludeCode(item));
+    }
+
+    if (data !== null && typeof data === "object") {
+      const result: any = {};
+      for (const [key, value] of Object.entries(data)) {
+        const lowerKey = key.toLowerCase();
+        if (lowerKey.includes("diff") || lowerKey.includes("patch") || lowerKey.includes("code") || lowerKey.includes("snippet")) {
+          result[key] = "[RAW_CODE_EXCLUDED]";
+        } else {
+          result[key] = this.excludeCode(value);
+        }
+      }
+      return result;
+    }
+
+    return data;
+  }
+
+  /**
    * Pseudonymize names/identifiers in a string or object.
    */
   public pseudonymize(data: any): any {
@@ -82,3 +160,4 @@ export class PrivacyService {
     return Math.abs(hash).toString(16);
   }
 }
+

@@ -1,6 +1,6 @@
 import mongoose, { Document, Schema } from "mongoose";
 
-export type UserRole = "admin" | "manager" | "viewer";
+export type UserRole = "admin" | "user";
 
 export interface IUser extends Document {
   githubId: string;
@@ -24,7 +24,7 @@ const userSchema = new Schema<IUser>(
     accessToken: { type: String, required: true },
     refreshToken: { type: String },
     name: { type: String },
-    role: { type: String, enum: ["admin", "manager", "viewer"], default: "manager" },
+    role: { type: String, enum: ["admin", "user"], default: "user" },
   },
   { timestamps: true }
 );

@@ -134,7 +134,8 @@ export async function buildDashboard(
 
   // ── Recent Risk Intelligence ────────────────────────────────────────────────
   const [recentEvidenceCards, rawRecentRiskEvents, recentPredictions] = await Promise.all([
-    EvidenceCard.find({ repositoryId: repoId }).sort({ createdAt: -1 }).limit(3).lean(),
+    // Only surface cards backed by real evidence — a card with 0 exhibits must never show.
+    EvidenceCard.find({ repositoryId: repoId, "evidence.0": { $exists: true } }).sort({ createdAt: -1 }).limit(3).lean(),
     RiskEvent.find({ repositoryId: repoId }).sort({ createdAt: -1 }).limit(3).lean(),
     PrDelayPrediction.find({ repositoryId: repoId }).populate("pullRequestId", "number title prUrl").sort({ createdAt: -1 }).limit(3).lean(),
   ]);

@@ -54,18 +54,16 @@ export function Tabs<T extends string>({
         <button
           key={t.id}
           onClick={() => onChange(t.id)}
-          className={`flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 ${
-            active === t.id
+          className={`flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 ${active === t.id
               ? "bg-white text-indigo-600 border border-slate-200/60 shadow-sm"
               : "text-slate-500 hover:text-slate-800 hover:bg-slate-200/50"
-          }`}
+            }`}
         >
           {t.icon && <span>{t.icon}</span>}
           {t.label}
           {t.badge !== undefined && t.badge > 0 && (
-            <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
-              active === t.id ? "bg-indigo-50 text-indigo-600 border border-indigo-100" : "bg-rose-500/10 text-rose-600"
-            }`}>
+            <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${active === t.id ? "bg-indigo-50 text-indigo-600 border border-indigo-100" : "bg-rose-500/10 text-rose-600"
+              }`}>
               {t.badge}
             </span>
           )}
@@ -109,12 +107,12 @@ export function Spinner({ size = 14, color = "currentColor" }: { size?: number; 
 export interface WindowOption { days: number; label: string; sublabel?: string }
 
 export const WINDOW_OPTIONS: WindowOption[] = [
-  { days: 1,   label: "1 day",    sublabel: "Today"     },
-  { days: 7,   label: "1 week",   sublabel: "7 days"    },
-  { days: 30,  label: "1 month",  sublabel: "30 days"   },
-  { days: 180, label: "6 months", sublabel: "180 days"  },
-  { days: 365, label: "1 year",   sublabel: "365 days"  },
-  { days: 0,   label: "All Time", sublabel: "Since beginning" },
+  { days: 1, label: "1 day", sublabel: "Today" },
+  { days: 7, label: "1 week", sublabel: "7 days" },
+  { days: 30, label: "1 month", sublabel: "30 days" },
+  { days: 180, label: "6 months", sublabel: "180 days" },
+  { days: 365, label: "1 year", sublabel: "365 days" },
+  { days: 0, label: "All Time", sublabel: "Since beginning" },
 ];
 
 export function WindowSelector({
@@ -133,7 +131,7 @@ export function WindowSelector({
   const [open, setOpen] = useState(false);
   const [localStart, setLocalStart] = useState(startDate || "");
   const [localEnd, setLocalEnd] = useState(endDate || "");
-  
+
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -191,13 +189,13 @@ export function WindowSelector({
     const end = new Date();
     const start = new Date();
     start.setDate(end.getDate() - opt.days);
-    
+
     const startStr = start.toISOString().split("T")[0];
     const endStr = end.toISOString().split("T")[0];
-    
+
     setLocalStart(startStr);
     setLocalEnd(endStr);
-    
+
     if (onCustomRangeChange) {
       onCustomRangeChange(startStr, endStr);
     }
@@ -221,11 +219,10 @@ export function WindowSelector({
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-all ${
-          open
+        className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-all ${open
             ? "bg-indigo-50 border-indigo-200 text-indigo-700"
             : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400"
-        }`}
+          }`}
       >
         <span className="text-slate-400 text-base">📅</span>
         <span>{getButtonLabel()}</span>
@@ -237,7 +234,7 @@ export function WindowSelector({
           <div className="px-4 py-2.5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Select Date Range</p>
           </div>
-          
+
           <form onSubmit={handleApplyCustom} className="p-4 space-y-3">
             <div>
               <label className="block text-[10px] text-slate-400 font-bold uppercase mb-1">Start Date</label>
@@ -277,11 +274,10 @@ export function WindowSelector({
                     key={opt.days}
                     type="button"
                     onClick={() => handlePresetSelect(opt)}
-                    className={`px-2 py-1 text-left text-xs rounded transition-colors ${
-                      presetActive
+                    className={`px-2 py-1 text-left text-xs rounded transition-colors ${presetActive
                         ? "bg-indigo-50 text-indigo-700 font-semibold"
                         : "text-slate-600 hover:bg-white hover:text-slate-900 border border-transparent hover:border-slate-200"
-                    }`}
+                      }`}
                   >
                     {opt.label}
                   </button>
@@ -298,10 +294,15 @@ export function WindowSelector({
 // ─── Repo selector ────────────────────────────────────────────────────────────
 
 export function RepoSelect({ repos, value, onChange }: {
-  repos: { _id: string; fullName: string }[];
+  repos: { _id: string; fullName: string; role?: string }[];
   value: string;
   onChange: (id: string) => void;
 }) {
+  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newVal = e.target.value;
+    onChange(newVal);
+    window.dispatchEvent(new Event("repoChanged"));
+  };
   return (
     <select
       value={value}
@@ -309,7 +310,11 @@ export function RepoSelect({ repos, value, onChange }: {
       className="bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 hover:border-slate-400 transition-colors w-auto min-w-[180px] max-w-xs cursor-pointer"
     >
       {repos.length === 0 && <option value="">No repositories connected</option>}
-      {repos.map((r) => <option key={r._id} value={r._id}>{r.fullName}</option>)}
+      {repos.map((r) => (
+        <option key={r._id} value={r._id}>
+          {r.fullName}
+        </option>
+      ))}
     </select>
   );
 }
