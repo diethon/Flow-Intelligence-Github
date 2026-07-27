@@ -26,25 +26,7 @@ export const ConnectRepositoryPage: React.FC = () => {
   const repositoriesQuery = useRepositories();
   const disconnectMutation = useDisconnectRepository();
 
-  const formatErrorMessage = (errorStr: string | null): string => {
-    if (!errorStr) return '';
-    try {
-      const parsed = JSON.parse(errorStr);
-      if (parsed && typeof parsed === 'object') {
-        const msg = parsed.message || 'Connection failed';
-        if (msg.includes('not found') || parsed.status === 404) {
-          return 'Không tìm thấy repository trên GitHub. Vui lòng kiểm tra lại Owner và Tên Repo.';
-        }
-        if (parsed.status === 401) {
-          return 'Phiên xác thực GitHub đã hết hạn. Vui lòng đăng nhập lại.';
-        }
-        return msg;
-      }
-    } catch (e) {
-      // Use raw string
-    }
-    return errorStr;
-  };
+
 
   const formatErrorMessage = (errorStr: string | null): string => {
     if (!errorStr) return '';
@@ -510,12 +492,12 @@ export const ConnectRepositoryPage: React.FC = () => {
                           <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${repo.isPrivate ? 'bg-slate-100 text-slate-600 border border-slate-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
                             {repo.isPrivate ? 'Private' : 'Public'}
                           </span>
-                          {repo.role && (
-                            <span className="text-xs font-semibold text-slate-500 bg-slate-50/50 border border-slate-200 px-2 py-0.5 rounded-lg flex items-center gap-1 flex-shrink-0">
-                              {repo.role === 'leader' ? '✦ Leader' : repo.role === 'dev' ? '⌘ Developer' : '👁 Viewer'}
-                            </span>
-                          )}
-                          <span>Last synced: {repo.lastSyncedAt ? new Date(repo.lastSyncedAt).toLocaleString('en-GB') : 'Never'}</span>
+                            {repo.role && (
+                              <span className="text-xs font-semibold text-slate-500 bg-slate-50/50 border border-slate-200 px-2 py-0.5 rounded-lg flex items-center gap-1 flex-shrink-0">
+                                {repo.role === 'leader' ? '✦ Leader' : repo.role === 'dev' ? '⌘ Developer' : '👁 Viewer'}
+                              </span>
+                            )}
+                            <span>Last synced: {repo.lastSyncedAt ? new Date(repo.lastSyncedAt).toLocaleString('en-GB') : 'Never'}</span>
                         </div>
                       </div>
                     </div>
