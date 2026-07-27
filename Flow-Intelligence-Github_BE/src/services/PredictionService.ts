@@ -11,7 +11,12 @@ export class PredictionService {
   /**
    * Calls the Python inference script to predict delay risk.
    */
-  private static async callInference(features: Record<string, number>): Promise<{ probability: number; riskLabel: RiskLabel }> {
+  private static async callInference(features: Record<string, any>): Promise<{ 
+    probability: number; 
+    riskLabel: RiskLabel; 
+    probabilities?: Record<string, number>; 
+    topFactors?: any[];
+  }> {
     return new Promise((resolve, reject) => {
       const process = spawn("python", [this.INFERENCE_SCRIPT], {
         cwd: path.join(__dirname, "../../../dataset")
@@ -63,10 +68,23 @@ export class PredictionService {
     if (!model) throw new Error("No available model found");
 
     const features = {
+      repository: pr.baseRepoFullName || "",
+      pr_number: pr.number || 0,
+      title: pr.title || "",
+      author: pr.authorLogin || "",
+      state: pr.state || "closed",
+      created_at: pr.createdAt ? pr.createdAt.toISOString() : new Date().toISOString(),
+      draft: pr.draft || pr.isDraft || false,
       changed_files: pr.changedFiles || 0,
       additions: pr.additions || 0,
       deletions: pr.deletions || 0,
-      commits: pr.commits || 1, // Default 1 if null to avoid empty commits
+      commits: pr.commits || 1,
+      comments: 0,
+      review_comments: 0,
+      mergeable_state: "unknown",
+      labels: (pr.labels || []).join(","),
+      requested_reviewers: (pr.requestedReviewers || []).join(","),
+      assignees: (pr.assignees || []).join(","),
     };
 
     const inferenceResult = await this.callInference(features);
@@ -79,6 +97,8 @@ export class PredictionService {
         probability: inferenceResult.probability,
         riskLabel: inferenceResult.riskLabel,
         featureSummary: features,
+        probabilities: inferenceResult.probabilities,
+        topFactors: inferenceResult.topFactors,
         predictedAt: new Date(),
       },
       { upsert: true, new: true }
@@ -91,6 +111,8 @@ export class PredictionService {
       probability: prediction.probability,
       riskLabel: prediction.riskLabel,
       featureSummary: prediction.featureSummary,
+      probabilities: prediction.probabilities,
+      topFactors: prediction.topFactors,
       predictedAt: prediction.predictedAt,
     };
   }

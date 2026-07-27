@@ -305,7 +305,15 @@ export const DashboardPage: React.FC = () => {
 
                   {/* AI Predictions */}
                   <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2">PR Delay Predictions</h3>
+                    <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-2">
+                      <h3 className="text-sm font-bold text-slate-800">PR Delay Predictions</h3>
+                      <button
+                        onClick={() => navigate(`/repositories/${selectedRepoId}/predictions`)}
+                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                      >
+                        View analysis
+                      </button>
+                    </div>
                     {summary.recentPredictions && summary.recentPredictions.length > 0 ? (
                       summary.recentPredictions.map((pred: any) => (
                         <PredictionCard
@@ -313,11 +321,7 @@ export const DashboardPage: React.FC = () => {
                           prediction={pred}
                           prNumber={pred.pullRequestId?.number}
                           prTitle={pred.pullRequestId?.title || `Pull Request #${pred.pullRequestId?.number}`}
-                          onClick={() => {
-                            if (pred.pullRequestId?.prUrl) {
-                              window.open(pred.pullRequestId.prUrl, '_blank');
-                            }
-                          }}
+                          onClick={() => navigate(`/repositories/${selectedRepoId}/predictions`)}
                         />
                       ))
                     ) : (

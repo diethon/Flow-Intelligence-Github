@@ -11,6 +11,8 @@ export interface IPrDelayPrediction extends Document {
   riskLabel: RiskLabel;
   /** Key features used for this prediction — for explainability */
   featureSummary: Record<string, number | string | boolean>;
+  probabilities?: Record<string, number>;
+  topFactors?: any[];
   predictedAt: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -24,6 +26,8 @@ const prDelayPredictionSchema = new Schema<IPrDelayPrediction>(
     probability: { type: Number, required: true, min: 0, max: 1 },
     riskLabel: { type: String, enum: ["Low", "Medium", "High"], required: true },
     featureSummary: { type: Schema.Types.Mixed, default: {} },
+    probabilities: { type: Schema.Types.Mixed },
+    topFactors: { type: Schema.Types.Mixed },
     predictedAt: { type: Date, default: Date.now },
   },
   { timestamps: true }

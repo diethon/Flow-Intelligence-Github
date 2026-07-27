@@ -147,8 +147,11 @@ async function runSeeding() {
         repositoryId: repoId,
         pullRequestId: pr._id,
         modelVersionId: modelVersion._id,
-        probability: index === 0 ? 0.85 : 0.20,
+        probability: index === 0 ? 0.85 : 0.65,
         riskLabel: index === 0 ? "High" : "Medium",
+        probabilities: index === 0 
+          ? { low: 0.05, medium: 0.10, high: 0.85 }
+          : { low: 0.20, medium: 0.65, high: 0.15 },
         featureSummary: index === 0 
           ? { "additions": 1500, "changed_files": 45, "complexity": 12 }
           : { "additions": 300, "changed_files": 12 },

@@ -41,13 +41,13 @@ export class NotificationService {
   private metricsEndpoint: string;
   private predictionEndpoint: string;
   private riskEndpoint: string;
-  private evidenceEndpoint: string;
+  private evidenceEndpoint: string | null;
 
   constructor() {
     this.metricsEndpoint = process.env.METRICS_SERVICE_URL || 'http://localhost:3001/api/metrics';
     this.predictionEndpoint = process.env.PREDICTION_SERVICE_URL || 'http://localhost:3002/api/predictions';
     this.riskEndpoint = process.env.RISK_SERVICE_URL || 'http://localhost:3003/api/risk';
-    this.evidenceEndpoint = process.env.EVIDENCE_SERVICE_URL || 'http://localhost:3004/api/evidence';
+    this.evidenceEndpoint = process.env.EVIDENCE_SERVICE_URL?.trim() || null;
   }
 
   async onSyncComplete(
@@ -160,6 +160,13 @@ export class NotificationService {
     cardType: EvidenceCardPayload['cardType'],
     data: Record<string, unknown>
   ): Promise<void> {
+    if (!this.evidenceEndpoint) {
+      console.info(
+        `[NotificationService] External evidence notification skipped for ${repositoryId}: EVIDENCE_SERVICE_URL is not configured.`
+      );
+      return;
+    }
+
     try {
       const payload: EvidenceCardPayload = {
         repositoryId,

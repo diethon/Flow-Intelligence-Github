@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkloadRisk } from "../hooks/useWorkloadRisk.js";
+import { useAuth } from "../hooks/useAuth.js";
 import { fetchDashboardRepositories } from "../api/dashboardApi.js";
 import {
   PageShell, SectionHeading, PrimaryBtn, ErrorAlert, EmptyState, RepoSelect,
@@ -284,10 +285,20 @@ interface WorkloadRiskPageProps {
 
 export function WorkloadRiskPage({ repositoryId }: WorkloadRiskPageProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // Repo switcher — jump between connected repos from the header.
   const reposQuery = useQuery({ queryKey: ["dashboard", "repositories"], queryFn: fetchDashboardRepositories });
-  const repos = reposQuery.data ?? [];
+  const allRepos = reposQuery.data ?? [];
+
+  const isGlobalAdmin = user?.role === "admin";
+  const repos = isGlobalAdmin
+    ? allRepos
+    : allRepos.filter((r) => r.role === "leader");
+
+  const currentRepo = allRepos.find((r) => r._id === repositoryId);
+  const isLeaderOrAdmin = isGlobalAdmin || currentRepo?.role === "leader";
+
   const handleRepoChange = (id: string) => {
     if (!id || id === repositoryId) return;
     localStorage.setItem("selectedRepositoryId", id);
@@ -327,14 +338,20 @@ export function WorkloadRiskPage({ repositoryId }: WorkloadRiskPageProps) {
 
   const invalidRange = Boolean(startDate && endDate && startDate > endDate);
 
+  if (reposQuery.isSuccess && !isLeaderOrAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return (
     <PageShell
       title="Workload Risk"
       subtitle="Developer burnout signal from off-hours commit & review activity"
       actions={
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center justify-start md:justify-end gap-2">
           {repos.length > 0 && (
-            <RepoSelect repos={repos} value={repositoryId} onChange={handleRepoChange} />
+            <div className="flex-shrink-0">
+              <RepoSelect repos={repos} value={repositoryId} onChange={handleRepoChange} />
+            </div>
           )}
           <div className="flex items-center gap-1 bg-slate-100 border border-slate-200 rounded-lg px-2 py-1.5">
             <label className="text-[11px] font-semibold text-slate-500">From</label>
@@ -343,7 +360,7 @@ export function WorkloadRiskPage({ repositoryId }: WorkloadRiskPageProps) {
               value={startDate}
               max={endDate || undefined}
               onChange={(e) => setStartDate(e.target.value)}
-              className="bg-white border border-slate-200 rounded-md px-2 py-1 text-xs font-medium text-slate-700"
+              className="w-28 sm:w-32 min-w-0 bg-white border border-slate-200 rounded-md px-2 py-1 text-xs font-medium text-slate-700"
             />
             <label className="text-[11px] font-semibold text-slate-500 ml-1">To</label>
             <input
@@ -351,7 +368,7 @@ export function WorkloadRiskPage({ repositoryId }: WorkloadRiskPageProps) {
               value={endDate}
               min={startDate || undefined}
               onChange={(e) => setEndDate(e.target.value)}
-              className="bg-white border border-slate-200 rounded-md px-2 py-1 text-xs font-medium text-slate-700"
+              className="w-28 sm:w-32 min-w-0 bg-white border border-slate-200 rounded-md px-2 py-1 text-xs font-medium text-slate-700"
             />
           </div>
           <div className="flex items-center gap-1 bg-slate-100 border border-slate-200 rounded-lg p-1">
@@ -359,7 +376,7 @@ export function WorkloadRiskPage({ repositoryId }: WorkloadRiskPageProps) {
               <button
                 key={d}
                 onClick={() => applyPreset(d)}
-                className="px-2.5 py-1 rounded-md text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-white transition-colors"
+                className="px-2 py-1 rounded-md text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-white transition-colors"
               >
                 {d}d
               </button>

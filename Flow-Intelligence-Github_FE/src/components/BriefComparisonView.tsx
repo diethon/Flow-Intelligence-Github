@@ -18,6 +18,8 @@ const relativePeriod = (daysAgoStart: number, daysAgoEnd: number): Period => {
 };
 const dateOnly = (value: string) => new Date(value).toISOString().slice(0, 10);
 const sameRange = (brief: AiBriefData, period: Period) => dateOnly(brief.windowStart) === period.start && dateOnly(brief.windowEnd) === period.end;
+const periodStartIso = (period: Period) => new Date(`${period.start}T00:00:00.000Z`).toISOString();
+const periodEndIso = (period: Period) => new Date(`${period.end}T23:59:59.999Z`).toISOString();
 const normalize = (value: string) => value.toLocaleLowerCase().replace(/[^a-z0-9\p{L}]+/gu, " ").trim();
 const itemsOf = (brief: AiBriefData, type: string) => brief.items.filter(item => item.type === type);
 const difference = (source: BriefItem[], other: BriefItem[]) => {
@@ -76,9 +78,18 @@ export function BriefComparisonView({ repositoryId, onClose }: { repositoryId: s
         fetchReviewCIMetrics(repositoryId, 7, earlierPeriod.start, earlierPeriod.end),
         fetchReviewCIMetrics(repositoryId, 7, laterPeriod.start, laterPeriod.end),
       ]);
-      const earlier = briefs.find(brief => sameRange(brief, earlierPeriod));
-      const later = briefs.find(brief => sameRange(brief, laterPeriod));
-      if (!earlier || !later) throw new Error("No saved Brief matches one or both periods. Generate each period in Weekly Brief first, then compare again.");
+
+      const savedEarlier = briefs.find(brief => sameRange(brief, earlierPeriod));
+      const savedLater = briefs.find(brief => sameRange(brief, laterPeriod));
+      const [earlier, later] = await Promise.all([
+        savedEarlier
+          ? Promise.resolve(savedEarlier)
+          : briefApi.generateBrief(repositoryId, periodStartIso(earlierPeriod), periodEndIso(earlierPeriod)),
+        savedLater
+          ? Promise.resolve(savedLater)
+          : briefApi.generateBrief(repositoryId, periodStartIso(laterPeriod), periodEndIso(laterPeriod)),
+      ]);
+
       setComparison({ earlier, later, earlierMetrics, laterMetrics });
     } catch (err) {
       setComparison(null); setError(err instanceof Error ? err.message : "Could not compare these periods.");
@@ -94,7 +105,7 @@ export function BriefComparisonView({ repositoryId, onClose }: { repositoryId: s
   const potentiallyEffective = resolvedRisks.length ? difference(earlierRecommendations, laterRecommendations) : [];
 
   return <div className="min-w-0 space-y-6 overflow-hidden rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4 md:p-6">
-    <div className="flex min-w-0 items-start justify-between gap-4"><div className="min-w-0"><h2 className="text-xl font-bold text-slate-900">Brief Comparison</h2><p className="break-words text-sm text-slate-500">Compare delivery health and actions between two saved reporting periods.</p></div><div className="shrink-0"><GhostBtn onClick={onClose}>Close</GhostBtn></div></div>
+    <div className="flex min-w-0 items-start justify-between gap-4"><div className="min-w-0"><h2 className="text-xl font-bold text-slate-900">Brief Comparison</h2><p className="break-words text-sm text-slate-500">Compare delivery health and actions between two reporting periods. Missing briefs are generated automatically.</p></div><div className="shrink-0"><GhostBtn onClick={onClose}>Close</GhostBtn></div></div>
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><PeriodPicker title="Period A · Earlier" value={earlierPeriod} onChange={period => { setEarlierPeriod(period); setComparison(null); }} /><PeriodPicker title="Period B · Later" value={laterPeriod} onChange={period => { setLaterPeriod(period); setComparison(null); }} /></div>
     <div className="flex justify-end"><PrimaryBtn onClick={compare} loading={loading} disabled={loading}>Compare periods</PrimaryBtn></div>
     {error && <ErrorState message={error} retryAction={compare} />}

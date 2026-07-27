@@ -2,6 +2,7 @@ export { authenticate, optionalAuthenticate } from './authenticate';
 export {
   canViewWeeklyBrief,
   requireGlobalAdmin,
+  requireRepositoryContributor,
   requireRepositoryLeader,
 } from './repositoryAuthorization';
 export type {
@@ -11,3 +12,5 @@ export type {
 } from './repositoryAuthorization';
 export { validateWebhookSignature } from './validateWebhookSignature';
 export { checkGlobalAdmin } from './checkGlobalAdmin';
+export { checkWorkloadRiskAccess } from './checkWorkloadRiskAccess';
+

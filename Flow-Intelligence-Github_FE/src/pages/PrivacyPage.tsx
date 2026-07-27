@@ -9,14 +9,16 @@ import { getPermissionErrorMessage } from "../utils/modulePermissions";
 import { LoadingState } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { useSelectedRepositoryPermissions } from "../hooks/useSelectedRepositoryPermissions";
+import { useAuth } from "../hooks/useAuth";
 
 export function PrivacyPage() {
+  const { user } = useAuth();
   const [repos, setRepos] = useState<Repository[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState("");
   const [settings, setSettings] = useState<PrivacySettingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
+  const deleting = false;
   const [error, setError] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("Settings saved successfully!");
@@ -27,6 +29,14 @@ export function PrivacyPage() {
   const [scheduleDay, setScheduleDay] = useState("FRIDAY");
   const [scheduleTime, setScheduleTime] = useState("17:00");
   const [testingNotification, setTestingNotification] = useState(false);
+  const selectedRepository = repos.find(repo => repo._id === selectedRepoId);
+  const canViewAutomatedDelivery =
+    selectedRepository?.role === "leader" ||
+    selectedRepository?.role === "dev";
+  const canSendSummary =
+    selectedRepository?.role === "leader" ||
+    selectedRepository?.role === "dev" ||
+    (user?.role === "admin" && selectedRepository?.isOwner === true);
   const { canManagePrivacy } = useSelectedRepositoryPermissions();
 
   useEffect(() => {
@@ -175,97 +185,101 @@ export function PrivacyPage() {
       {!loading && !error && settings && (
         <div className="space-y-8 max-w-4xl">
           {/* Notification Schedule & Slack Integration Card */}
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
-            <SectionHeading
-              title="💬 Automated Delivery & Slack Integration"
-              subtitle="Configure your team's preferred day, time, and Slack Webhook for Weekly AI Brief delivery."
-            />
+          {canViewAutomatedDelivery && (
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
+              <SectionHeading
+                title="💬 Automated Delivery & Slack Integration"
+                subtitle="Configure your team's preferred day, time, and Slack Webhook for Weekly AI Brief delivery."
+              />
 
-            <div className="mt-6 space-y-6">
-              {/* Schedule Enable Toggle */}
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                <div>
-                  <h4 className="font-semibold text-slate-800">Enable Automatic Weekly Schedule</h4>
-                  <p className="text-sm text-slate-500 max-w-lg">
-                    Automatically generate AI Brief and send Email & Slack reports on the configured schedule.
-                  </p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={scheduleEnabled}
-                    onChange={(e) => setScheduleEnabled(e.target.checked)}
-                  />
-                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                </label>
-              </div>
-
-              {/* Day & Time Selection */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-800 mb-2">
-                    📅 Delivery Day
-                  </label>
-                  <select
-                    value={scheduleDay}
-                    onChange={(e) => setScheduleDay(e.target.value)}
-                    disabled={!scheduleEnabled}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:bg-slate-50"
-                  >
-                    <option value="MONDAY">Monday</option>
-                    <option value="TUESDAY">Tuesday</option>
-                    <option value="WEDNESDAY">Wednesday</option>
-                    <option value="THURSDAY">Thursday</option>
-                    <option value="FRIDAY">Friday</option>
-                    <option value="SATURDAY">Saturday</option>
-                    <option value="SUNDAY">Sunday</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-slate-800 mb-2">
-                    ⏰ Delivery Time
-                  </label>
-                  <input
-                    type="time"
-                    value={scheduleTime}
-                    onChange={(e) => setScheduleTime(e.target.value)}
-                    disabled={!scheduleEnabled}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:bg-slate-50 font-mono"
-                  />
-                </div>
-              </div>
-
-              {/* Slack Webhook Input */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-800 mb-2">
-                  Slack Incoming Webhook URL (Optional)
-                </label>
-                <div className="flex flex-col sm:flex-row items-stretch gap-3">
-                  <div className="flex-1 relative">
-                    <span className="absolute left-3 top-2.5 text-slate-400 font-mono text-sm">🔗</span>
+              <div className="mt-6 space-y-6">
+                {/* Schedule Enable Toggle */}
+                <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                  <div>
+                    <h4 className="font-semibold text-slate-800">Enable Automatic Weekly Schedule</h4>
+                    <p className="text-sm text-slate-500 max-w-lg">
+                      Automatically generate AI Brief and send Email & Slack reports on the configured schedule.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
                     <input
-                      type="url"
-                      value={slackWebhookUrl}
-                      onChange={(e) => setSlackWebhookUrl(e.target.value)}
-                      placeholder="https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
-                      className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={scheduleEnabled}
+                      onChange={(e) => setScheduleEnabled(e.target.checked)}
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+
+                {/* Day & Time Selection */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-800 mb-2">
+                      📅 Delivery Day
+                    </label>
+                    <select
+                      value={scheduleDay}
+                      onChange={(e) => setScheduleDay(e.target.value)}
+                      disabled={!scheduleEnabled}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:bg-slate-50"
+                    >
+                      <option value="MONDAY">Monday</option>
+                      <option value="TUESDAY">Tuesday</option>
+                      <option value="WEDNESDAY">Wednesday</option>
+                      <option value="THURSDAY">Thursday</option>
+                      <option value="FRIDAY">Friday</option>
+                      <option value="SATURDAY">Saturday</option>
+                      <option value="SUNDAY">Sunday</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-800 mb-2">
+                      ⏰ Delivery Time
+                    </label>
+                    <input
+                      type="time"
+                      value={scheduleTime}
+                      onChange={(e) => setScheduleTime(e.target.value)}
+                      disabled={!scheduleEnabled}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:bg-slate-50 font-mono"
                     />
                   </div>
-                  <PrimaryBtn onClick={handleSave} disabled={saving || loading}>
-                    {saving ? "Saving..." : "💾 Save Settings"}
-                  </PrimaryBtn>
-                  <GhostBtn onClick={handleTestNotification} disabled={testingNotification}>
-                    {testingNotification ? "Sending..." : "🧪 Send Summary Report"}
-                  </GhostBtn>
                 </div>
-                <p className="text-xs text-slate-500 mt-2">
-                  Scheduled reports will be sent automatically to the connected project owner email and Slack channel (if Webhook URL is provided).
-                </p>
+
+                {/* Slack Webhook Input */}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-800 mb-2">
+                    Slack Incoming Webhook URL (Optional)
+                  </label>
+                  <div className="flex flex-col sm:flex-row items-stretch gap-3">
+                    <div className="flex-1 relative">
+                      <span className="absolute left-3 top-2.5 text-slate-400 font-mono text-sm">🔗</span>
+                      <input
+                        type="url"
+                        value={slackWebhookUrl}
+                        onChange={(e) => setSlackWebhookUrl(e.target.value)}
+                        placeholder="https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
+                        className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+                    <PrimaryBtn onClick={handleSave} disabled={saving || loading}>
+                      {saving ? "Saving..." : "💾 Save Settings"}
+                    </PrimaryBtn>
+                    {canSendSummary && (
+                      <GhostBtn onClick={handleTestNotification} disabled={testingNotification}>
+                        {testingNotification ? "Sending..." : "🧪 Send Summary Report"}
+                      </GhostBtn>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2">
+                    Scheduled reports will be sent automatically to the connected project owner email and Slack channel (if Webhook URL is provided).
+                  </p>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          )}
 
           {/* AI Privacy Settings Card */}
           <section className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">

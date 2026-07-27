@@ -5,7 +5,6 @@ import { AppError } from "../utils/AppError";
 
 import { NotificationService } from "../services/notification.service";
 import { Repository } from "../models/Repository";
-import { GitHubConnection } from "../models/GitHubConnection";
 import { User } from "../models/User";
 import env from "../config/env";
 import type { AuthorizedRepositoryRequest } from "../middlewares/repositoryAuthorization";
@@ -90,8 +89,8 @@ export class BriefController {
     const { recipients, slackWebhookUrl } = req.body;
     const repoName = repo.fullName || `${repo.owner}/${repo.name}`;
 
-    const start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const end = new Date();
+    const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     const userId = (req as AuthorizedRepositoryRequest).userId;
     const brief = await this.briefService.generateBrief(id, start, end, userId);
@@ -99,26 +98,48 @@ export class BriefController {
     let emailSent = false;
     let slackSent = false;
 
-    if (this.notificationService) {
-      let emailList: string[] = recipients && Array.isArray(recipients) && recipients.length > 0 ? recipients : [];
+    if (!this.notificationService) {
+      console.error(`[BriefNotification] Notification service is unavailable for repository ${id}.`);
+    } else {
+      const requestedRecipients = Array.isArray(recipients)
+        ? recipients.filter((email): email is string => typeof email === "string" && email.trim().length > 0)
+        : [];
+      const requestingUser = userId ? await User.findById(userId).select("email").lean() : null;
+      const emailList = [
+        ...new Set(
+          (requestedRecipients.length > 0
+            ? requestedRecipients
+            : requestingUser?.email
+              ? [requestingUser.email]
+              : []
+          ).map(email => email.trim().toLowerCase())
+        ),
+      ];
 
-      if (emailList.length === 0 && repo.connectionId) {
-        const connection = await GitHubConnection.findById(repo.connectionId).lean();
-        if (connection && connection.userId) {
-          const ownerUser = await User.findById(connection.userId).lean();
-          if (ownerUser && ownerUser.email) {
-            emailList.push(ownerUser.email);
-          }
-        }
-      }
-
-      if (emailList.length > 0) {
+      if (emailList.length === 0) {
+        console.error(
+          `[BriefNotification] Email was not sent for repository ${id}: no recipient email was provided and the requesting user has no email.`
+        );
+      } else {
+        console.info(
+          `[BriefNotification] Sending weekly brief ${brief._id} for repository ${id} to ${emailList.length} recipient(s).`
+        );
         emailSent = await this.notificationService.sendBriefEmail(emailList, brief, repoName);
+        if (!emailSent) {
+          console.error(
+            `[BriefNotification] Email delivery failed for brief ${brief._id} in repository ${id}. Check the preceding SMTP log for details.`
+          );
+        }
       }
 
       const targetSlackWebhook = slackWebhookUrl || repo.slackWebhookUrl;
       if (targetSlackWebhook) {
         slackSent = await this.notificationService.sendBriefSlack(targetSlackWebhook, brief, repoName);
+        if (!slackSent) {
+          console.error(`[BriefNotification] Slack delivery failed for brief ${brief._id} in repository ${id}.`);
+        }
+      } else {
+        console.info(`[BriefNotification] Slack delivery skipped for repository ${id}: no webhook configured.`);
       }
     }
 

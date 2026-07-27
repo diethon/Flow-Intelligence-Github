@@ -29,6 +29,9 @@ export class NotificationService {
         host: env.SMTP_HOST,
         port: env.SMTP_PORT,
         secure: env.SMTP_PORT === 465, // true for 465, false for other ports
+        connectionTimeout: 15_000,
+        greetingTimeout: 15_000,
+        socketTimeout: 30_000,
         auth: {
           user: env.SMTP_USER,
           pass: env.SMTP_PASS,
@@ -36,7 +39,7 @@ export class NotificationService {
       });
       console.log('📧 NotificationService: SMTP Mailer initialized successfully.');
     } else {
-      console.log('⚠️ NotificationService: SMTP credentials (SMTP_USER / SMTP_PASS) not provided. Email dispatches will be logged to console in dev mode.');
+      console.error('[NotificationService] SMTP is not configured: SMTP_USER and SMTP_PASS are required. Emails will not be sent.');
     }
   }
 
@@ -64,17 +67,28 @@ export class NotificationService {
         console.log(`✅ [NotificationService] Email sent successfully to ${recipients.join(', ')}: ${info.messageId}`);
         return true;
       } catch (error: any) {
-        console.error(`❌ [NotificationService] Failed to send email via SMTP:`, error.message);
+        console.error('[NotificationService] Failed to send email via SMTP.', {
+          host: env.SMTP_HOST,
+          port: env.SMTP_PORT,
+          message: error?.message,
+          code: error?.code,
+          command: error?.command,
+          responseCode: error?.responseCode,
+          response: error?.response,
+        });
+        if (error?.code === 'ETIMEDOUT' && error?.command === 'CONN') {
+          console.error(
+            `[NotificationService] Cannot establish an SMTP connection to ${env.SMTP_HOST}:${env.SMTP_PORT}. Check firewall, VPN, hosting-provider egress rules, or use an SMTP provider/port allowed by this environment.`
+          );
+        }
         return false;
       }
-    } else {
-      console.log(`--------------------------------------------------`);
-      console.log(`📧 [SIMULATED EMAIL SENT] To: ${recipients.join(', ')}`);
-      console.log(`Subject: ${mailOptions.subject}`);
-      console.log(`Summary: ${brief.summary}`);
-      console.log(`--------------------------------------------------`);
-      return true;
     }
+
+    console.error(
+      `[NotificationService] Email was not sent to ${recipients.join(', ')}: SMTP transporter is unavailable. Configure SMTP_USER and SMTP_PASS.`
+    );
+    return false;
   }
 
   /**
