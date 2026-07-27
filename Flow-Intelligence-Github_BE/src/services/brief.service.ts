@@ -11,6 +11,10 @@ export class BriefService {
   public async generateBrief(repositoryId: string, windowStart: Date, windowEnd: Date, userId?: string) {
     // 1 & 2 & 3. Build payload (which internally handles validation, redaction, and pseudonymization)
     const payload = await this.aiPayloadBuilderService.buildWeeklyBriefPayload(repositoryId, windowStart, windowEnd);
+    console.info(
+      "[BriefService] Payload prepared for AI Weekly Brief generation:",
+      JSON.stringify(payload, null, 2)
+    );
 
     try {
       const geminiClient = GeminiClientService.getInstance();
@@ -50,7 +54,7 @@ Payload data: ${JSON.stringify(payload)}`;
       const responseText = response.text || "{}";
       const parsed = JSON.parse(responseText);
 
-      const brief = await AiBrief.create({
+      const briefData = {
         repositoryId: new mongoose.Types.ObjectId(repositoryId),
         windowStart,
         windowEnd,
@@ -61,7 +65,12 @@ Payload data: ${JSON.stringify(payload)}`;
         items: parsed.items || [],
         isFallback: false,
         createdBy: userId ? new mongoose.Types.ObjectId(userId) : null,
-      });
+      };
+      console.info(
+        "[BriefService] AI Weekly Brief data prepared for database:",
+        JSON.stringify(briefData, null, 2)
+      );
+      const brief = await AiBrief.create(briefData);
 
       return brief;
     } catch (error: any) {
@@ -96,7 +105,7 @@ Payload data: ${JSON.stringify(payload)}`;
       });
     }
 
-    const fallbackBrief = await AiBrief.create({
+    const fallbackBriefData = {
       repositoryId: new mongoose.Types.ObjectId(repositoryId),
       windowStart,
       windowEnd,
@@ -107,7 +116,12 @@ Payload data: ${JSON.stringify(payload)}`;
       items,
       isFallback: true,
       createdBy: userId ? new mongoose.Types.ObjectId(userId) : null,
-    });
+    };
+    console.info(
+      "[BriefService] Fallback Weekly Brief data prepared for database:",
+      JSON.stringify(fallbackBriefData, null, 2)
+    );
+    const fallbackBrief = await AiBrief.create(fallbackBriefData);
 
     return fallbackBrief;
   }
