@@ -195,8 +195,8 @@ export class SyncJobProcessor {
   private async upsertPullRequest(repositoryId: string, pr: any): Promise<mongoose.Types.ObjectId> {
     const repoId = new mongoose.Types.ObjectId(repositoryId);
 
-    // Find by repositoryId and number to prevent duplicate key errors with fake seed data
-    const existing = await PullRequest.findOne({ repositoryId: repoId, number: pr.number });
+    // Find by githubPrId which is globally unique across the collection
+    const existing = await PullRequest.findOne({ githubPrId: pr.id });
 
     const prState = pr.merged ? 'merged' : pr.state;
     const authorId = await this.upsertContributor(repoId, pr.user);

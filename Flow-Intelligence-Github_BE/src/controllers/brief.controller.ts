@@ -14,7 +14,8 @@ export class BriefController {
   constructor(
     private briefService: BriefService,
     private notificationService?: NotificationService
-  ) {}
+  ) { }
+
 
   public generateBrief = asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;
@@ -23,7 +24,7 @@ export class BriefController {
     }
 
     const { windowStart, windowEnd } = req.body;
-    
+
     const start = windowStart ? new Date(windowStart) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const end = windowEnd ? new Date(windowEnd) : new Date();
 
@@ -100,7 +101,7 @@ export class BriefController {
 
     if (this.notificationService) {
       let emailList: string[] = recipients && Array.isArray(recipients) && recipients.length > 0 ? recipients : [];
-      
+
       if (emailList.length === 0 && repo.connectionId) {
         const connection = await GitHubConnection.findById(repo.connectionId).lean();
         if (connection && connection.userId) {

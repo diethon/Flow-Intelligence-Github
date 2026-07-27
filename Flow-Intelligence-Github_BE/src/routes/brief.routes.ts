@@ -8,7 +8,7 @@ import {
 
 export const createBriefRoutes = (controller: BriefController): Router => {
   const router = Router({ mergeParams: true });
-  
+
   router.get("/:id/briefs", optionalAuthenticate, canViewWeeklyBrief, controller.getBriefs);
   router.post("/:id/briefs/generate", authenticate, requireRepositoryLeader, controller.generateBrief);
   router.post("/:id/briefs/:briefId/retry", authenticate, requireRepositoryLeader, controller.retryBrief);

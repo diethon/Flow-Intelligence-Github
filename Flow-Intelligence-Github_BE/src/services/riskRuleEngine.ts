@@ -7,6 +7,7 @@ import { Review, IReview } from "../models/Review.js";
 import { CheckRun, ICheckRun } from "../models/CheckRun.js";
 import { Recommendation } from "../models/Recommendation.js";
 import { DataQualityWarning, DataQualityCode } from "../models/DataQualityWarning.js";
+import { MetricSnapshot, MetricKey } from "../models/MetricSnapshot.js";
 import {
   FlowRuleRepository,
   RecommendationRepository,
@@ -23,6 +24,7 @@ export interface EvidenceItemDTO {
   entityId: string;
   label: string;
   githubUrl: string | null;
+  summary?: string;
 }
 
 export interface EvidenceCardDTO {
@@ -66,6 +68,25 @@ export interface RiskEvaluationResult {
   evaluatedAt: Date;
 }
 
+/**
+ * Per-item reasoning: each affected entity carries a short note explaining *why*
+ * it is evidence for this rule (e.g. "Waited 38h for first review"). Notes are
+ * computed alongside the metric so they stay in sync with the numbers.
+ */
+export interface AffectedItem {
+  id: mongoose.Types.ObjectId;
+  note: string;
+}
+
+export interface RuleEvalResult {
+  isTriggered: boolean;
+  severity: RiskSeverity;
+  metricValue: number;
+  thresholdValue: number;
+  affectedEntityRefs: mongoose.Types.ObjectId[];
+  affectedDetails: AffectedItem[];
+}
+
 // ─── Pure Calculation Engine (UC-13 Specs) ────────────────────────────────────
 
 export class RiskRuleEngine {
@@ -74,15 +95,9 @@ export class RiskRuleEngine {
    * Calculation: PR Age = Current Time - prCreatedAt
    * Rules: > 3 days = Medium, > 7 days = High
    */
-  static evaluateR1(openPRs: IPullRequest[], now: Date): {
-    isTriggered: boolean;
-    severity: RiskSeverity;
-    metricValue: number;
-    thresholdValue: number;
-    affectedEntityRefs: mongoose.Types.ObjectId[];
-  } {
+  static evaluateR1(openPRs: IPullRequest[], now: Date): RuleEvalResult {
     let maxAgeDays = 0;
-    const affectedEntityRefs: mongoose.Types.ObjectId[] = [];
+    const affectedDetails: AffectedItem[] = [];
 
     for (const pr of openPRs) {
       const ageMs = now.getTime() - pr.createdAt.getTime();
@@ -91,37 +106,23 @@ export class RiskRuleEngine {
         maxAgeDays = ageDays;
       }
       if (ageDays > 3) {
-        affectedEntityRefs.push(pr._id as mongoose.Types.ObjectId);
+        affectedDetails.push({
+          id: pr._id as mongoose.Types.ObjectId,
+          note: `Open for ${Math.round(ageDays * 10) / 10}d — over 3d threshold`,
+        });
       }
     }
 
+    const affectedEntityRefs = affectedDetails.map((d) => d.id);
     const roundedMaxAge = Math.round(maxAgeDays * 10) / 10;
 
     if (maxAgeDays > 7) {
-      return {
-        isTriggered: true,
-        severity: "high",
-        metricValue: roundedMaxAge,
-        thresholdValue: 7,
-        affectedEntityRefs,
-      };
+      return { isTriggered: true, severity: "high", metricValue: roundedMaxAge, thresholdValue: 7, affectedEntityRefs, affectedDetails };
     } else if (maxAgeDays > 3) {
-      return {
-        isTriggered: true,
-        severity: "medium",
-        metricValue: roundedMaxAge,
-        thresholdValue: 3,
-        affectedEntityRefs,
-      };
+      return { isTriggered: true, severity: "medium", metricValue: roundedMaxAge, thresholdValue: 3, affectedEntityRefs, affectedDetails };
     }
 
-    return {
-      isTriggered: false,
-      severity: "low",
-      metricValue: roundedMaxAge,
-      thresholdValue: 3,
-      affectedEntityRefs: [],
-    };
+    return { isTriggered: false, severity: "low", metricValue: roundedMaxAge, thresholdValue: 3, affectedEntityRefs: [], affectedDetails: [] };
   }
 
   /**
@@ -129,56 +130,27 @@ export class RiskRuleEngine {
    * Calculation: Pickup Time = First Review Time - PR Created Time (in hours)
    * Rules: > 24 hours = Medium, > 48 hours = High
    */
-  static evaluateR2(prsWithPickup: { prId: mongoose.Types.ObjectId; pickupHours: number }[]): {
-    isTriggered: boolean;
-    severity: RiskSeverity;
-    metricValue: number;
-    thresholdValue: number;
-    affectedEntityRefs: mongoose.Types.ObjectId[];
-  } {
+  static evaluateR2(prsWithPickup: { prId: mongoose.Types.ObjectId; pickupHours: number }[]): RuleEvalResult {
     if (prsWithPickup.length === 0) {
-      return {
-        isTriggered: false,
-        severity: "low",
-        metricValue: 0,
-        thresholdValue: 24,
-        affectedEntityRefs: [],
-      };
+      return { isTriggered: false, severity: "low", metricValue: 0, thresholdValue: 24, affectedEntityRefs: [], affectedDetails: [] };
     }
 
     const totalHours = prsWithPickup.reduce((sum, item) => sum + item.pickupHours, 0);
     const avgHours = totalHours / prsWithPickup.length;
     const roundedAvg = Math.round(avgHours * 10) / 10;
 
-    const affectedEntityRefs = prsWithPickup
+    const affectedDetails: AffectedItem[] = prsWithPickup
       .filter((p) => p.pickupHours > 24)
-      .map((p) => p.prId);
+      .map((p) => ({ id: p.prId, note: `Waited ${Math.round(p.pickupHours)}h for first review` }));
+    const affectedEntityRefs = affectedDetails.map((d) => d.id);
 
     if (avgHours > 48) {
-      return {
-        isTriggered: true,
-        severity: "high",
-        metricValue: roundedAvg,
-        thresholdValue: 48,
-        affectedEntityRefs,
-      };
+      return { isTriggered: true, severity: "high", metricValue: roundedAvg, thresholdValue: 48, affectedEntityRefs, affectedDetails };
     } else if (avgHours > 24) {
-      return {
-        isTriggered: true,
-        severity: "medium",
-        metricValue: roundedAvg,
-        thresholdValue: 24,
-        affectedEntityRefs,
-      };
+      return { isTriggered: true, severity: "medium", metricValue: roundedAvg, thresholdValue: 24, affectedEntityRefs, affectedDetails };
     }
 
-    return {
-      isTriggered: false,
-      severity: "low",
-      metricValue: roundedAvg,
-      thresholdValue: 24,
-      affectedEntityRefs: [],
-    };
+    return { isTriggered: false, severity: "low", metricValue: roundedAvg, thresholdValue: 24, affectedEntityRefs: [], affectedDetails: [] };
   }
 
   /**
@@ -186,21 +158,9 @@ export class RiskRuleEngine {
    * Calculation: Reviewer Share = Reviewer Review Count / Total Reviews * 100
    * Rules: > 50% = Medium, > 70% = High
    */
-  static evaluateR3(reviews: IReview[]): {
-    isTriggered: boolean;
-    severity: RiskSeverity;
-    metricValue: number;
-    thresholdValue: number;
-    affectedEntityRefs: mongoose.Types.ObjectId[];
-  } {
+  static evaluateR3(reviews: IReview[]): RuleEvalResult {
     if (reviews.length === 0) {
-      return {
-        isTriggered: false,
-        severity: "low",
-        metricValue: 0,
-        thresholdValue: 50,
-        affectedEntityRefs: [],
-      };
+      return { isTriggered: false, severity: "low", metricValue: 0, thresholdValue: 50, affectedEntityRefs: [], affectedDetails: [] };
     }
 
     const counts = new Map<string, { id: mongoose.Types.ObjectId; count: number }>();
@@ -213,46 +173,36 @@ export class RiskRuleEngine {
 
     let maxShare = 0;
     let topReviewerId: mongoose.Types.ObjectId | null = null;
+    let topCount = 0;
 
     for (const [_, val] of counts.entries()) {
       const share = (val.count / reviews.length) * 100;
       if (share > maxShare) {
         maxShare = share;
         topReviewerId = val.id;
+        topCount = val.count;
       }
     }
 
     const roundedShare = Math.round(maxShare * 10) / 10;
 
-    const affectedEntityRefs = topReviewerId
-      ? reviews.filter((r) => r.reviewerId.toString() === topReviewerId!.toString()).map((r) => r._id as mongoose.Types.ObjectId)
+    const affectedDetails: AffectedItem[] = topReviewerId
+      ? reviews
+          .filter((r) => r.reviewerId.toString() === topReviewerId!.toString())
+          .map((r) => ({
+            id: r._id as mongoose.Types.ObjectId,
+            note: `One of the top reviewer's ${topCount} reviews (${roundedShare}% of ${reviews.length})`,
+          }))
       : [];
+    const affectedEntityRefs = affectedDetails.map((d) => d.id);
 
     if (maxShare > 70) {
-      return {
-        isTriggered: true,
-        severity: "high",
-        metricValue: roundedShare,
-        thresholdValue: 70,
-        affectedEntityRefs,
-      };
+      return { isTriggered: true, severity: "high", metricValue: roundedShare, thresholdValue: 70, affectedEntityRefs, affectedDetails };
     } else if (maxShare > 50) {
-      return {
-        isTriggered: true,
-        severity: "medium",
-        metricValue: roundedShare,
-        thresholdValue: 50,
-        affectedEntityRefs,
-      };
+      return { isTriggered: true, severity: "medium", metricValue: roundedShare, thresholdValue: 50, affectedEntityRefs, affectedDetails };
     }
 
-    return {
-      isTriggered: false,
-      severity: "low",
-      metricValue: roundedShare,
-      thresholdValue: 50,
-      affectedEntityRefs: [],
-    };
+    return { isTriggered: false, severity: "low", metricValue: roundedShare, thresholdValue: 50, affectedEntityRefs: [], affectedDetails: [] };
   }
 
   /**
@@ -260,54 +210,28 @@ export class RiskRuleEngine {
    * Calculation: Failed Check Rate = Failed Checks / Total Checks * 100
    * Rules: > 20% = Medium, > 40% = High
    */
-  static evaluateR4(checkRuns: ICheckRun[]): {
-    isTriggered: boolean;
-    severity: RiskSeverity;
-    metricValue: number;
-    thresholdValue: number;
-    affectedEntityRefs: mongoose.Types.ObjectId[];
-  } {
+  static evaluateR4(checkRuns: ICheckRun[]): RuleEvalResult {
     if (checkRuns.length === 0) {
-      return {
-        isTriggered: false,
-        severity: "low",
-        metricValue: 0,
-        thresholdValue: 20,
-        affectedEntityRefs: [],
-      };
+      return { isTriggered: false, severity: "low", metricValue: 0, thresholdValue: 20, affectedEntityRefs: [], affectedDetails: [] };
     }
 
     const failed = checkRuns.filter((c) => c.conclusion === "failure" || c.conclusion === "timed_out");
     const rate = (failed.length / checkRuns.length) * 100;
     const roundedRate = Math.round(rate * 10) / 10;
 
-    const affectedEntityRefs = failed.map((c) => c._id as mongoose.Types.ObjectId);
+    const affectedDetails: AffectedItem[] = failed.map((c) => ({
+      id: c._id as mongoose.Types.ObjectId,
+      note: `Check failed: ${c.conclusion}`,
+    }));
+    const affectedEntityRefs = affectedDetails.map((d) => d.id);
 
     if (rate > 40) {
-      return {
-        isTriggered: true,
-        severity: "high",
-        metricValue: roundedRate,
-        thresholdValue: 40,
-        affectedEntityRefs,
-      };
+      return { isTriggered: true, severity: "high", metricValue: roundedRate, thresholdValue: 40, affectedEntityRefs, affectedDetails };
     } else if (rate > 20) {
-      return {
-        isTriggered: true,
-        severity: "medium",
-        metricValue: roundedRate,
-        thresholdValue: 20,
-        affectedEntityRefs,
-      };
+      return { isTriggered: true, severity: "medium", metricValue: roundedRate, thresholdValue: 20, affectedEntityRefs, affectedDetails };
     }
 
-    return {
-      isTriggered: false,
-      severity: "low",
-      metricValue: roundedRate,
-      thresholdValue: 20,
-      affectedEntityRefs: [],
-    };
+    return { isTriggered: false, severity: "low", metricValue: roundedRate, thresholdValue: 20, affectedEntityRefs: [], affectedDetails: [] };
   }
 
   /**
@@ -315,15 +239,9 @@ export class RiskRuleEngine {
    * Calculation: PR Size = additions + deletions
    * Rules: > 500 lines = Medium, > 1000 lines = High
    */
-  static evaluateR5(prs: IPullRequest[]): {
-    isTriggered: boolean;
-    severity: RiskSeverity;
-    metricValue: number;
-    thresholdValue: number;
-    affectedEntityRefs: mongoose.Types.ObjectId[];
-  } {
+  static evaluateR5(prs: IPullRequest[]): RuleEvalResult {
     let maxSize = 0;
-    const affectedEntityRefs: mongoose.Types.ObjectId[] = [];
+    const affectedDetails: AffectedItem[] = [];
 
     for (const pr of prs) {
       const size = pr.additions + pr.deletions;
@@ -331,35 +249,22 @@ export class RiskRuleEngine {
         maxSize = size;
       }
       if (size > 500) {
-        affectedEntityRefs.push(pr._id as mongoose.Types.ObjectId);
+        affectedDetails.push({
+          id: pr._id as mongoose.Types.ObjectId,
+          note: `+${pr.additions}/-${pr.deletions} lines (${size} total) — over 500 threshold`,
+        });
       }
     }
 
+    const affectedEntityRefs = affectedDetails.map((d) => d.id);
+
     if (maxSize > 1000) {
-      return {
-        isTriggered: true,
-        severity: "high",
-        metricValue: maxSize,
-        thresholdValue: 1000,
-        affectedEntityRefs,
-      };
+      return { isTriggered: true, severity: "high", metricValue: maxSize, thresholdValue: 1000, affectedEntityRefs, affectedDetails };
     } else if (maxSize > 500) {
-      return {
-        isTriggered: true,
-        severity: "medium",
-        metricValue: maxSize,
-        thresholdValue: 500,
-        affectedEntityRefs,
-      };
+      return { isTriggered: true, severity: "medium", metricValue: maxSize, thresholdValue: 500, affectedEntityRefs, affectedDetails };
     }
 
-    return {
-      isTriggered: false,
-      severity: "low",
-      metricValue: maxSize,
-      thresholdValue: 500,
-      affectedEntityRefs: [],
-    };
+    return { isTriggered: false, severity: "low", metricValue: maxSize, thresholdValue: 500, affectedEntityRefs: [], affectedDetails: [] };
   }
 }
 
@@ -524,8 +429,22 @@ export class RiskEvaluationService {
           });
         }
 
+        // Population totals for coverage ("N of M ...") on the evidence card.
+        let totalPopulation = 0;
+        let populationLabel = "items";
+        switch (rule.ruleCode) {
+          case "R1": totalPopulation = openPRs.length; populationLabel = "open PRs"; break;
+          case "R2": totalPopulation = prsWithPickup.length; populationLabel = "reviewed PRs"; break;
+          case "R3": totalPopulation = reviewsInWindow.length; populationLabel = "reviews"; break;
+          case "R4": totalPopulation = checkRunsInWindow.length; populationLabel = "checks"; break;
+          case "R5": totalPopulation = prsInWindow.length; populationLabel = "PRs"; break;
+        }
+
         // Build evidence card containing actual stale PR / review / check references
-        const card = await this.buildEvidenceCard(repoId, riskEvent._id, rule, evalResult!, suggestedAction);
+        const card = await this.buildEvidenceCard(
+          repoId, riskEvent._id, rule, evalResult!, suggestedAction,
+          { windowStart: start, totalPopulation, populationLabel }
+        );
 
         results.push({
           id: riskEvent._id.toString(),
@@ -552,8 +471,9 @@ export class RiskEvaluationService {
             evidence: card.evidence.map((ev: any) => ({
               entityType: ev.entityType,
               entityId: ev.entityId.toString(),
-              label: ev.label,
-              githubUrl: ev.githubUrl,
+              label: ev.sourceLabel ?? ev.label ?? "",
+              githubUrl: ev.sourceUrl ?? ev.githubUrl ?? null,
+              summary: ev.summary ?? "",
             })),
             createdAt: card.createdAt.toISOString(),
           } : null,
@@ -644,8 +564,9 @@ export class RiskEvaluationService {
           evidence: card.evidence.map((e: any) => ({
             entityType: e.entityType,
             entityId: e.entityId.toString(),
-            label: e.label,
-            githubUrl: e.githubUrl,
+            label: e.sourceLabel ?? e.label ?? "",
+            githubUrl: e.sourceUrl ?? e.githubUrl ?? null,
+            summary: e.summary ?? "",
           })),
           createdAt: card.createdAt.toISOString(),
         } : null,
@@ -682,9 +603,15 @@ export class RiskEvaluationService {
     repositoryId: mongoose.Types.ObjectId,
     riskEventId: mongoose.Types.ObjectId,
     rule: IFlowRule,
-    evalResult: { isTriggered: boolean; severity: RiskSeverity; metricValue: number; thresholdValue: number; affectedEntityRefs: mongoose.Types.ObjectId[] },
-    suggestedAction: string
+    evalResult: RuleEvalResult,
+    suggestedAction: string,
+    ctx: { windowStart: Date; totalPopulation: number; populationLabel: string }
   ): Promise<any> {
+    // Per-item reasoning: each affected entity carries a note that explains *why*
+    // it is evidence for this rule (computed alongside the metric in evaluateRx).
+    const noteById = new Map<string, string>();
+    for (const d of evalResult.affectedDetails) noteById.set(d.id.toString(), d.note);
+
     const evidenceItems: any[] = [];
 
     if (evalResult.affectedEntityRefs.length > 0) {
@@ -692,61 +619,167 @@ export class RiskEvaluationService {
         // Query PRs
         const prs = await PullRequest.find({ _id: { $in: evalResult.affectedEntityRefs } }).select("_id number title prUrl additions deletions").lean();
         for (const pr of prs) {
-          let label = `#${pr.number} ${pr.title}`;
+          let sourceLabel = `#${pr.number} ${pr.title}`;
           if (rule.ruleCode === "R5") {
-            label += ` (+${pr.additions}/-${pr.deletions} lines)`;
+            sourceLabel += ` (+${pr.additions}/-${pr.deletions} lines)`;
           }
           evidenceItems.push({
             entityType: "pull_request",
             entityId: pr._id,
-            label,
-            githubUrl: pr.prUrl || null,
+            sourceLabel,
+            sourceUrl: pr.prUrl || "",
+            summary: noteById.get(pr._id.toString()) ?? pr.title,
           });
         }
       } else if (rule.ruleCode === "R3") {
         // Query Reviews
-        const reviews = await Review.find({ _id: { $in: evalResult.affectedEntityRefs } }).select("_id userLogin").lean();
+        const reviews = await Review.find({ _id: { $in: evalResult.affectedEntityRefs } }).select("_id userLogin pullRequestId githubReviewId").lean();
+        const prIds = reviews.map(r => r.pullRequestId).filter(Boolean);
+        const prs = await PullRequest.find({ _id: { $in: prIds } }).select("_id prUrl").lean();
+        const prUrlMap = new Map(prs.map(pr => [pr._id.toString(), pr.prUrl]));
+
         for (const rev of reviews) {
+          const prUrl = rev.pullRequestId ? prUrlMap.get(rev.pullRequestId.toString()) : null;
+          const reviewUrl = prUrl && rev.githubReviewId ? `${prUrl}#pullrequestreview-${rev.githubReviewId}` : "";
           evidenceItems.push({
             entityType: "review",
             entityId: rev._id,
-            label: `Review by ${rev.userLogin}`,
-            githubUrl: null,
+            sourceLabel: `Review by ${rev.userLogin}`,
+            sourceUrl: reviewUrl,
+            summary: noteById.get(rev._id.toString()) ?? `Review by ${rev.userLogin}`,
           });
         }
       } else if (rule.ruleCode === "R4") {
         // Query Checks
-        const checks = await CheckRun.find({ _id: { $in: evalResult.affectedEntityRefs } }).select("_id name conclusion").lean();
+        const checks = await CheckRun.find({ _id: { $in: evalResult.affectedEntityRefs } }).select("_id name conclusion pullRequestId githubCheckId repositoryId").lean();
+        const prIds = checks.map(c => c.pullRequestId).filter(Boolean);
+        const prs = await PullRequest.find({ _id: { $in: prIds } }).select("_id prUrl").lean();
+        const prUrlMap = new Map(prs.map(pr => [pr._id.toString(), pr.prUrl]));
+        
         for (const check of checks) {
+          const prUrl = check.pullRequestId ? prUrlMap.get(check.pullRequestId.toString()) : null;
+          // If we have PR URL, append /checks. Otherwise just use PR URL or empty string.
+          // In a real app we might construct the GitHub Action run URL, but PR checks tab is a good fallback.
+          let checkUrl = "";
+          if (prUrl) {
+            checkUrl = `${prUrl}/checks`;
+          }
           evidenceItems.push({
             entityType: "check_run",
             entityId: check._id,
-            label: `${check.name}: ${check.conclusion}`,
-            githubUrl: null,
+            sourceLabel: `${check.name}: ${check.conclusion}`,
+            sourceUrl: checkUrl,
+            summary: noteById.get(check._id.toString()) ?? `${check.name}: ${check.conclusion}`,
           });
         }
       }
     }
 
-    // Always delete existing card for the event first
+    // Always delete any existing card for the event first so a resolved / no-longer-evidenced
+    // risk does not leave a stale card behind.
     await EvidenceCard.findOneAndDelete({ riskEventId });
+
+    // Guardrail: an Evidence Card must be backed by real evidence. Do not create a card when
+    // the rule is not triggered or when there are no resolvable evidence items — such a card
+    // would show 0 exhibits and must never surface (see CLAUDE.md §7.6).
+    if (!evalResult.isTriggered || evidenceItems.length === 0) {
+      return null;
+    }
+
+    const affectedCount = evidenceItems.length;
+
+    // Coverage: how representative is this card ("N of M ...").
+    const coverage = ctx.totalPopulation > 0
+      ? ` ${affectedCount} of ${ctx.totalPopulation} ${ctx.populationLabel} affected.`
+      : "";
+
+    // Trend: compare against the previous window's metric snapshot (if available).
+    // Count-based rules (R1/R5) compare the affected count; the rest compare the metric.
+    const isCountRule = rule.ruleCode === "R1" || rule.ruleCode === "R5";
+    const trend = await this.buildTrendNote(
+      repositoryId,
+      rule.ruleCode,
+      ctx.windowStart,
+      isCountRule ? affectedCount : evalResult.metricValue,
+      isCountRule ? ctx.populationLabel : rule.thresholdUnit
+    );
+
+    // Confidence derived from data completeness rather than hardcoded.
+    const confidence = await this.deriveConfidence(repositoryId, rule.ruleCode, affectedCount);
+
+    // Limitation carries a rule-specific caveat to head off false positives.
+    const caveat = RULE_CAVEAT[rule.ruleCode];
+    const limitation = caveat
+      ? `Based on data within the selected window. Patterns may differ over longer periods. ${caveat}`
+      : "Based on data within the selected window. Patterns may differ over longer periods.";
 
     // Save EvidenceCard
     const card = await EvidenceCard.create({
       repositoryId,
       riskEventId,
       predictionId: null,
-      sourceType: "rule_based",
-      title: evalResult.isTriggered ? `${rule.name} detected` : `${rule.name} (not triggered)`,
-      severity: evalResult.isTriggered ? evalResult.severity : "low",
-      summary: buildSummary(rule.ruleCode, evalResult.metricValue, evalResult.thresholdValue, rule.thresholdUnit),
+      sourceType: "risk_event",
+      title: `${rule.name} detected`,
+      severity: evalResult.severity,
+      summary: buildSummary(rule.ruleCode, evalResult.metricValue, evalResult.thresholdValue, rule.thresholdUnit) + coverage + trend,
       suggestedAction,
-      confidence: "high",
-      limitation: "Based on data within the selected window. Patterns may differ over longer periods.",
+      confidence,
+      limitation,
       evidence: evidenceItems,
     });
 
     return card;
+  }
+
+  /**
+   * Trend note comparing the current value with the previous window's metric
+   * snapshot (owned by the metrics module). Returns "" when no prior data exists.
+   */
+  private async buildTrendNote(
+    repositoryId: mongoose.Types.ObjectId,
+    ruleCode: string,
+    windowStart: Date,
+    current: number,
+    unit: string
+  ): Promise<string> {
+    const metricKey = RULE_METRIC_KEY[ruleCode];
+    if (!metricKey) return "";
+    const prev = await MetricSnapshot.findOne({
+      repositoryId,
+      metricKey,
+      windowEnd: { $lt: windowStart },
+    })
+      .sort({ windowEnd: -1 })
+      .lean();
+    if (!prev || prev.value == null) return "";
+    const fmt = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
+    const unitLabel = unit === "%" ? "%" : unit === "hours" ? "h" : ` ${unit}`;
+    return ` Trend: ${fmt(prev.value)}${unitLabel} → ${fmt(current)}${unitLabel}.`;
+  }
+
+  /**
+   * Confidence from data completeness: an unresolved data-quality warning for the
+   * rule's metric, a non-ok snapshot status, a small sample, or very few affected
+   * items lowers confidence to "medium". Otherwise "high". Never "low" — a card
+   * that weak would not have been created.
+   */
+  private async deriveConfidence(
+    repositoryId: mongoose.Types.ObjectId,
+    ruleCode: string,
+    affectedCount: number
+  ): Promise<"high" | "medium"> {
+    const warnCode = RULE_WARNING_CODE[ruleCode];
+    if (warnCode) {
+      const warn = await DataQualityWarning.findOne({ repositoryId, code: warnCode, resolvedAt: null }).lean();
+      if (warn) return "medium";
+    }
+    const metricKey = RULE_METRIC_KEY[ruleCode];
+    if (metricKey) {
+      const snap = await MetricSnapshot.findOne({ repositoryId, metricKey }).sort({ windowEnd: -1 }).lean();
+      if (snap && (snap.dataStatus !== "ok" || (snap.sampleSize ?? 0) < 5)) return "medium";
+    }
+    if (affectedCount < 2) return "medium";
+    return "high";
   }
 
   private async upsertWarning(repositoryId: mongoose.Types.ObjectId, code: DataQualityCode, message: string) {
@@ -781,6 +814,34 @@ const METRIC_LABELS: Record<string, string> = {
   R3: "Top reviewer load (%)",
   R4: "Failed check rate (%)",
   R5: "Max PR size (lines)",
+};
+
+// Maps each rule to the metric snapshot used for trend comparison. R1/R5 use a
+// count proxy (no snapshot exists for max age / max size).
+const RULE_METRIC_KEY: Record<string, MetricKey> = {
+  R1: "stale_pr_count",
+  R2: "review_pickup_time_avg_hours",
+  R3: "review_load_top_reviewer_pct",
+  R4: "failed_check_rate_pct",
+  R5: "oversized_pr_count",
+};
+
+// Rule-specific caveat appended to the limitation, to head off false positives.
+const RULE_CAVEAT: Record<string, string> = {
+  R1: "Includes draft/WIP PRs that may be intentionally left open.",
+  R2: "Counts only PRs that received a review; automated reviews are included.",
+  R3: "Small teams naturally concentrate reviews on fewer people.",
+  R4: "Counts required checks only; flaky tests can cause false positives.",
+  R5: "Generated or vendored files can inflate line counts.",
+};
+
+// Which unresolved data-quality warning weakens confidence for each rule.
+const RULE_WARNING_CODE: Record<string, DataQualityCode> = {
+  R1: "no_pr_data",
+  R2: "no_review_data",
+  R3: "no_review_data",
+  R4: "missing_checks_permission",
+  R5: "no_pr_data",
 };
 
 function buildSummary(code: string, value: number, threshold: number, unit: string): string {

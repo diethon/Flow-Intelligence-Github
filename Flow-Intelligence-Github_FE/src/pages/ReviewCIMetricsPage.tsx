@@ -167,8 +167,12 @@ export function ReviewCIMetricsPage() {
         endDate || undefined
       );
       setMetrics(data); setLastUpdated(new Date());
-    } catch {
-      setError("Failed to load metrics. Make sure the backend is running.");
+    } catch (err: any) {
+      if (err.response?.status === 403) {
+        setError("You do not have permission to view or calculate metrics for this repository.");
+      } else {
+        setError("Failed to load metrics. Make sure the backend is running.");
+      }
       setMetrics(null);
     } finally { setLoading(false); }
   }, [selectedRepoId, windowDays, startDate, endDate]);
@@ -187,7 +191,13 @@ export function ReviewCIMetricsPage() {
         endDate || undefined
       );
       setMetrics(data); setLastUpdated(new Date());
-    } catch { setError("Failed to calculate and persist metrics."); }
+    } catch (err: any) {
+      if (err.response?.status === 403) {
+        setError("You do not have permission to run calculation for this repository.");
+      } else {
+        setError("Failed to calculate and persist metrics.");
+      }
+    }
     finally { setCalculating(false); }
   };
 

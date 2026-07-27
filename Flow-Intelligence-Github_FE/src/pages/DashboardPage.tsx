@@ -245,7 +245,7 @@ export const DashboardPage: React.FC = () => {
 
                 <div className="w-px h-10 bg-slate-200 hidden sm:block" />
 
-                <PrimaryBtn onClick={() => navigate("/risk")}>
+                <PrimaryBtn onClick={() => navigate(`/repositories/${selectedRepoId}/evidence`)}>
                   🔍 View Evidence
                 </PrimaryBtn>
               </div>
@@ -288,7 +288,7 @@ export const DashboardPage: React.FC = () => {
                   <BottleneckCard
                     key={btn.ruleCode}
                     card={btn}
-                    onDrillDown={() => navigate("/risk")}
+                    onDrillDown={() => navigate(`/repositories/${selectedRepoId}/risk`)}
                   />
                 ))}
               </div>
@@ -329,7 +329,11 @@ export const DashboardPage: React.FC = () => {
                     <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2">Latest Evidence</h3>
                     {summary.recentEvidenceCards && summary.recentEvidenceCards.length > 0 ? (
                       summary.recentEvidenceCards.map((card: any) => (
-                        <EvidenceCardRow key={card._id} card={card} to={`/risk/${card._id}`} />
+                        <EvidenceCardRow
+                          key={card._id}
+                          card={card}
+                          to={`/repositories/${card.repositoryId}/evidence/${card._id}`}
+                        />
                       ))
                     ) : (
                       <p className="text-xs text-slate-500 italic">No recent evidence cards.</p>

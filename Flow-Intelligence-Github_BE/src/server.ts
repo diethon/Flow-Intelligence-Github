@@ -15,6 +15,8 @@ import { ImportController } from './controllers/import.controller';
 import { createImportRoutes } from './routes/import.routes';
 import { EvidenceController } from './controllers/evidence.controller';
 import { createRepositoryEvidenceRoutes, createEvidenceCardRoutes } from './routes/evidence.routes';
+import { WorkloadBurnoutController } from './controllers/workloadBurnout.controller';
+import { createWorkloadBurnoutRoutes } from './routes/workloadBurnout.routes';
 
 import { DataQualityService } from './services/dataQuality.service';
 import { DataQualityController } from './controllers/dataQuality.controller';
@@ -37,6 +39,9 @@ import dashboardRouter from "./routes/dashboardRoutes.js";
 import riskRouter from "./routes/riskRoutes.js";
 import { createPredictionRouter } from './routes/prediction.routes.js';
 import { seedRulebook } from "./seeds/seedRulebook.js";
+import { checkGlobalAdmin } from './middlewares/checkGlobalAdmin.js';
+import { AdminController, createAdminRoutes } from './modules/admin/index.js';
+import chatRouter from "./routes/chatRoutes.js";
 
 const app: Express = express();
 
@@ -67,8 +72,10 @@ const syncService = new SyncService(githubApiService);
 const webhookService = new WebhookService(githubApiService);
 
 const githubController = new GitHubController(connectionService, syncService, githubApiService);
+const adminController = new AdminController(connectionService, syncService);
 const importController = new ImportController();
 const evidenceController = new EvidenceController();
+const workloadBurnoutController = new WorkloadBurnoutController();
 
 const dataQualityService = new DataQualityService();
 const dataQualityController = new DataQualityController(dataQualityService);
@@ -88,6 +95,7 @@ app.use('/api/github', createGitHubRoutes(githubController));
 app.use('/api/repositories', createRepositoryRoutes(githubController));
 app.use('/api/repositories', createImportRoutes(importController));
 app.use('/api/repositories', createRepositoryEvidenceRoutes(evidenceController));
+app.use('/api/repositories', createWorkloadBurnoutRoutes(workloadBurnoutController));
 app.use('/api/evidence-cards', createEvidenceCardRoutes(evidenceController));
 
 app.use('/api/repositories', createDataQualityRoutes(dataQualityController));
@@ -99,6 +107,18 @@ app.use('/api/webhooks', createWebhookRoutes(webhookService));
 app.use("/api/metrics", metricsRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/risk", riskRouter);
+app.use("/api/admin", authenticate, checkGlobalAdmin, createAdminRoutes(adminController));
+app.use("/api/chat", chatRouter);
+
+// Manual notification trigger endpoint (for testing/admin)
+app.post("/api/notifications/trigger-weekly", async (_req: Request, res: Response) => {
+  const result = await schedulerService.runWeeklyBriefJob();
+  res.json({
+    success: true,
+    message: "Weekly AI Brief notification job triggered manually.",
+    result,
+  });
+});
 
 // Manual notification trigger endpoint (for testing/admin)
 app.post("/api/notifications/trigger-weekly", authenticate, requireGlobalAdmin, async (_req: Request, res: Response) => {

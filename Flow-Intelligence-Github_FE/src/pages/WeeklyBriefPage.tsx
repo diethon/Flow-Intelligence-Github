@@ -291,7 +291,7 @@ export function WeeklyBriefPage() {
       {error && <ErrorState message={error} retryAction={loadBriefs} />}
       {exportError && <ErrorState message={exportError} />}
       {showComparison && selectedRepoId && <BriefComparisonView repositoryId={selectedRepoId} onClose={() => setShowComparison(false)} />}
-      
+
       {loading && !brief && <LoadingState message="Fetching your latest AI Brief..." />}
 
       {!loading && !error && !brief && repos.length > 0 && (

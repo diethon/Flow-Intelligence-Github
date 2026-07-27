@@ -70,5 +70,13 @@ export const EntityIcon: React.FC<{ entityType: EvidenceEntityType; className?: 
           <circle cx="12" cy="12" r="8.5" />
         </svg>
       );
+    default:
+      // review, contributor, or any future entity type — generic marker glyph.
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="8.5" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h8" />
+        </svg>
+      );
   }
 };

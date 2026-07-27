@@ -2,28 +2,33 @@ import { useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { apiClient } from "../services/axiosClient";
 import { useAuth } from "../hooks/useAuth";
+import { ChatWidget } from "./ChatWidget.js";
+
 import { useSelectedRepositoryPermissions } from "../hooks/useSelectedRepositoryPermissions";
+
 
 const NAV = [
   {
     group: "Analytics",
     items: [
-      { to: "/dashboard", label: "Team Dashboard",      icon: "▣", done: true  },
-      { to: "/review-ci", label: "Review & CI Metrics", icon: "◈", done: true  },
-      { to: "/rulebook",  label: "Flow Risk Rulebook",  icon: "◉", done: true  },
+      { to: "/dashboard", label: "Team Dashboard", icon: "▣", done: true },
+      { to: "/review-ci", label: "Review & CI Metrics", icon: "◈", done: true },
+      { to: "/rulebook", label: "Flow Risk Rulebook", icon: "◉", done: true },
     ],
   },
   {
     group: "Insights",
     items: [
-      { to: "/risk",  label: "Risk & Evidence", icon: "◆", done: true  },
+      { to: "/risk", label: "Risk", icon: "◆", done: true },
+      { to: "/evidence", label: "Evidence", icon: "◈", done: true },
+      { to: "/workload-risk", label: "Workload Risk", icon: "🌙", done: true },
       { to: "/brief", label: "AI Weekly Brief", icon: "◇", done: true },
     ],
   },
   {
     group: "Settings",
     items: [
-      { to: "/repositories/connect", label: "Connected Repos", icon: "🔌", done: true  },
+      { to: "/repositories/connect", label: "Connected Repos", icon: "🔌", done: true },
       { to: "/privacy", label: "Privacy Settings", icon: "◌", done: true },
     ],
   },
@@ -40,22 +45,24 @@ function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
     {
       group: "Analytics",
       items: [
-        { to: "/dashboard", label: "Team Dashboard",      icon: "▣", done: true  },
-        { to: "/review-ci", label: "Review & CI Metrics", icon: "◈", done: true  },
-        { to: "/rulebook",  label: "Flow Risk Rulebook",  icon: "◉", done: true  },
+        { to: "/dashboard", label: "Team Dashboard", icon: "▣", done: true },
+        { to: "/review-ci", label: "Review & CI Metrics", icon: "◈", done: true },
+        { to: "/rulebook", label: "Flow Risk Rulebook", icon: "◉", done: true },
       ],
     },
     {
       group: "Insights",
       items: [
-        { to: "/risk",  label: "Risk & Evidence", icon: "◆", done: true  },
+        { to: "/risk", label: "Risk", icon: "◆", done: true },
+        { to: "/evidence", label: "Evidence", icon: "◈", done: true },
+        { to: "/workload-risk", label: "Workload Risk", icon: "▲", done: true },
         { to: "/brief", label: "AI Weekly Brief", icon: "◇", done: true },
       ],
     },
     {
       group: "Settings",
       items: [
-        { to: "/repositories/connect", label: "Connected Repos", icon: "🔌", done: true  },
+        { to: "/repositories/connect", label: "Connected Repos", icon: "🔌", done: true },
         { to: "/privacy", label: "Privacy Settings", icon: "◌", done: true },
       ],
     },
@@ -65,6 +72,7 @@ function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
     navItems.unshift({
       group: "Administration",
       items: [
+        { to: "/admin/dashboard", label: "System Overview", icon: "📊", done: true },
         { to: "/users", label: "Users Management", icon: "👥", done: true }
       ]
     });
@@ -85,7 +93,12 @@ function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
           </p>
           <div className="space-y-0.5">
             {group.items.map((item) => {
-              const active = pathname.startsWith(item.to);
+              // Global nav targets (e.g. /risk, /evidence) also match their
+              // repo-scoped routes (/repositories/:id/risk, .../evidence/:cardId).
+              const active =
+                pathname.startsWith(item.to) ||
+                pathname.endsWith(item.to) ||
+                pathname.includes(`${item.to}/`);
               return (
                 <NavLink
                   key={item.to}
@@ -98,8 +111,8 @@ function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
                     ${active
                       ? "bg-indigo-50 text-indigo-600 border border-indigo-100 shadow-sm"
                       : item.done
-                      ? "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-                      : "text-slate-300 cursor-default"
+                        ? "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                        : "text-slate-300 cursor-default"
                     }`}
                 >
                   <span className={`text-base leading-none flex-shrink-0 ${active ? "text-indigo-600" : item.done ? "text-slate-400" : "text-slate-300"}`}>
@@ -163,10 +176,53 @@ function LogoutButton() {
   );
 }
 
+import { useEffect } from "react";
+
+function useSelectedRepoRole() {
+  const [repoId, setRepoId] = useState(() => localStorage.getItem("selectedRepositoryId"));
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setRepoId(localStorage.getItem("selectedRepositoryId"));
+    };
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("repoChanged", handleStorageChange);
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("repoChanged", handleStorageChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Fetch the role for this repo silently
+    apiClient.get(`/dashboard/repositories`).then(res => {
+      const repos = res.data.data;
+      const effectiveRepoId = repoId || (repos.length > 0 ? repos[0]._id : null);
+      if (!effectiveRepoId) {
+        setRole(null);
+        return;
+      }
+      const repo = repos.find((r: any) => r._id === effectiveRepoId);
+      if (repo && repo.role) {
+        setRole(repo.role);
+      } else {
+        setRole('viewer');
+      }
+    }).catch(() => setRole(null));
+  }, [repoId]);
+
+  return role;
+}
+
 // ─── Desktop Sidebar ──────────────────────────────────────────────────────────
 
 export function DesktopSidebar() {
   const { user } = useAuth();
+
+  const repoRole = useSelectedRepoRole();
+  const displayRole = user?.role === 'admin' ? 'admin' : (repoRole || '');
+
   return (
     <aside className="hidden lg:flex flex-col w-60 min-h-screen bg-white border-r border-slate-200 fixed left-0 top-0 bottom-0 z-30">
       <div className="px-5 pt-6 pb-5 border-b border-slate-100">
@@ -184,7 +240,7 @@ export function DesktopSidebar() {
           )}
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold text-slate-800 truncate">{user.username}</p>
-            <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider">{user.role}</p>
+            <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider">{displayRole}</p>
           </div>
         </div>
       )}
@@ -200,6 +256,8 @@ export function DesktopSidebar() {
 export function MobileNav() {
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
+  const repoRole = useSelectedRepoRole();
+  const displayRole = user?.role === 'admin' ? 'admin' : (repoRole || '');
 
   return (
     <>
@@ -211,7 +269,7 @@ export function MobileNav() {
           aria-label="Open menu"
         >
           <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
-            <line x1="3" y1="6"  x2="17" y2="6"  />
+            <line x1="3" y1="6" x2="17" y2="6" />
             <line x1="3" y1="12" x2="17" y2="12" />
             <line x1="3" y1="18" x2="17" y2="18" />
           </svg>
@@ -234,9 +292,8 @@ export function MobileNav() {
 
       {/* Drawer */}
       <aside
-        className={`lg:hidden fixed inset-y-0 left-0 z-50 w-72 flex flex-col bg-white border-r border-slate-200 shadow-2xl transform transition-transform duration-300 ease-in-out ${
-          open ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`lg:hidden fixed inset-y-0 left-0 z-50 w-72 flex flex-col bg-white border-r border-slate-200 shadow-2xl transform transition-transform duration-300 ease-in-out ${open ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         <div className="px-5 pt-6 pb-5 border-b border-slate-100 flex items-center justify-between">
           <Logo />
@@ -259,7 +316,7 @@ export function MobileNav() {
             )}
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-slate-800 truncate">{user.username}</p>
-              <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider">{user.role}</p>
+              <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider">{displayRole}</p>
             </div>
           </div>
         )}
@@ -279,6 +336,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="lg:pl-60 pt-14 lg:pt-0">
         {children}
       </div>
+      <ChatWidget />
     </div>
   );
 }

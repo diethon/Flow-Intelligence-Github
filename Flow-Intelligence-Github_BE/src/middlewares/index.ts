@@ -10,3 +10,4 @@ export type {
   ResolvedRepositoryRole,
 } from './repositoryAuthorization';
 export { validateWebhookSignature } from './validateWebhookSignature';
+export { checkGlobalAdmin } from './checkGlobalAdmin';
