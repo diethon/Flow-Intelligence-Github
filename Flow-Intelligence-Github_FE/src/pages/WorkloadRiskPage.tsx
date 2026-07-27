@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkloadRisk } from "../hooks/useWorkloadRisk.js";
+import { useAuth } from "../hooks/useAuth.js";
 import { fetchDashboardRepositories } from "../api/dashboardApi.js";
 import {
   PageShell, SectionHeading, PrimaryBtn, ErrorAlert, EmptyState, RepoSelect,
@@ -284,10 +285,20 @@ interface WorkloadRiskPageProps {
 
 export function WorkloadRiskPage({ repositoryId }: WorkloadRiskPageProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // Repo switcher — jump between connected repos from the header.
   const reposQuery = useQuery({ queryKey: ["dashboard", "repositories"], queryFn: fetchDashboardRepositories });
-  const repos = reposQuery.data ?? [];
+  const allRepos = reposQuery.data ?? [];
+
+  const isGlobalAdmin = user?.role === "admin";
+  const repos = isGlobalAdmin
+    ? allRepos
+    : allRepos.filter((r) => r.role === "leader");
+
+  const currentRepo = allRepos.find((r) => r._id === repositoryId);
+  const isLeaderOrAdmin = isGlobalAdmin || currentRepo?.role === "leader";
+
   const handleRepoChange = (id: string) => {
     if (!id || id === repositoryId) return;
     localStorage.setItem("selectedRepositoryId", id);
@@ -325,6 +336,10 @@ export function WorkloadRiskPage({ repositoryId }: WorkloadRiskPageProps) {
   };
 
   const invalidRange = Boolean(startDate && endDate && startDate > endDate);
+
+  if (reposQuery.isSuccess && !isLeaderOrAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <PageShell
