@@ -16,7 +16,7 @@ const envSchema = z.object({
   ENCRYPTION_SALT: z.string().optional(),
   CORS_ORIGIN: z.string().default('*'),
   GEMINI_API_KEY: z.string().min(1, 'GEMINI_API_KEY is required'),
-  GEMINI_API_KEY_CHAT: z.string().min(1, 'GEMINI_API_KEY_CHAT is required'),
+  GEMINI_API_KEY_CHAT: z.string().default(() => process.env.GEMINI_API_KEY || ''),
   SMTP_HOST: z.string().optional().default('smtp.gmail.com'),
   SMTP_PORT: z.coerce.number().optional().default(587),
   SMTP_USER: z.string().optional().default(''),

@@ -1,28 +1,110 @@
 {
-  "accuracy": 0.6068,
-  "precision": 0.5636,
-  "recall": 0.6068,
-  "f1Score": 0.5716,
-  "confusionMatrix": [
-    [
-      250,
-      8,
-      43
+  "known_repository_metrics": {
+    "accuracy": 0.6589,
+    "balancedAccuracy": 0.4288,
+    "matthewsCorrelationCoefficient": 0.3459,
+    "f1Weighted": 0.5844,
+    "f1Macro": 0.405,
+    "rocAucWeighted": 0.8142,
+    "logLoss": 0.7985,
+    "brierScore": 0.4602,
+    "highRiskRecall": 0.3022,
+    "highRiskPrecision": 0.8209,
+    "compositeScore": 0.4422,
+    "confusionMatrix": [
+      [
+        312,
+        0,
+        5
+      ],
+      [
+        51,
+        0,
+        7
+      ],
+      [
+        127,
+        0,
+        55
+      ]
     ],
-    [
-      35,
-      2,
-      20
-    ],
-    [
-      108,
-      5,
-      86
+    "perClassMetrics": {
+      "low": {
+        "precision": 0.6367,
+        "recall": 0.9842,
+        "f1": 0.7732,
+        "support": 317
+      },
+      "medium": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 58
+      },
+      "high": {
+        "precision": 0.8209,
+        "recall": 0.3022,
+        "f1": 0.4418,
+        "support": 182
+      }
+    },
+    "highlights": [
+      "WARNING: High-risk class recall is critically low (0.30). Important delays might go unnoticed.",
+      "CRITICAL: Medium class is never predicted by the model (class starvation).",
+      "WARNING: Model is highly biased towards majority class 0 (predicts it 88.0% of the time vs actual 56.9%)."
     ]
-  ],
-  "classes": [
-    "Low (<24h)",
-    "Medium (24-72h)",
-    "High (>72h)"
-  ]
+  },
+  "cold_start_metrics": {
+    "accuracy": 0.7451,
+    "balancedAccuracy": 0.5315,
+    "matthewsCorrelationCoefficient": 0.5134,
+    "f1Weighted": 0.7001,
+    "f1Macro": 0.5099,
+    "rocAucWeighted": 0.857,
+    "logLoss": 0.7006,
+    "brierScore": 0.3879,
+    "highRiskRecall": 0.6703,
+    "highRiskPrecision": 0.7394,
+    "compositeScore": 0.6167,
+    "confusionMatrix": [
+      [
+        293,
+        0,
+        24
+      ],
+      [
+        39,
+        0,
+        19
+      ],
+      [
+        60,
+        0,
+        122
+      ]
+    ],
+    "perClassMetrics": {
+      "low": {
+        "precision": 0.7474,
+        "recall": 0.9243,
+        "f1": 0.8265,
+        "support": 317
+      },
+      "medium": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 58
+      },
+      "high": {
+        "precision": 0.7394,
+        "recall": 0.6703,
+        "f1": 0.7032,
+        "support": 182
+      }
+    },
+    "highlights": [
+      "CRITICAL: Medium class is never predicted by the model (class starvation)."
+    ]
+  }
 }

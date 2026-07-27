@@ -27,6 +27,8 @@ export class PredictionController {
         probability: prediction.probability,
         riskLabel: prediction.riskLabel,
         featureSummary: prediction.featureSummary,
+        probabilities: prediction.probabilities,
+        topFactors: prediction.topFactors,
         predictedAt: prediction.predictedAt,
       }
     });
