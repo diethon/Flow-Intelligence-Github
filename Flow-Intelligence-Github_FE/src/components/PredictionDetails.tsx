@@ -1,4 +1,4 @@
-import React from "react";
+
 import type { PredictionResult } from "./PredictionCard";
 
 export interface PredictionDetailsProps {

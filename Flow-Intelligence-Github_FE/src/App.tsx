@@ -11,8 +11,6 @@ import { RiskPage } from "./pages/RiskPage.js";
 import { WorkloadRiskPage } from "./pages/WorkloadRiskPage.js";
 import { WeeklyBriefPage } from "./pages/WeeklyBriefPage.js";
 import { PrivacyPage } from "./pages/PrivacyPage.js";
-import { PermissionDenied } from "./components/PermissionDenied.js";
-import { useSelectedRepositoryPermissions } from "./hooks/useSelectedRepositoryPermissions.js";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -87,13 +85,7 @@ const RoleProtectedRoute = ({ children, allowedRoles }: { children: React.ReactN
   return <>{children}</>;
 };
 
-const PrivacyProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { loading, canManagePrivacy } = useSelectedRepositoryPermissions();
-  if (loading) {
-    return <div className="p-8 text-center text-slate-500">Checking repository permissions...</div>;
-  }
-  return canManagePrivacy ? <>{children}</> : <PermissionDenied />;
-};
+
 
 function App() {
   return (

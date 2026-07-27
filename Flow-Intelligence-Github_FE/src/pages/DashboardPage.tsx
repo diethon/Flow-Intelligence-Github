@@ -56,11 +56,11 @@ export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [repos, setRepos] = useState<Repository[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState("");
-  const [windowDays, setWindowDays] = useState(() => {
+  const [windowDays] = useState(() => {
     const cached = localStorage.getItem("selectedWindowDays");
     return cached ? parseInt(cached, 10) : 7;
   });
-  const [startDate, setStartDate] = useState(() => {
+  const [startDate] = useState(() => {
     const cachedDays = localStorage.getItem("selectedWindowDays");
     const days = cachedDays ? parseInt(cachedDays, 10) : 7;
     if (days > 0) {
@@ -80,7 +80,7 @@ export const DashboardPage: React.FC = () => {
     localStorage.setItem("selectedStartDate", val);
     return val;
   });
-  const [endDate, setEndDate] = useState(() => {
+  const [endDate] = useState(() => {
     const cachedDays = localStorage.getItem("selectedWindowDays");
     const days = cachedDays ? parseInt(cachedDays, 10) : 7;
     if (days > 0) {
@@ -98,7 +98,7 @@ export const DashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: syncData, isLoading: syncLoading } = useSyncStatus(selectedRepoId);
+  const { data: syncData } = useSyncStatus(selectedRepoId);
   const syncStatus = syncData?.data?.syncStatus;
   // Load repository options and check localStorage cache
   useEffect(() => {
@@ -151,6 +151,7 @@ export const DashboardPage: React.FC = () => {
   const handleSelectRepo = (id: string) => {
     setSelectedRepoId(id);
     localStorage.setItem("selectedRepositoryId", id);
+    window.dispatchEvent(new Event("repoChanged"));
   };
 
   const selectedRepo = repos.find((r) => r._id === selectedRepoId);

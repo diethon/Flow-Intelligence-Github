@@ -8,6 +8,7 @@ import { briefApi } from "../api/briefApi";
 import { getPermissionErrorMessage } from "../utils/modulePermissions";
 import { LoadingState } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
+import { useSelectedRepositoryPermissions } from "../hooks/useSelectedRepositoryPermissions";
 
 export function PrivacyPage() {
   const [repos, setRepos] = useState<Repository[]>([]);
@@ -15,8 +16,7 @@ export function PrivacyPage() {
   const [settings, setSettings] = useState<PrivacySettingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("Settings saved successfully!");
@@ -27,6 +27,7 @@ export function PrivacyPage() {
   const [scheduleDay, setScheduleDay] = useState("FRIDAY");
   const [scheduleTime, setScheduleTime] = useState("17:00");
   const [testingNotification, setTestingNotification] = useState(false);
+  const { canManagePrivacy } = useSelectedRepositoryPermissions();
 
   useEffect(() => {
     fetchDashboardRepositories()
@@ -54,7 +55,7 @@ export function PrivacyPage() {
   }, []);
 
   const loadSettings = async () => {
-    if (!selectedRepoId) return;
+    if (!selectedRepoId || !canManagePrivacy) return;
     setLoading(true);
     setError(null);
     try {
@@ -74,14 +75,19 @@ export function PrivacyPage() {
 
   useEffect(() => {
     if (selectedRepoId) {
-      loadSettings();
+      if (!canManagePrivacy) {
+        setError("You do not have permission to manage privacy settings for this repository.");
+        setLoading(false);
+      } else {
+        loadSettings();
+      }
     }
-  }, [selectedRepoId]);
+  }, [selectedRepoId, canManagePrivacy]);
 
   const handleSelectRepo = (id: string) => {
     setSelectedRepoId(id);
     localStorage.setItem("selectedRepositoryId", id);
-    window.dispatchEvent(new Event("selectedRepositoryChanged"));
+    window.dispatchEvent(new Event("repoChanged"));
   };
 
   const handleToggle = (key: keyof PrivacySettingsData) => {
@@ -155,7 +161,7 @@ export function PrivacyPage() {
         repos.length > 0 ? (
           <>
             <RepoSelect repos={repos} value={selectedRepoId} onChange={handleSelectRepo} />
-            <PrimaryBtn onClick={handleSave} disabled={saving || loading || deleting}>
+            <PrimaryBtn onClick={handleSave} disabled={saving || loading}>
               {saving ? "Saving..." : "💾 Save Changes"}
             </PrimaryBtn>
           </>

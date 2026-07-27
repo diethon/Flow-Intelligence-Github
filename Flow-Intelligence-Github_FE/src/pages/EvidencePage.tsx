@@ -38,6 +38,7 @@ export const EvidencePage: React.FC<EvidencePageProps> = ({ repositoryId }) => {
   const handleRepoChange = (id: string) => {
     if (!id || id === repositoryId) return;
     localStorage.setItem('selectedRepositoryId', id);
+    window.dispatchEvent(new Event("repoChanged"));
     navigate(`/repositories/${id}/evidence`);
   };
 

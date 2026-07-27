@@ -100,6 +100,7 @@ export const ConnectRepositoryPage: React.FC = () => {
         const repoId = result.data.repository.id;
         await triggerSync(repoId);
         localStorage.setItem("selectedRepositoryId", repoId);
+        window.dispatchEvent(new Event("repoChanged"));
         navigate("/dashboard");
       }
     } catch (err) {
@@ -505,6 +506,7 @@ export const ConnectRepositoryPage: React.FC = () => {
                       <button
                         onClick={() => {
                           localStorage.setItem("selectedRepositoryId", repo.id);
+                          window.dispatchEvent(new Event("repoChanged"));
                           navigate("/dashboard");
                         }}
                         className="px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-100 rounded-lg transition-colors"
@@ -514,6 +516,7 @@ export const ConnectRepositoryPage: React.FC = () => {
                       <button
                         onClick={() => {
                           localStorage.setItem("selectedRepositoryId", repo.id);
+                          window.dispatchEvent(new Event("repoChanged"));
                           navigate(`/repositories/${repo.id}/sync-status`);
                         }}
                         className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors"

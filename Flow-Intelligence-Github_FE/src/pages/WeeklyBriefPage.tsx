@@ -174,7 +174,7 @@ export function WeeklyBriefPage() {
   const handleSelectRepo = (id: string) => {
     setSelectedRepoId(id);
     localStorage.setItem("selectedRepositoryId", id);
-    window.dispatchEvent(new Event("selectedRepositoryChanged"));
+    window.dispatchEvent(new Event("repoChanged"));
   };
 
   const handlePublish = async () => {

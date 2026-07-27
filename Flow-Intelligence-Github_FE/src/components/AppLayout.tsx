@@ -7,33 +7,6 @@ import { ChatWidget } from "./ChatWidget.js";
 import { useSelectedRepositoryPermissions } from "../hooks/useSelectedRepositoryPermissions";
 
 
-const NAV = [
-  {
-    group: "Analytics",
-    items: [
-      { to: "/dashboard", label: "Team Dashboard", icon: "▣", done: true },
-      { to: "/review-ci", label: "Review & CI Metrics", icon: "◈", done: true },
-      { to: "/rulebook", label: "Flow Risk Rulebook", icon: "◉", done: true },
-    ],
-  },
-  {
-    group: "Insights",
-    items: [
-      { to: "/risk", label: "Risk", icon: "◆", done: true },
-      { to: "/evidence", label: "Evidence", icon: "◈", done: true },
-      { to: "/workload-risk", label: "Workload Risk", icon: "🌙", done: true },
-      { to: "/brief", label: "AI Weekly Brief", icon: "◇", done: true },
-    ],
-  },
-  {
-    group: "Settings",
-    items: [
-      { to: "/repositories/connect", label: "Connected Repos", icon: "🔌", done: true },
-      { to: "/privacy", label: "Privacy Settings", icon: "◌", done: true },
-    ],
-  },
-];
-
 // ─── Shared nav links ─────────────────────────────────────────────────────────
 
 function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
