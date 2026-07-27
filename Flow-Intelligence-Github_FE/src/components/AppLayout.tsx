@@ -21,6 +21,7 @@ const NAV = [
     items: [
       { to: "/risk", label: "Risk", icon: "◆", done: true },
       { to: "/evidence", label: "Evidence", icon: "◈", done: true },
+      { to: "/predictions", label: "PR Predictions", icon: "P", done: true },
       { to: "/workload-risk", label: "Workload Risk", icon: "🌙", done: true },
       { to: "/brief", label: "AI Weekly Brief", icon: "◇", done: true },
     ],
@@ -35,6 +36,8 @@ const NAV = [
 ];
 
 // ─── Shared nav links ─────────────────────────────────────────────────────────
+
+void NAV;
 
 function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
   const { pathname } = useLocation();
@@ -55,6 +58,7 @@ function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
       items: [
         { to: "/risk", label: "Risk", icon: "◆", done: true },
         { to: "/evidence", label: "Evidence", icon: "◈", done: true },
+        { to: "/predictions", label: "PR Predictions", icon: "P", done: true },
         { to: "/workload-risk", label: "Workload Risk", icon: "▲", done: true },
         { to: "/brief", label: "AI Weekly Brief", icon: "◇", done: true },
       ],

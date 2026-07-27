@@ -306,7 +306,7 @@ export function RepoSelect({ repos, value, onChange }: {
   return (
     <select
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={handleChange}
       className="bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 hover:border-slate-400 transition-colors w-auto min-w-[180px] max-w-xs cursor-pointer"
     >
       {repos.length === 0 && <option value="">No repositories connected</option>}

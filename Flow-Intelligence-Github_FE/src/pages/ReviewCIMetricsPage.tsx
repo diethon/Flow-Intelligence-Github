@@ -109,11 +109,11 @@ function RiskSignals({ metrics }: { metrics: UC10MetricsResult }) {
 export function ReviewCIMetricsPage() {
   const [repos, setRepos]               = useState<Repository[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState("");
-  const [windowDays, setWindowDays]     = useState(() => {
+  const [windowDays]     = useState(() => {
     const cached = localStorage.getItem("selectedWindowDays");
     return cached ? parseInt(cached, 10) : 7;
   });
-  const [startDate, setStartDate] = useState(() => {
+  const [startDate] = useState(() => {
     const cached = localStorage.getItem("selectedStartDate");
     if (cached) return cached;
     const end = new Date();
@@ -123,7 +123,7 @@ export function ReviewCIMetricsPage() {
     localStorage.setItem("selectedStartDate", val);
     return val;
   });
-  const [endDate, setEndDate] = useState(() => {
+  const [endDate] = useState(() => {
     const cached = localStorage.getItem("selectedEndDate");
     if (cached) return cached;
     const val = new Date().toISOString().split("T")[0];
@@ -200,8 +200,6 @@ export function ReviewCIMetricsPage() {
     }
     finally { setCalculating(false); }
   };
-
-  const selectedRepo = repos.find((r) => r._id === selectedRepoId);
 
   return (
     <PageShell

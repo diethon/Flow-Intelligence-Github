@@ -1,5 +1,3 @@
-import React from "react";
-
 export interface PredictionResult {
   pullRequestId: string;
   modelVersionId: string;

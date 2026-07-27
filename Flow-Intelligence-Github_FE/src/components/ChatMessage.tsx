@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface ChatMessageProps {
   role: 'user' | 'assistant';
   content: string;
@@ -8,7 +6,7 @@ interface ChatMessageProps {
   isError?: boolean;
 }
 
-export function ChatMessage({ role, content, sourceIds = [], isLoading = false, isError = false }: ChatMessageProps) {
+export function ChatMessage({ role, content, isLoading = false, isError = false }: ChatMessageProps) {
   const isUser = role === 'user';
 
   return (

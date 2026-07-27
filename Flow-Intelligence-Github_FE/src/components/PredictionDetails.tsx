@@ -1,12 +1,15 @@
-import React from "react";
-import type { PredictionResult } from "./PredictionCard";
+import type { PredictionDetail } from "../services/api/prediction";
 
 export interface PredictionDetailsProps {
-  prediction: PredictionResult;
+  prediction: PredictionDetail;
 }
 
 export function PredictionDetails({ prediction }: PredictionDetailsProps) {
   const features = prediction.featureSummary || {};
+  const modelLabel =
+    typeof prediction.modelVersionId === "object"
+      ? prediction.modelVersionId.version || prediction.modelVersionId.algorithm || "unknown"
+      : prediction.modelVersionId || prediction.modelVersion?.version || "baseline-rf-v1";
   
   const featureList = [
     { key: "changed_files", label: "Changed Files", icon: "📄" },
@@ -84,7 +87,7 @@ export function PredictionDetails({ prediction }: PredictionDetailsProps) {
           <div className="flex justify-between">
             <span className="text-slate-500">Model Version:</span>
             <span className="font-mono text-xs font-semibold bg-white px-2 py-0.5 rounded border border-slate-200">
-              {prediction.modelVersionId || "baseline-rf-v1"}
+              {modelLabel}
             </span>
           </div>
           <div className="flex justify-between">

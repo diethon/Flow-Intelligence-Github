@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
-import { DashboardPage, ConnectRepositoryPage, SyncStatusPage, LoginPage, PullRequestsPage, UsersManagementPage, AdminDashboardPage } from './pages';
+import { DashboardPage, ConnectRepositoryPage, SyncStatusPage, LoginPage, PullRequestsPage, UsersManagementPage, AdminDashboardPage, PRPredictionsPage } from './pages';
 import { EvidencePage, EvidenceCardDetailPage } from './pages';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect } from 'react';
@@ -207,6 +207,14 @@ function App() {
               }
             />
             <Route
+              path="/predictions"
+              element={
+                <ProtectedRoute>
+                  <SelectedRepoRedirect section="predictions" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/workload-risk"
               element={
                 <ProtectedRoute>
@@ -222,6 +230,16 @@ function App() {
                     <div className="px-4 sm:px-6 py-5 sm:py-8">
                       <RiskPageWrapper />
                     </div>
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/repositories/:id/predictions"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <PRPredictionsPageWrapper />
                   </AppLayout>
                 </ProtectedRoute>
               }
@@ -276,9 +294,11 @@ function App() {
               path="/privacy"
               element={
                 <ProtectedRoute>
-                  <AppLayout>
-                    <PrivacyPage />
-                  </AppLayout>
+                  <PrivacyProtectedRoute>
+                    <AppLayout>
+                      <PrivacyPage />
+                    </AppLayout>
+                  </PrivacyProtectedRoute>
                 </ProtectedRoute>
               }
             />
@@ -324,6 +344,14 @@ const EvidencePageWrapper = () => {
   return <EvidencePage repositoryId={id} />;
 };
 
+const PRPredictionsPageWrapper = () => {
+  const { id } = useParams<{ id: string }>();
+  if (!id) {
+    return <Navigate to="/repositories/connect" replace />;
+  }
+  return <PRPredictionsPage repositoryId={id} />;
+};
+
 const WorkloadRiskPageWrapper = () => {
   const { id } = useParams<{ id: string }>();
   if (!id) {
@@ -344,7 +372,7 @@ const EvidenceCardDetailPageWrapper = () => {
 
 // The sidebar links are global, but the Risk/Evidence pages are repo-scoped.
 // Redirect to the last-selected repository, falling back to the dashboard.
-const SelectedRepoRedirect = ({ section }: { section: 'risk' | 'evidence' | 'workload-risk' }) => {
+const SelectedRepoRedirect = ({ section }: { section: 'risk' | 'evidence' | 'predictions' | 'workload-risk' }) => {
   const repoId = localStorage.getItem('selectedRepositoryId');
   if (!repoId) {
     return <Navigate to="/dashboard" replace />;
