@@ -81,7 +81,7 @@ export const UsersManagementPage: React.FC = () => {
   };
 
   const handleRoleToggle = async (user: AdminUser) => {
-    if (user._id === currentUser?.id) {
+    if (user._id === currentUser?._id) {
       setError('You cannot change your own global application role.');
       return;
     }
@@ -230,7 +230,7 @@ export const UsersManagementPage: React.FC = () => {
                   </tr>
                 ) : (
                   users.map((item) => {
-                    const isSelf = item._id === currentUser?.id;
+                    const isSelf = item._id === currentUser?._id;
                     return (
                       <tr key={item._id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4">

@@ -9,6 +9,12 @@ export interface WorkloadRiskAggregate {
   offHoursPct: number | null;
   weekendCount: number;
   nightCount: number;
+  /** Total commit / review events (all hours) — the split behind totalEvents. */
+  commitCount: number;
+  reviewCount: number;
+  /** How many of the off-hours events were commits vs reviews. */
+  offHoursCommitCount: number;
+  offHoursReviewCount: number;
   distinctContributorsOffHours: number;
   windowStart: string;
   windowEnd: string;
@@ -18,8 +24,15 @@ export interface WorkloadRiskAggregate {
 /** Per-contributor breakdown. `label` carries the real GitHub identity. */
 export interface WorkloadContributorBreakdown {
   label: string;
-  totalCommits: number;
+  /** Total commit + review events (all hours) — the denominator for off-hours. */
+  totalEvents: number;
+  /** Total activity split by kind (all hours). */
+  commits: number;
+  reviews: number;
   offHoursEvents: number;
+  /** Off-hours activity split by kind. */
+  offHoursCommits: number;
+  offHoursReviews: number;
   weekend: number;
   night: number;
 }
@@ -31,11 +44,30 @@ export interface WorkloadAiItem {
   severity: "high" | "medium" | "low" | "info";
 }
 
+/** Per-member commentary. `contributor` is the real GitHub login (page shows identities). */
+export interface WorkloadContributorInsight {
+  contributor: string;
+  /** AI's off-hours workload-load assessment (burnout-risk signal, not performance). */
+  level: "high" | "medium" | "low";
+  note: string;
+  suggestion?: string;
+  totalEvents: number;
+  offHoursEvents: number;
+  commits: number;
+  reviews: number;
+  /** How many of this person's commits / reviews landed off-hours. */
+  offHoursCommits: number;
+  offHoursReviews: number;
+  night: number;
+  weekend: number;
+}
+
 export interface WorkloadAiAnalysis {
   summary: string;
   confidence: "high" | "medium" | "low";
   limitations: string[];
   items: WorkloadAiItem[];
+  contributorInsights: WorkloadContributorInsight[];
   isFallback: boolean;
 }
 

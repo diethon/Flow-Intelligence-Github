@@ -319,7 +319,9 @@ const WorkloadRiskPageWrapper = () => {
   if (!id) {
     return <Navigate to="/repositories/connect" replace />;
   }
-  return <WorkloadRiskPage repositoryId={id} />;
+  // Key by repo id so switching repos remounts with fresh state (clears the
+  // previous repo's analysis result instead of showing it as stale).
+  return <WorkloadRiskPage key={id} repositoryId={id} />;
 };
 
 const EvidenceCardDetailPageWrapper = () => {

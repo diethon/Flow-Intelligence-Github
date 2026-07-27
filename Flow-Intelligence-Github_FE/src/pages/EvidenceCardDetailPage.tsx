@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useEvidenceCard } from '../hooks/useEvidence';
+import { PageShell } from '../components/PageShell';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { SeverityTag, SourceTag, EntityIcon } from '../components/EvidenceTags';
 import { ConfidenceGauge } from '../components/ConfidenceGauge';
@@ -223,10 +224,10 @@ export const EvidenceCardDetailPage: React.FC<EvidenceCardDetailPageProps> = ({
   }, [repositoryId, cardId, query.isLoading, query.isSuccess, query.isError, card]);
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <PageShell title="Evidence Card">
       <Link
         to={`/repositories/${repositoryId}/evidence`}
-        className="mb-5 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 transition-colors"
+        className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 transition-colors"
       >
         <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -266,7 +267,7 @@ export const EvidenceCardDetailPage: React.FC<EvidenceCardDetailPageProps> = ({
           </p>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 };
 

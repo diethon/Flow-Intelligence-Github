@@ -36,3 +36,65 @@ export function classifyOffHours(d: Date): OffHoursFlags {
   const night = isNightUTC(d);
   return { weekend, night, offHours: weekend || night };
 }
+
+/**
+ * Bot / automation identities we must exclude from the burnout signal — a bot
+ * committing at night is cron, not a person working off-hours, and it otherwise
+ * dominates the off-hours counts.
+ *
+ * GitHub appends "[bot]" to real bot accounts (dependabot[bot], renovate[bot]…);
+ * automation that commits with a plain git user.name (no GitHub account) is
+ * caught by the known-login list (e.g. GitHub Actions' default "actions-user").
+ */
+const KNOWN_BOT_LOGINS = new Set([
+  "actions-user",
+  "github-actions",
+  "web-flow", // GitHub's committer for merges made via the web UI
+  "dependabot",
+  "renovate",
+  "renovate-bot",
+  "mergify",
+  "codecov",
+  "greenkeeper",
+  "snyk-bot",
+  "imgbot",
+  "allcontributors",
+]);
+
+/** True when a commit/review author login belongs to a bot or automation. */
+export function isBotIdentity(login?: string | null): boolean {
+  if (!login) return false;
+  const l = login.toLowerCase().trim();
+  return l.includes("[bot]") || KNOWN_BOT_LOGINS.has(l);
+}
+
+export interface CoAuthor {
+  name: string;
+  /** Lower-cased email, used as a stable identity key. */
+  email: string;
+}
+
+// Git trailer: "Co-authored-by: Real Name <email@host>" (one per line, case-insensitive).
+const CO_AUTHOR_RE = /^\s*co-authored-by:\s*(.+?)\s*<([^>]+)>\s*$/gim;
+
+/**
+ * Extract the human(s) credited in a commit message's `Co-authored-by:` trailers.
+ * This is how a bot commit (cherry-pick / squash by "actions-user") still points
+ * at the real author — GitHub's commit API exposes no workflow-trigger identity,
+ * so the message trailer is the only reliable human behind an automation commit.
+ * Bot co-authors are dropped.
+ */
+export function extractCoAuthors(message?: string | null): CoAuthor[] {
+  if (!message) return [];
+  const out: CoAuthor[] = [];
+  const seen = new Set<string>();
+  for (const m of message.matchAll(CO_AUTHOR_RE)) {
+    const name = m[1].trim();
+    const email = m[2].trim().toLowerCase();
+    const key = email || name.toLowerCase();
+    if (!name || isBotIdentity(name) || seen.has(key)) continue;
+    seen.add(key);
+    out.push({ name, email });
+  }
+  return out;
+}
