@@ -10,24 +10,20 @@ interface PageShellProps {
 }
 
 export function PageShell({ title, subtitle, actions, children }: PageShellProps) {
-  const titleAreaClass = actions
-    ? "min-w-[9rem] basis-[9rem] sm:min-w-[14rem] sm:basis-[14rem] lg:min-w-[22rem] lg:basis-[22rem] xl:min-w-[26rem] xl:basis-[26rem] 2xl:min-w-[32rem] 2xl:basis-[32rem] flex-shrink-0"
-    : "w-full min-w-0";
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col overflow-x-hidden">
-      {/* Sticky header keeps Insights controls within the visible app frame. */}
+      {/* Sticky header keeps controls within the visible app frame. */}
       <header className="sticky top-14 lg:top-0 z-20 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm">
-        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center gap-3 sm:gap-4 overflow-hidden">
-          {/* Title stays on the same row as the actions. */}
-          <div className={titleAreaClass}>
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 min-h-[4rem]">
+          {/* Title Area */}
+          <div className="min-w-0 flex-1">
             <h1 className="text-base sm:text-xl font-bold text-slate-900 leading-tight truncate">{title}</h1>
-            {subtitle && <p className="text-xs sm:text-sm text-slate-500 mt-0.5 truncate">{subtitle}</p>}
+            {subtitle && <p className="text-xs sm:text-sm text-slate-500 mt-0.5 break-words">{subtitle}</p>}
           </div>
 
-          {/* Actions stay one row; on narrow screens this rail scrolls horizontally. */}
+          {/* Actions Area */}
           {actions && (
-            <div className="flex min-w-0 flex-1 flex-nowrap items-center justify-start gap-2 sm:gap-3 overflow-x-auto overflow-y-hidden scrollbar-none lg:justify-end">
+            <div className="flex flex-wrap items-center justify-start md:justify-end gap-2 sm:gap-3 min-w-0 max-w-full">
               {actions}
             </div>
           )}

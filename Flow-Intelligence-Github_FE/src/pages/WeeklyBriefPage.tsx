@@ -213,8 +213,8 @@ export function WeeklyBriefPage() {
       title="AI Weekly Brief"
       actions={
         repos.length > 0 ? (
-          <div className="flex min-w-max flex-nowrap items-center justify-start gap-2 lg:justify-end">
-            <div className="flex-shrink-0 [&>select]:w-[15.25rem] [&>select]:min-w-0 [&>select]:max-w-[15.25rem]">
+          <div className="flex flex-wrap items-center justify-start md:justify-end gap-2">
+            <div className="flex-shrink-0">
               <RepoSelect repos={repos} value={selectedRepoId} onChange={handleSelectRepo} />
             </div>
             <div className="hidden lg:flex flex-shrink-0 items-center gap-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-lg px-2 shadow-sm">
