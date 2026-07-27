@@ -56,11 +56,11 @@ export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [repos, setRepos] = useState<Repository[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState("");
-  const [windowDays, setWindowDays] = useState(() => {
+  const [windowDays] = useState(() => {
     const cached = localStorage.getItem("selectedWindowDays");
     return cached ? parseInt(cached, 10) : 7;
   });
-  const [startDate, setStartDate] = useState(() => {
+  const [startDate] = useState(() => {
     const cachedDays = localStorage.getItem("selectedWindowDays");
     const days = cachedDays ? parseInt(cachedDays, 10) : 7;
     if (days > 0) {
@@ -80,7 +80,7 @@ export const DashboardPage: React.FC = () => {
     localStorage.setItem("selectedStartDate", val);
     return val;
   });
-  const [endDate, setEndDate] = useState(() => {
+  const [endDate] = useState(() => {
     const cachedDays = localStorage.getItem("selectedWindowDays");
     const days = cachedDays ? parseInt(cachedDays, 10) : 7;
     if (days > 0) {
@@ -98,7 +98,7 @@ export const DashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: syncData, isLoading: syncLoading } = useSyncStatus(selectedRepoId);
+  const { data: syncData } = useSyncStatus(selectedRepoId);
   const syncStatus = syncData?.data?.syncStatus;
   // Load repository options and check localStorage cache
   useEffect(() => {
@@ -202,7 +202,15 @@ export const DashboardPage: React.FC = () => {
 
       {/* Main dashboard content */}
       {!loading && summary && (
-        <div className="space-y-8 animate-fadeIn">
+        <div className="space-y-6 animate-fadeIn">
+          {selectedRepo?.role && (
+            <div className="flex justify-end -mt-5 mb-2">
+              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest bg-white border border-slate-200/80 px-2.5 py-1 rounded-lg shadow-sm">
+                {selectedRepo.role === 'leader' ? '✦ Leader' : selectedRepo.role === 'dev' ? '⌘ Developer' : '👁 Viewer'}
+              </span>
+            </div>
+          )}
+
           {/* Overall Risk Hero Section (UC13) */}
           <section className={`rounded-2xl border p-6 md:p-8 shadow-sm bg-white ${overallTheme.border} ${overallTheme.bg} ${overallTheme.glow}`}>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -237,7 +245,7 @@ export const DashboardPage: React.FC = () => {
 
                 <div className="w-px h-10 bg-slate-200 hidden sm:block" />
 
-                <PrimaryBtn onClick={() => navigate("/risk")}>
+                <PrimaryBtn onClick={() => navigate(`/repositories/${selectedRepoId}/evidence`)}>
                   🔍 View Evidence
                 </PrimaryBtn>
               </div>
@@ -280,7 +288,7 @@ export const DashboardPage: React.FC = () => {
                   <BottleneckCard
                     key={btn.ruleCode}
                     card={btn}
-                    onDrillDown={() => navigate("/risk")}
+                    onDrillDown={() => navigate(`/repositories/${selectedRepoId}/risk`)}
                   />
                 ))}
               </div>
@@ -296,7 +304,15 @@ export const DashboardPage: React.FC = () => {
 
                   {/* AI Predictions */}
                   <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2">PR Delay Predictions</h3>
+                    <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-2">
+                      <h3 className="text-sm font-bold text-slate-800">PR Delay Predictions</h3>
+                      <button
+                        onClick={() => navigate(`/repositories/${selectedRepoId}/predictions`)}
+                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                      >
+                        View analysis
+                      </button>
+                    </div>
                     {summary.recentPredictions && summary.recentPredictions.length > 0 ? (
                       summary.recentPredictions.map((pred: any) => (
                         <PredictionCard
@@ -304,11 +320,7 @@ export const DashboardPage: React.FC = () => {
                           prediction={pred}
                           prNumber={pred.pullRequestId?.number}
                           prTitle={pred.pullRequestId?.title || `Pull Request #${pred.pullRequestId?.number}`}
-                          onClick={() => {
-                            if (pred.pullRequestId?.prUrl) {
-                              window.open(pred.pullRequestId.prUrl, '_blank');
-                            }
-                          }}
+                          onClick={() => navigate(`/repositories/${selectedRepoId}/predictions`)}
                         />
                       ))
                     ) : (
@@ -321,7 +333,11 @@ export const DashboardPage: React.FC = () => {
                     <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2">Latest Evidence</h3>
                     {summary.recentEvidenceCards && summary.recentEvidenceCards.length > 0 ? (
                       summary.recentEvidenceCards.map((card: any) => (
-                        <EvidenceCardRow key={card._id} card={card} to={`/risk/${card._id}`} />
+                        <EvidenceCardRow
+                          key={card._id}
+                          card={card}
+                          to={`/repositories/${card.repositoryId}/evidence/${card._id}`}
+                        />
                       ))
                     ) : (
                       <p className="text-xs text-slate-500 italic">No recent evidence cards.</p>

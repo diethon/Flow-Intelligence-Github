@@ -59,6 +59,10 @@ export class RepositoryConnectionRepository {
     return RepositoryConnection.findByIdAndUpdate(id, { status }, { new: true });
   }
 
+  async update(id: string, data: Partial<IRepositoryConnection>) {
+    return RepositoryConnection.findByIdAndUpdate(id, data, { new: true });
+  }
+
   async findByUserId(userId: string) {
     return RepositoryConnection.find({ userId });
   }

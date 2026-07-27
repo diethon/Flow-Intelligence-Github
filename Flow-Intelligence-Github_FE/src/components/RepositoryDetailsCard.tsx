@@ -146,9 +146,9 @@ export const RepositoryDetailsCard: React.FC<RepositoryDetailsCardProps> = ({ de
             Top Contributors ({stats.contributors})
           </h4>
           <div className="flex flex-wrap gap-3">
-            {topContributors.slice(0, 10).map((contributor) => (
+            {topContributors.slice(0, 10).map((contributor, index) => (
               <a
-                key={contributor.login}
+                key={`${contributor.login}-${index}`}
                 href={`https://github.com/${contributor.login}`}
                 target="_blank"
                 rel="noopener noreferrer"

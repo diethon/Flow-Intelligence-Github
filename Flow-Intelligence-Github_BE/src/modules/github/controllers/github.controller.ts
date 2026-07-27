@@ -38,7 +38,7 @@ export class GitHubController {
       owner,
       repo,
     });
-    res.json(result);
+    res.status(201).json(result);
   }
 
   async disconnectRepository(req: Request, res: Response) {
@@ -100,8 +100,9 @@ export class GitHubController {
   }
 
   async getRepositoryById(req: Request, res: Response) {
+    const userId = (req as Request & { userId?: string }).userId;
     const id = req.params.id as string;
-    const repository = await this.connectionService.getRepositoryById(id);
+    const repository = await this.connectionService.getRepositoryById(id, userId);
     res.json({ success: true, data: repository });
   }
 
@@ -178,7 +179,7 @@ export class GitHubController {
       }
     });
 
-    res.json(result);
+    res.status(202).json(result);
   }
 
   async getSyncStatusSummary(req: Request, res: Response) {

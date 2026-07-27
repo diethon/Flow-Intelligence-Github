@@ -163,10 +163,18 @@ export class SyncJobProcessor {
   }
 
   private async upsertContributor(repositoryId: mongoose.Types.ObjectId, githubUser: any): Promise<mongoose.Types.ObjectId | null> {
-    if (!githubUser || !githubUser.id) return null;
+    if (!githubUser || (!githubUser.id && !githubUser.login)) return null;
     const { Contributor } = await import('../../../models/index.js');
     const login = githubUser.login || 'unknown';
-    const existing = await Contributor.findOne({ repositoryId, githubUserId: githubUser.id });
+    const userId = githubUser.id || 0;
+
+    const existing = await Contributor.findOne({
+      $or: [
+        { repositoryId, githubUserId: userId },
+        { repositoryId, login }
+      ]
+    });
+
     if (existing) {
       if (existing.login !== login || existing.avatarUrl !== (githubUser.avatar_url || '')) {
         await Contributor.updateOne(
@@ -180,23 +188,42 @@ export class SyncJobProcessor {
       }
       return existing._id as mongoose.Types.ObjectId;
     }
-    const created = await Contributor.create({
-      repositoryId,
-      githubUserId: githubUser.id,
-      login,
-      displayName: githubUser.name || login,
-      avatarUrl: githubUser.avatar_url || '',
-      isPseudonymized: false,
-      pseudoLogin: '',
-    });
-    return created._id as mongoose.Types.ObjectId;
+
+    try {
+      const created = await Contributor.create({
+        repositoryId,
+        githubUserId: userId,
+        login,
+        displayName: githubUser.name || login,
+        avatarUrl: githubUser.avatar_url || '',
+        isPseudonymized: false,
+        pseudoLogin: '',
+      });
+      return created._id as mongoose.Types.ObjectId;
+    } catch (error: any) {
+      if (error.code === 11000 || error.message?.includes('E11000')) {
+        const reFound = await Contributor.findOne({
+          $or: [
+            { repositoryId, githubUserId: userId },
+            { repositoryId, login }
+          ]
+        });
+        if (reFound) return reFound._id as mongoose.Types.ObjectId;
+      }
+      throw error;
+    }
   }
 
   private async upsertPullRequest(repositoryId: string, pr: any): Promise<mongoose.Types.ObjectId> {
     const repoId = new mongoose.Types.ObjectId(repositoryId);
 
-    // Find by repositoryId and number to prevent duplicate key errors with fake seed data
-    const existing = await PullRequest.findOne({ repositoryId: repoId, number: pr.number });
+    // Find by (repositoryId + number) OR githubPrId to avoid E11000 duplicate key error
+    const existing = await PullRequest.findOne({
+      $or: [
+        { repositoryId: repoId, number: pr.number },
+        { githubPrId: pr.id }
+      ]
+    });
 
     const prState = pr.merged ? 'merged' : pr.state;
     const authorId = await this.upsertContributor(repoId, pr.user);
@@ -241,8 +268,24 @@ export class SyncJobProcessor {
       await PullRequest.updateOne({ _id: existing._id }, prData);
       return existing._id as mongoose.Types.ObjectId;
     } else {
-      const created = await PullRequest.create(prData);
-      return created._id as mongoose.Types.ObjectId;
+      try {
+        const created = await PullRequest.create(prData);
+        return created._id as mongoose.Types.ObjectId;
+      } catch (error: any) {
+        if (error.code === 11000 || error.message?.includes('E11000')) {
+          const reFound = await PullRequest.findOne({
+            $or: [
+              { repositoryId: repoId, number: pr.number },
+              { githubPrId: pr.id }
+            ]
+          });
+          if (reFound) {
+            await PullRequest.updateOne({ _id: reFound._id }, prData);
+            return reFound._id as mongoose.Types.ObjectId;
+          }
+        }
+        throw error;
+      }
     }
   }
 

@@ -18,4 +18,8 @@ export const privacyApi = {
     const res = await apiClient.put<{ success: boolean; data: PrivacySettingsData }>(`/repositories/${repositoryId}/privacy`, data);
     return res.data.data;
   },
+  deleteData: async (repositoryId: string): Promise<string> => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>(`/repositories/${repositoryId}/privacy/data`);
+    return res.data.message;
+  },
 };

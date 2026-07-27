@@ -1,5 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
-import { predictionApi } from '../services/api/prediction.js';
+import { predictionApi, type PredictionRiskLabel } from '../services/api/prediction.js';
+
+export const useRepositoryPredictions = (
+  repositoryId: string,
+  params: { riskLabel?: PredictionRiskLabel; page?: number; limit?: number } = {}
+) => {
+  return useQuery({
+    queryKey: ['repositories', repositoryId, 'predictions', params],
+    queryFn: () => predictionApi.listPredictions(repositoryId, params),
+    enabled: Boolean(repositoryId),
+  });
+};
 
 export const usePredictionDetail = (repositoryId: string, pullRequestId: string | undefined) => {
   return useQuery({

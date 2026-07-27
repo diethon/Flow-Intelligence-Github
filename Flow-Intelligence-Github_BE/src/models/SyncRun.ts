@@ -45,4 +45,7 @@ const syncRunSchema = new Schema<ISyncRun>(
 // Query index per design doc
 syncRunSchema.index({ repositoryId: 1, startedAt: -1 });
 
+// Tự động xóa lịch sử sync run sau 30 ngày (cái ni t phồng hờ thôi vì data sync nhiều quá)
+// syncRunSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
+
 export const SyncRun = mongoose.models.SyncRun || mongoose.model<ISyncRun>("SyncRun", syncRunSchema, "syncRuns");

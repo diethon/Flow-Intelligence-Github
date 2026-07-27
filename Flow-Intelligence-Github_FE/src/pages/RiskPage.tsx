@@ -1,12 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import type { RiskEvent, EvidenceItem } from "../types/risk.js";
+import { Link } from "react-router-dom";
+import type { RiskEvent } from "../types/risk.js";
 import { evaluateRisk, fetchRiskEvents } from "../api/riskApi.js";
-import { fetchDashboardRepositories } from "../api/dashboardApi.js";
-import type { Repository } from "../types/dashboard.js";
 import {
   PageShell, SectionHeading,
   PrimaryBtn, ErrorAlert, EmptyState,
-  RepoSelect,
 } from "../components/PageShell.js";
 import { RiskBadge } from "../components/RiskBadge.js";
 
@@ -43,7 +41,7 @@ function OverallRiskHero({ level, triggered, total, windowDays, startDate, endDa
           <div className="flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full border border-white/20 mb-2">
             <span className="text-sm">🗓️</span>
             <span className="text-xs font-semibold">
-            {windowDays === 0 
+            {windowDays === 0
               ? (startDate && endDate ? `${startDate} to ${endDate}` : "All Time Risk Evaluation")
               : `Overall Risk · ${windowDays}d window`}
             </span>
@@ -75,14 +73,16 @@ function OverallRiskHero({ level, triggered, total, windowDays, startDate, endDa
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-export function RiskPage() {
-  const [repos, setRepos]               = useState<Repository[]>([]);
-  const [selectedRepoId, setSelectedRepoId] = useState("");
-  const [windowDays, setWindowDays]     = useState(() => {
+interface RiskPageProps {
+  repositoryId: string;
+}
+
+export function RiskPage({ repositoryId }: RiskPageProps) {
+  const [windowDays] = useState(() => {
     const cached = localStorage.getItem("selectedWindowDays");
     return cached ? parseInt(cached, 10) : 7;
   });
-  const [startDate, setStartDate] = useState(() => {
+  const [startDate] = useState(() => {
     const cached = localStorage.getItem("selectedStartDate");
     if (cached) return cached;
     const end = new Date();
@@ -92,7 +92,7 @@ export function RiskPage() {
     localStorage.setItem("selectedStartDate", val);
     return val;
   });
-  const [endDate, setEndDate] = useState(() => {
+  const [endDate] = useState(() => {
     const cached = localStorage.getItem("selectedEndDate");
     if (cached) return cached;
     const val = new Date().toISOString().split("T")[0];
@@ -104,54 +104,47 @@ export function RiskPage() {
   const [evaluating, setEvaluating]     = useState(false);
   const [error, setError]               = useState<string | null>(null);
 
-  // Load repositories and check localStorage selection cache
-  useEffect(() => {
-    fetchDashboardRepositories()
-      .then((data) => {
-        setRepos(data);
-        if (data.length > 0) {
-          const cachedId = localStorage.getItem("selectedRepositoryId");
-          const exists = data.some((r) => r._id === cachedId);
-          setSelectedRepoId(exists && cachedId ? cachedId : data[0]._id);
-        }
-      })
-      .catch(() => setError("Cannot reach backend."));
-  }, []);
-
-  const handleSelectRepo = (id: string) => {
-    setSelectedRepoId(id);
-    localStorage.setItem("selectedRepositoryId", id);
-  };
-
   const loadEvents = useCallback(async () => {
-    if (!selectedRepoId) return;
+    if (!repositoryId) return;
     setLoading(true); setError(null);
     try {
       const data = await fetchRiskEvents(
-        selectedRepoId,
+        repositoryId,
         windowDays,
         startDate || undefined,
         endDate || undefined
       );
       setEvents(data ? data.events : []);
-    } catch { setError("Failed to load risk events."); }
+    } catch (err: any) {
+      if (err.response?.status === 403) {
+        setError("You do not have permission to view risk evaluation for this repository.");
+      } else {
+        setError("Failed to load risk events.");
+      }
+    }
     finally { setLoading(false); }
-  }, [selectedRepoId, windowDays, startDate, endDate]);
+  }, [repositoryId, windowDays, startDate, endDate]);
 
-  useEffect(() => { if (selectedRepoId) loadEvents(); }, [selectedRepoId, windowDays, startDate, endDate, loadEvents]);
+  useEffect(() => { if (repositoryId) loadEvents(); }, [repositoryId, loadEvents]);
 
   const handleEvaluate = async () => {
-    if (!selectedRepoId) return;
+    if (!repositoryId) return;
     setEvaluating(true); setError(null);
     try {
       const result = await evaluateRisk(
-        selectedRepoId,
+        repositoryId,
         windowDays,
         startDate || undefined,
         endDate || undefined
       );
       setEvents(result.events);
-    } catch { setError("Evaluation failed. Make sure backend is running."); }
+    } catch (err: any) {
+      if (err.response?.status === 403) {
+        setError("You do not have permission to run risk evaluation for this repository.");
+      } else {
+        setError("Evaluation failed. Make sure backend is running.");
+      }
+    }
     finally { setEvaluating(false); }
   };
 
@@ -162,16 +155,19 @@ export function RiskPage() {
     : triggeredEvents.length >= 3 ? "high"
     : "medium";
 
-  const selectedRepo = repos.find((r) => r._id === selectedRepoId);
-
   return (
     <PageShell
-      title="Risk Evaluation"
+      title="Risk"
 
       actions={
         <>
-          <RepoSelect repos={repos} value={selectedRepoId} onChange={handleSelectRepo} />
-          <PrimaryBtn onClick={handleEvaluate} disabled={!selectedRepoId} loading={evaluating}>
+          <Link
+            to={`/repositories/${repositoryId}/evidence`}
+            className="text-sm font-medium text-indigo-600 hover:text-indigo-700 border border-indigo-200 bg-indigo-50/50 px-3 py-2 rounded-lg transition-colors"
+          >
+            View evidence →
+          </Link>
+          <PrimaryBtn onClick={handleEvaluate} disabled={!repositoryId} loading={evaluating}>
             ⚡ Evaluate Rules
           </PrimaryBtn>
         </>
@@ -184,8 +180,8 @@ export function RiskPage() {
         <EmptyState
           icon="🔍"
           title="No risk data yet"
-          description='Click "Evaluate Rules" to run R1–R5 evaluation against the selected repository and window.'
-          action={<PrimaryBtn onClick={handleEvaluate} disabled={!selectedRepoId} loading={evaluating}>⚡ Evaluate Rules</PrimaryBtn>}
+          description='Click "Evaluate Rules" to run R1–R5 evaluation against this repository and window.'
+          action={<PrimaryBtn onClick={handleEvaluate} disabled={!repositoryId} loading={evaluating}>⚡ Evaluate Rules</PrimaryBtn>}
         />
       )}
 
@@ -223,7 +219,7 @@ export function RiskPage() {
                 }
               />
               <div className="space-y-4">
-                {triggeredEvents.map((e) => <RiskEventCard key={e.id} event={e} />)}
+                {triggeredEvents.map((e) => <RiskEventCard key={e.id} event={e} repositoryId={repositoryId} />)}
               </div>
             </section>
           )}
@@ -241,7 +237,7 @@ export function RiskPage() {
                 }
               />
               <div className="space-y-3">
-                {okEvents.map((e) => <RiskEventCard key={e.id} event={e} dimmed />)}
+                {okEvents.map((e) => <RiskEventCard key={e.id} event={e} repositoryId={repositoryId} dimmed />)}
               </div>
             </section>
           )}

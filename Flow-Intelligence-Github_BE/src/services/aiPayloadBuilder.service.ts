@@ -84,12 +84,12 @@ export class AiPayloadBuilderService {
       limitations: rawLimitations,
     };
 
-    // 4. Redact and Pseudonymize based on Privacy Settings
-    let finalPayload = this.privacyService.redact(rawPayload);
-
-    if (privacySettings?.pseudonymizeContributors) {
-      finalPayload = this.privacyService.pseudonymize(finalPayload);
-    }
+    // 4. Apply Privacy Settings (Redaction, Exclusions, Pseudonymization)
+    const finalPayload = this.privacyService.applySettings(rawPayload, privacySettings ? {
+      pseudonymizeContributors: privacySettings.pseudonymizeContributors,
+      excludeRawComments: privacySettings.excludeRawComments,
+      excludeRawCode: privacySettings.excludeRawCode,
+    } : undefined);
 
     return finalPayload;
   }

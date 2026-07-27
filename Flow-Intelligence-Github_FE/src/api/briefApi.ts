@@ -19,7 +19,16 @@ export interface AiBriefData {
   limitations: string[];
   items: BriefItem[];
   isFallback: boolean;
+  publicationStatus: "draft" | "published";
+  publishedAt?: string | null;
   createdAt: string;
+}
+
+export interface NotificationSettingsPayload {
+  slackWebhookUrl?: string;
+  scheduleEnabled?: boolean;
+  scheduleDay?: string;
+  scheduleTime?: string;
 }
 
 export const briefApi = {
@@ -33,5 +42,23 @@ export const briefApi = {
   getBriefs: async (repositoryId: string): Promise<AiBriefData[]> => {
     const res = await apiClient.get<{ success: boolean; data: AiBriefData[] }>(`/repositories/${repositoryId}/briefs`);
     return res.data.data;
+  },
+  publishBrief: async (repositoryId: string, briefId: string): Promise<AiBriefData> => {
+    const res = await apiClient.patch<{ success: boolean; data: AiBriefData }>(
+      `/repositories/${repositoryId}/briefs/${briefId}/publish`
+    );
+    return res.data.data;
+  },
+  updateNotificationSettings: async (
+    repositoryId: string,
+    payload: string | NotificationSettingsPayload
+  ): Promise<any> => {
+    const body = typeof payload === "string" ? { slackWebhookUrl: payload } : payload;
+    const res = await apiClient.patch<{ success: boolean; data: any }>(`/repositories/${repositoryId}/notification-settings`, body);
+    return res.data.data;
+  },
+  sendBriefNotification: async (repositoryId: string, payload?: { recipients?: string[]; slackWebhookUrl?: string }): Promise<any> => {
+    const res = await apiClient.post<{ success: boolean; message: string; data: any }>(`/repositories/${repositoryId}/briefs/send-notification`, payload || {});
+    return res.data;
   },
 };

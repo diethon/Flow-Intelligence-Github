@@ -10,6 +10,8 @@ build/
 # env
 .env
 .env.*
+!.env.example
+!**/.env.example
 
 # logs
 logs
@@ -29,3 +31,11 @@ coverage/
 # claude
 CLAUDE.md
 .claude
+.agents
+
+
+#plan
+github-only-mvp-use-cases-flows-backlog.md
+mongodb-database-design.md
+phan-cong-cong-viec-chi-tiet-5-thanh-vien.md
+team-allocation-5-members.md

@@ -7,18 +7,18 @@ export const authenticate = (req: Request, _res: Response, next: NextFunction): 
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new AppError('Unauthorized', 401, 'UNAUTHORIZED', {
+    return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED', {
       message: 'Missing or invalid authorization header',
       retryable: false,
-    });
+    }));
   }
 
   const token = authHeader.split(' ')[1];
   if (!token) {
-    throw new AppError('Unauthorized', 401, 'UNAUTHORIZED', {
+    return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED', {
       message: 'Bearer token is missing',
       retryable: false,
-    });
+    }));
   }
 
   try {
@@ -26,10 +26,10 @@ export const authenticate = (req: Request, _res: Response, next: NextFunction): 
     (req as Request & { userId?: string }).userId = decoded.userId;
     next();
   } catch {
-    throw new AppError('Unauthorized', 401, 'UNAUTHORIZED', {
+    return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED', {
       message: 'Invalid or expired token',
       retryable: false,
-    });
+    }));
   }
 };
 

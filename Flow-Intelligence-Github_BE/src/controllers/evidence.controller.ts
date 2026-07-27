@@ -14,7 +14,7 @@ export class EvidenceController {
   constructor(private readonly service: EvidenceCardService = evidenceCardService) {}
 
   async listByRepository(req: Request, res: Response) {
-    const repositoryId = req.params.id as string;
+    const repositoryId = (req.params.repoId || req.params.id) as string;
     const parsed = EvidenceListQuerySchema.safeParse(req.query);
     if (!parsed.success) {
       throw new AppError('Invalid query', 400, 'VALIDATION_ERROR', {
@@ -31,7 +31,7 @@ export class EvidenceController {
   }
 
   async generateFromRiskEvent(req: Request, res: Response) {
-    const repositoryId = req.params.id as string;
+    const repositoryId = (req.params.repoId || req.params.id) as string;
     const parsed = RiskEventInputSchema.safeParse(req.body);
     if (!parsed.success) {
       throw new AppError('Invalid risk event payload', 400, 'VALIDATION_ERROR', {
@@ -43,7 +43,7 @@ export class EvidenceController {
   }
 
   async generateFromPrediction(req: Request, res: Response) {
-    const repositoryId = req.params.id as string;
+    const repositoryId = (req.params.repoId || req.params.id) as string;
     const parsed = PredictionInputSchema.safeParse(req.body);
     if (!parsed.success) {
       throw new AppError('Invalid prediction payload', 400, 'VALIDATION_ERROR', {

@@ -1,8 +1,29 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "PR Delay Risk Feature Schema",
+  "title": "GitHub PR Risk Prediction Feature Schema",
   "type": "object",
   "properties": {
+    "repository": {
+      "type": "string"
+    },
+    "pr_number": {
+      "type": "integer"
+    },
+    "title": {
+      "type": "string"
+    },
+    "author": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "draft": {
+      "type": "boolean"
+    },
     "changed_files": {
       "type": "integer"
     },
@@ -14,12 +35,42 @@
     },
     "commits": {
       "type": "integer"
+    },
+    "comments": {
+      "type": "integer"
+    },
+    "review_comments": {
+      "type": "integer"
+    },
+    "mergeable_state": {
+      "type": "string"
+    },
+    "labels": {
+      "type": "string"
+    },
+    "requested_reviewers": {
+      "type": "string"
+    },
+    "assignees": {
+      "type": "string"
     }
   },
   "required": [
+    "repository",
+    "pr_number",
+    "title",
+    "author",
+    "state",
+    "created_at",
     "changed_files",
     "additions",
     "deletions",
-    "commits"
+    "commits",
+    "comments",
+    "review_comments",
+    "mergeable_state",
+    "labels",
+    "requested_reviewers",
+    "assignees"
   ]
 }

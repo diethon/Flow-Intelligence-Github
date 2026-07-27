@@ -24,7 +24,7 @@ export const RiskEventInputSchema = z.object({
   affectedEntityRefs: z
     .array(
       z.object({
-        entityType: z.enum(['pull_request', 'issue', 'commit', 'check_run']),
+        entityType: z.enum(['pull_request', 'issue', 'commit', 'check_run', 'review']),
         entityId: ObjectIdString,
       })
     )

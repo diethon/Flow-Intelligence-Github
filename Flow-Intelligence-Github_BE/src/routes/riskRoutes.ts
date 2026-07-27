@@ -1,6 +1,8 @@
 import { Router, type Request, type Response } from "express";
 import { evaluateRiskRules, getLatestRiskEvents } from "../services/riskRuleEngine.js";
 import { Repository } from "../models/Repository.js";
+import { authenticate } from "../middlewares/authenticate.js";
+import { repoAuthorize } from "../middlewares/repoAuthorize.js";
 
 const router = Router();
 
@@ -8,7 +10,7 @@ const router = Router();
  * GET /api/risk/repositories/:repoId/events
  * Returns the most recently stored risk events (no recalculation).
  */
-router.get("/repositories/:repoId/events", async (req: Request, res: Response) => {
+router.get("/repositories/:repoId/events", authenticate, repoAuthorize(['leader', 'dev', 'viewer']), async (req: Request, res: Response) => {
   try {
     const repoId     = String(req.params["repoId"]);
     const rawWindowDays = Number(req.query["windowDays"]);
@@ -44,7 +46,7 @@ router.get("/repositories/:repoId/events", async (req: Request, res: Response) =
  * Runs the full risk rule evaluation (R1–R5), persists RiskEvents + EvidenceCards,
  * and returns the fresh result.
  */
-router.post("/repositories/:repoId/evaluate", async (req: Request, res: Response) => {
+router.post("/repositories/:repoId/evaluate", authenticate, repoAuthorize(['leader', 'dev']), async (req: Request, res: Response) => {
   try {
     const repoId     = String(req.params["repoId"]);
     const rawWindowDays = Number(req.body?.windowDays ?? req.query["windowDays"]);

@@ -204,9 +204,9 @@ export const RepositoryStatsCard: React.FC<RepositoryStatsCardProps> = ({ detail
             <span className="ml-auto text-xs font-normal text-slate-500">{stats.contributors} total</span>
           </h4>
           <div className="grid grid-cols-2 gap-3">
-            {topContributors.slice(0, 8).map((contributor) => (
+            {topContributors.slice(0, 8).map((contributor, index) => (
               <a
-                key={contributor.login}
+                key={`${contributor.login}-${index}`}
                 href={`https://github.com/${contributor.login}`}
                 target="_blank"
                 rel="noopener noreferrer"

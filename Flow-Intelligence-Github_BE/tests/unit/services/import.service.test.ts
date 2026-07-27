@@ -1,9 +1,9 @@
 import { ImportService } from '../../../src/services/import.service';
 import { NormalizationService } from '../../../src/services/normalization.service';
-import { GitHubRepository } from '../../../src/modules/github/models/githubRepository.model';
+import { GitHubRepository } from '../../../src/modules/github/models';
 import { AppError } from '../../../src/utils/AppError';
 
-jest.mock('../../../src/modules/github/models/githubRepository.model', () => ({
+jest.mock('../../../src/modules/github/models', () => ({
   GitHubRepository: { findById: jest.fn() },
 }));
 

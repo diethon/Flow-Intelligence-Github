@@ -1,10 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useEvidenceCard } from '../hooks/useEvidence';
+import { PageShell } from '../components/PageShell';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { SeverityTag, SourceTag, EntityIcon } from '../components/EvidenceTags';
 import { ConfidenceGauge } from '../components/ConfidenceGauge';
 import { PredictionDetails } from '../components/PredictionDetails.js';
+import { RiskDrivers } from '../components/RiskDrivers.js';
 import { SEVERITY, ENTITY_LABEL, relativeTime } from '../components/evidenceMeta.js';
 import { usePredictionDetail } from '../hooks/usePrediction.js';
 import type { EvidenceCard, EvidenceItem } from '../types/index.js';
@@ -111,6 +113,13 @@ const CardBody: React.FC<{ card: EvidenceCard; repositoryId: string }> = ({ card
         </div>
       </div>
 
+      {/* Risk drivers — why this rule fired (rule-based cards only). */}
+      {card.sourceType === 'risk_event' && card.riskEvent && (
+        <div className="border-t border-slate-100 p-6">
+          <RiskDrivers driver={card.riskEvent} />
+        </div>
+      )}
+
       <div className="grid gap-6 border-t border-slate-100 p-6 lg:grid-cols-[1fr_18rem]">
         {/* Exhibits ledger */}
         <section>
@@ -182,10 +191,10 @@ const CardBody: React.FC<{ card: EvidenceCard; repositoryId: string }> = ({ card
       <p className="border-t border-slate-100 px-6 py-3 text-xs text-slate-400">
         Workflow signal for the whole team — not a measure of any individual's performance.
         <Link
-          to={`/repositories/${repositoryId}/risk-evidence`}
+          to={`/repositories/${repositoryId}/evidence`}
           className="ml-1 font-medium text-slate-500 hover:text-slate-700"
         >
-          Back to all risks
+          Back to all evidence
         </Link>
       </p>
     </article>
@@ -215,15 +224,15 @@ export const EvidenceCardDetailPage: React.FC<EvidenceCardDetailPageProps> = ({
   }, [repositoryId, cardId, query.isLoading, query.isSuccess, query.isError, card]);
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <PageShell title="Evidence Card">
       <Link
-        to={`/repositories/${repositoryId}/risk-evidence`}
-        className="mb-5 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 transition-colors"
+        to={`/repositories/${repositoryId}/evidence`}
+        className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 transition-colors"
       >
         <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
-        Risk &amp; Evidence
+        Evidence
       </Link>
 
       {query.isLoading && (
@@ -258,7 +267,7 @@ export const EvidenceCardDetailPage: React.FC<EvidenceCardDetailPageProps> = ({
           </p>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 };
 

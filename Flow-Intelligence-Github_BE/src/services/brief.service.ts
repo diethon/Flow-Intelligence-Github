@@ -2,13 +2,23 @@ import mongoose from "mongoose";
 import { AiPayloadBuilderService } from "./aiPayloadBuilder.service";
 import { AiBrief } from "../models/AiBrief";
 import { GeminiClientService } from "./geminiClient.service";
+import env from "../config/env";
+import { AppError } from "../utils/AppError";
+import { AiPromptLog } from "../models/AiPromptLog";
 
 export class BriefService {
   constructor(private aiPayloadBuilderService: AiPayloadBuilderService) {}
 
-  public async generateBrief(repositoryId: string, windowStart: Date, windowEnd: Date) {
+  public async generateBrief(repositoryId: string, windowStart: Date, windowEnd: Date, userId?: string) {
     // 1 & 2 & 3. Build payload (which internally handles validation, redaction, and pseudonymization)
     const payload = await this.aiPayloadBuilderService.buildWeeklyBriefPayload(repositoryId, windowStart, windowEnd);
+    console.info(
+      "[BriefService] Payload prepared for AI Weekly Brief generation:",
+      JSON.stringify(payload, null, 2)
+    );
+
+    const generationStartedAt = Date.now();
+    let selectedModel = env.GEMINI_MODEL;
 
     try {
       const geminiClient = GeminiClientService.getInstance();
@@ -24,18 +34,32 @@ Output strictly in valid JSON matching this schema: { "summary": "string", "conf
 
 Payload data: ${JSON.stringify(payload)}`;
 
-      const response = await geminiClient.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-        },
-      });
+      const models = [...new Set([env.GEMINI_MODEL, env.GEMINI_FALLBACK_MODEL])];
+      let response: { text: string } | null = null;
+      let lastModelError: unknown;
+
+      for (const model of models) {
+        selectedModel = model;
+        try {
+          response = await geminiClient.generateContent({
+            model,
+            contents: prompt,
+            config: { responseMimeType: "application/json" },
+          });
+          break;
+        } catch (error) {
+          lastModelError = error;
+          if (!this.isUnavailableModelError(error)) throw error;
+          console.warn(`[BriefService] Gemini model '${model}' is unavailable. Trying the next configured model.`);
+        }
+      }
+
+      if (!response) throw lastModelError ?? new Error("No Gemini model is available.");
 
       const responseText = response.text || "{}";
       const parsed = JSON.parse(responseText);
 
-      const brief = await AiBrief.create({
+      const briefData = {
         repositoryId: new mongoose.Types.ObjectId(repositoryId),
         windowStart,
         windowEnd,
@@ -45,17 +69,56 @@ Payload data: ${JSON.stringify(payload)}`;
         limitations: parsed.limitations || payload.limitations || [],
         items: parsed.items || [],
         isFallback: false,
+        createdBy: userId ? new mongoose.Types.ObjectId(userId) : null,
+      };
+      console.info(
+        "[BriefService] AI Weekly Brief data prepared for database:",
+        JSON.stringify(briefData, null, 2)
+      );
+      const brief = await AiBrief.create(briefData);
+      await this.createPromptLog({
+        briefId: brief._id,
+        promptPayload: payload,
+        responsePayload: parsed,
+        modelName: selectedModel,
+        durationMs: Date.now() - generationStartedAt,
       });
 
       return brief;
     } catch (error: any) {
       console.warn("AI Generation Error, triggering fallback:", error.message);
       // 5. Deterministic Fallback
-      return this.generateDeterministicBrief(repositoryId, windowStart, windowEnd, payload);
+      return this.generateDeterministicBrief(
+        repositoryId,
+        windowStart,
+        windowEnd,
+        payload,
+        userId,
+        error,
+        selectedModel,
+        Date.now() - generationStartedAt
+      );
     }
   }
 
-  private async generateDeterministicBrief(repositoryId: string, windowStart: Date, windowEnd: Date, payload: any) {
+  private isUnavailableModelError(error: unknown): boolean {
+    if (!error || typeof error !== "object") return false;
+    const candidate = error as { code?: number; status?: number; statusCode?: number; message?: string };
+    const status = candidate.status ?? candidate.statusCode ?? candidate.code;
+    const message = (candidate.message ?? "").toLowerCase();
+    return status === 404 || message.includes("not found") || message.includes("no longer available") || message.includes("model") && message.includes("unavailable");
+  }
+
+  private async generateDeterministicBrief(
+    repositoryId: string,
+    windowStart: Date,
+    windowEnd: Date,
+    payload: any,
+    userId?: string,
+    generationError?: unknown,
+    modelName = env.GEMINI_MODEL,
+    durationMs: number | null = null
+  ) {
     // Deterministic rules based on payload
     const metrics = payload.metrics;
     let summary = "Weekly sync completed. Data indicates standard team activity.";
@@ -72,7 +135,7 @@ Payload data: ${JSON.stringify(payload)}`;
       });
     }
 
-    const fallbackBrief = await AiBrief.create({
+    const fallbackBriefData = {
       repositoryId: new mongoose.Types.ObjectId(repositoryId),
       windowStart,
       windowEnd,
@@ -82,14 +145,114 @@ Payload data: ${JSON.stringify(payload)}`;
       limitations: ["AI Service unavailable, using deterministic rules", ...(payload.limitations || [])],
       items,
       isFallback: true,
+      createdBy: userId ? new mongoose.Types.ObjectId(userId) : null,
+    };
+    console.info(
+      "[BriefService] Fallback Weekly Brief data prepared for database:",
+      JSON.stringify(fallbackBriefData, null, 2)
+    );
+    const fallbackBrief = await AiBrief.create(fallbackBriefData);
+    await this.createPromptLog({
+      briefId: fallbackBrief._id,
+      promptPayload: payload,
+      responsePayload: {
+        fallback: true,
+        error: generationError instanceof Error
+          ? generationError.message
+          : String(generationError ?? "AI generation was not attempted"),
+      },
+      modelName,
+      durationMs,
     });
 
     return fallbackBrief;
   }
 
-  public async getBriefs(repositoryId: string) {
-    return AiBrief.find({ repositoryId: new mongoose.Types.ObjectId(repositoryId) })
+  /**
+   * Prompt logging is audit-only: a logging failure must not turn a successfully
+   * generated brief into a fallback or prevent a fallback brief from returning.
+   */
+  private async createPromptLog(options: {
+    briefId: mongoose.Types.ObjectId;
+    promptPayload: Record<string, unknown>;
+    responsePayload: Record<string, unknown>;
+    modelName: string;
+    durationMs: number | null;
+  }): Promise<void> {
+    try {
+      await AiPromptLog.create({
+        ...options,
+        wasRedacted: true,
+        provider: "gemini",
+      });
+    } catch (error) {
+      console.error(
+        "[BriefService] Failed to persist AI prompt log:",
+        error instanceof Error ? error.message : error
+      );
+    }
+  }
+
+  public async getBriefs(repositoryId: string, includeDrafts: boolean) {
+    const publicationFilter = includeDrafts
+      ? {}
+      : { publicationStatus: "published" };
+    return AiBrief.find({
+      repositoryId: new mongoose.Types.ObjectId(repositoryId),
+      ...publicationFilter,
+    })
       .sort({ createdAt: -1 })
       .lean();
+  }
+
+  public async publishBrief(repositoryId: string, briefId: string, userId: string) {
+    if (!mongoose.Types.ObjectId.isValid(briefId)) {
+      throw new AppError("Weekly Brief not found", 404, "BRIEF_NOT_FOUND");
+    }
+
+    const brief = await AiBrief.findOneAndUpdate(
+      {
+        _id: new mongoose.Types.ObjectId(briefId),
+        repositoryId: new mongoose.Types.ObjectId(repositoryId),
+      },
+      {
+        $set: {
+          publicationStatus: "published",
+          publishedAt: new Date(),
+          publishedBy: new mongoose.Types.ObjectId(userId),
+        },
+      },
+      { new: true }
+    );
+
+    if (!brief) {
+      throw new AppError("Weekly Brief not found", 404, "BRIEF_NOT_FOUND");
+    }
+
+    return brief;
+  }
+
+  public async retryBrief(repositoryId: string, briefId: string, userId: string) {
+    if (!mongoose.Types.ObjectId.isValid(briefId)) {
+      throw new AppError("Weekly Brief not found", 404, "BRIEF_NOT_FOUND");
+    }
+
+    const existing = await AiBrief.findOne({
+      _id: new mongoose.Types.ObjectId(briefId),
+      repositoryId: new mongoose.Types.ObjectId(repositoryId),
+    })
+      .select("windowStart windowEnd")
+      .lean();
+
+    if (!existing) {
+      throw new AppError("Weekly Brief not found", 404, "BRIEF_NOT_FOUND");
+    }
+
+    return this.generateBrief(
+      repositoryId,
+      existing.windowStart,
+      existing.windowEnd,
+      userId
+    );
   }
 }
