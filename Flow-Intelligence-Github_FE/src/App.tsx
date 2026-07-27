@@ -2,8 +2,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useSearchP
 import { DashboardPage, ConnectRepositoryPage, SyncStatusPage, LoginPage, PullRequestsPage, UsersManagementPage, AdminDashboardPage, PRPredictionsPage } from './pages';
 import { EvidencePage, EvidenceCardDetailPage } from './pages';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './components/AuthContext';
+import { getRepositories } from './services/githubService';
+import { fetchDashboardRepositories } from './api/dashboardApi';
 import { AppLayout } from './components/AppLayout.js';
 import { ReviewCIMetricsPage } from "./pages/ReviewCIMetricsPage.js";
 import { RulebookPage } from "./pages/RulebookPage.js";
@@ -67,8 +69,32 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const RoleProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode; allowedRoles: string[] }) => {
   const { user, isAuthenticated, loading } = useAuth();
+  const [hasRepoLeader, setHasRepoLeader] = useState<boolean | null>(null);
 
-  if (loading) {
+  useEffect(() => {
+    if (!user) return;
+    if (allowedRoles.includes(user.role)) {
+      setHasRepoLeader(true);
+      return;
+    }
+
+    if (allowedRoles.includes('leader')) {
+      Promise.all([
+        getRepositories().then((res) => res.data || []).catch(() => []),
+        fetchDashboardRepositories().catch(() => []),
+      ])
+        .then(([repos1, repos2]) => {
+          const allRepos = [...repos1, ...repos2];
+          const isRepoLeader = allRepos.some((r) => r.role === 'leader');
+          setHasRepoLeader(isRepoLeader);
+        })
+        .catch(() => setHasRepoLeader(false));
+    } else {
+      setHasRepoLeader(false);
+    }
+  }, [user, allowedRoles]);
+
+  if (loading || (user && !allowedRoles.includes(user.role) && allowedRoles.includes('leader') && hasRepoLeader === null)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent mx-auto" />
@@ -80,7 +106,9 @@ const RoleProtectedRoute = ({ children, allowedRoles }: { children: React.ReactN
     return <Navigate to="/login" replace />;
   }
 
-  if (!user || !allowedRoles.includes(user.role)) {
+  const isAuthorized = user && (allowedRoles.includes(user.role) || (allowedRoles.includes('leader') && hasRepoLeader));
+
+  if (!isAuthorized) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -217,9 +245,9 @@ function App() {
             <Route
               path="/workload-risk"
               element={
-                <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={["admin", "leader"]}>
                   <SelectedRepoRedirect section="workload-risk" />
-                </ProtectedRoute>
+                </RoleProtectedRoute>
               }
             />
             <Route
@@ -227,9 +255,7 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AppLayout>
-                    <div className="px-4 sm:px-6 py-5 sm:py-8">
-                      <RiskPageWrapper />
-                    </div>
+                    <RiskPageWrapper />
                   </AppLayout>
                 </ProtectedRoute>
               }
@@ -249,9 +275,7 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AppLayout>
-                    <div className="px-4 sm:px-6 py-5 sm:py-8">
-                      <EvidencePageWrapper />
-                    </div>
+                    <EvidencePageWrapper />
                   </AppLayout>
                 </ProtectedRoute>
               }
@@ -259,13 +283,11 @@ function App() {
             <Route
               path="/repositories/:id/workload-risk"
               element={
-                <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={["admin", "leader"]}>
                   <AppLayout>
-                    <div className="px-4 sm:px-6 py-5 sm:py-8">
-                      <WorkloadRiskPageWrapper />
-                    </div>
+                    <WorkloadRiskPageWrapper />
                   </AppLayout>
-                </ProtectedRoute>
+                </RoleProtectedRoute>
               }
             />
             <Route
@@ -273,9 +295,7 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AppLayout>
-                    <div className="px-4 sm:px-6 py-5 sm:py-8">
-                      <EvidenceCardDetailPageWrapper />
-                    </div>
+                    <EvidenceCardDetailPageWrapper />
                   </AppLayout>
                 </ProtectedRoute>
               }

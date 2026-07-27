@@ -1,48 +1,49 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "../services/axiosClient";
 import { useAuth } from "../hooks/useAuth";
+import { fetchDashboardRepositories } from "../api/dashboardApi.js";
 import { ChatWidget } from "./ChatWidget.js";
 
 import { useSelectedRepositoryPermissions } from "../hooks/useSelectedRepositoryPermissions";
 
 
-const NAV = [
-  {
-    group: "Analytics",
-    items: [
-      { to: "/dashboard", label: "Team Dashboard", icon: "▣", done: true },
-      { to: "/review-ci", label: "Review & CI Metrics", icon: "◈", done: true },
-      { to: "/rulebook", label: "Flow Risk Rulebook", icon: "◉", done: true },
-    ],
-  },
-  {
-    group: "Insights",
-    items: [
-      { to: "/risk", label: "Risk", icon: "◆", done: true },
-      { to: "/evidence", label: "Evidence", icon: "◈", done: true },
-      { to: "/predictions", label: "PR Predictions", icon: "P", done: true },
-      { to: "/workload-risk", label: "Workload Risk", icon: "🌙", done: true },
-      { to: "/brief", label: "AI Weekly Brief", icon: "◇", done: true },
-    ],
-  },
-  {
-    group: "Settings",
-    items: [
-      { to: "/repositories/connect", label: "Connected Repos", icon: "🔌", done: true },
-      { to: "/privacy", label: "Privacy Settings", icon: "◌", done: true },
-    ],
-  },
-];
-
-// ─── Shared nav links ─────────────────────────────────────────────────────────
-
-void NAV;
-
 function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
   const { pathname } = useLocation();
   const { user } = useAuth();
   const { canManagePrivacy } = useSelectedRepositoryPermissions();
+  const [selectedRepoId, setSelectedRepoId] = useState<string | null>(() =>
+    localStorage.getItem("selectedRepositoryId")
+  );
+
+  useEffect(() => {
+    const handleRepoChange = () => {
+      setSelectedRepoId(localStorage.getItem("selectedRepositoryId"));
+    };
+    window.addEventListener("selectedRepoChanged", handleRepoChange);
+    window.addEventListener("storage", handleRepoChange);
+    return () => {
+      window.removeEventListener("selectedRepoChanged", handleRepoChange);
+      window.removeEventListener("storage", handleRepoChange);
+    };
+  }, []);
+
+  const reposQuery = useQuery({
+    queryKey: ["dashboard", "repositories"],
+    queryFn: fetchDashboardRepositories,
+    enabled: !!user,
+  });
+  const repos = reposQuery.data ?? [];
+
+  // Determine active repository context from URL or state
+  const match = pathname.match(/\/repositories\/([^\/]+)/);
+  const activeRepoId = match ? match[1] : (selectedRepoId || localStorage.getItem("selectedRepositoryId"));
+  const activeRepo = repos.find((r) => r._id === activeRepoId) || repos[0];
+
+  // Only render Workload Risk if global System Admin or Leader of the active repository
+  const isLeaderOrAdmin =
+    user?.role === "admin" || (activeRepo && activeRepo.role === "leader");
 
   const navItems = [
     {
@@ -56,11 +57,11 @@ function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
     {
       group: "Insights",
       items: [
-        { to: "/risk", label: "Risk", icon: "◆", done: true },
-        { to: "/evidence", label: "Evidence", icon: "◈", done: true },
         { to: "/predictions", label: "PR Predictions", icon: "P", done: true },
-        { to: "/workload-risk", label: "Workload Risk", icon: "▲", done: true },
-        { to: "/brief", label: "AI Weekly Brief", icon: "◇", done: true },
+        { to: "/risk",          label: "Risk",            icon: "◆", done: true  },
+        { to: "/evidence",      label: "Evidence",        icon: "◈", done: true  },
+        ...(isLeaderOrAdmin ? [{ to: "/workload-risk", label: "Workload Risk", icon: "▲", done: true }] : []),
+        { to: "/brief",         label: "AI Weekly Brief", icon: "◇", done: true },
       ],
     },
     {
@@ -97,6 +98,7 @@ function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
           </p>
           <div className="space-y-0.5">
             {group.items.map((item) => {
+              const compactLabel = item.to === "/workload-risk" || item.to === "/brief";
               // Global nav targets (e.g. /risk, /evidence) also match their
               // repo-scoped routes (/repositories/:id/risk, .../evidence/:cardId).
               const active =
@@ -122,7 +124,14 @@ function NavLinks({ onItemClick }: { onItemClick?: () => void }) {
                   <span className={`text-base leading-none flex-shrink-0 ${active ? "text-indigo-600" : item.done ? "text-slate-400" : "text-slate-300"}`}>
                     {item.icon}
                   </span>
-                  <span className="flex-1 font-medium truncate">{item.label}</span>
+                  <span
+                    className={`flex-1 min-w-0 font-medium ${compactLabel
+                      ? "text-[12px] sm:text-[13px] leading-5 whitespace-nowrap"
+                      : "truncate"
+                    }`}
+                  >
+                    {item.label}
+                  </span>
                   {!item.done && (
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-300 flex-shrink-0" />
                   )}
@@ -179,9 +188,6 @@ function LogoutButton() {
     </button>
   );
 }
-
-import { useEffect } from "react";
-
 function useSelectedRepoRole() {
   const [repoId, setRepoId] = useState(() => localStorage.getItem("selectedRepositoryId"));
   const [role, setRole] = useState<string | null>(null);

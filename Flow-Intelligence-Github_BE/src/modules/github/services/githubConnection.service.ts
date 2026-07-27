@@ -101,14 +101,15 @@ export class GitHubConnectionService {
       // Proceed without failing the connection
     }
 
-    // Tự động kiểm tra quyền GitHub và cập nhật vai trò vào RepositoryMember
+    // Tự động kiểm tra quyền GitHub / Người tạo Repo và cập nhật vai trò Leader vào RepositoryRole
     try {
       const userObj = await User.findById(data.userId);
       if (userObj) {
+        const isRepoOwner = userObj.username.toLowerCase() === data.owner.toLowerCase();
         const gitHubPermission = await userApiService.getUserRepoPermission(data.owner, data.repo, userObj.username);
 
         let repoRole: 'leader' | 'dev' | 'viewer' = 'viewer';
-        if (gitHubPermission === 'admin') {
+        if (isRepoOwner || gitHubPermission === 'admin') {
           repoRole = 'leader';
         } else if (['write', 'read'].includes(gitHubPermission)) {
           repoRole = 'dev';
@@ -302,7 +303,7 @@ export class GitHubConnectionService {
         lastSyncedAt: repo.lastSyncedAt,
         createdAt: repo.createdAt,
         updatedAt: repo.updatedAt,
-        role: roleMap.get(repo._id.toString()) || 'viewer', // Mặc định là viewer
+        role: roleMap.get(repo._id.toString()) || 'leader', // Nguoi ket noi repo mac dinh la leader
       })),
       pagination: {
         page: pagination.page,
