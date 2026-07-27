@@ -4,6 +4,7 @@ import { AiBrief } from "../models/AiBrief";
 import { GeminiClientService } from "./geminiClient.service";
 import env from "../config/env";
 import { AppError } from "../utils/AppError";
+import { AiPromptLog } from "../models/AiPromptLog";
 
 export class BriefService {
   constructor(private aiPayloadBuilderService: AiPayloadBuilderService) {}
@@ -15,6 +16,9 @@ export class BriefService {
       "[BriefService] Payload prepared for AI Weekly Brief generation:",
       JSON.stringify(payload, null, 2)
     );
+
+    const generationStartedAt = Date.now();
+    let selectedModel = env.GEMINI_MODEL;
 
     try {
       const geminiClient = GeminiClientService.getInstance();
@@ -35,6 +39,7 @@ Payload data: ${JSON.stringify(payload)}`;
       let lastModelError: unknown;
 
       for (const model of models) {
+        selectedModel = model;
         try {
           response = await geminiClient.generateContent({
             model,
@@ -71,12 +76,28 @@ Payload data: ${JSON.stringify(payload)}`;
         JSON.stringify(briefData, null, 2)
       );
       const brief = await AiBrief.create(briefData);
+      await this.createPromptLog({
+        briefId: brief._id,
+        promptPayload: payload,
+        responsePayload: parsed,
+        modelName: selectedModel,
+        durationMs: Date.now() - generationStartedAt,
+      });
 
       return brief;
     } catch (error: any) {
       console.warn("AI Generation Error, triggering fallback:", error.message);
       // 5. Deterministic Fallback
-      return this.generateDeterministicBrief(repositoryId, windowStart, windowEnd, payload, userId);
+      return this.generateDeterministicBrief(
+        repositoryId,
+        windowStart,
+        windowEnd,
+        payload,
+        userId,
+        error,
+        selectedModel,
+        Date.now() - generationStartedAt
+      );
     }
   }
 
@@ -88,7 +109,16 @@ Payload data: ${JSON.stringify(payload)}`;
     return status === 404 || message.includes("not found") || message.includes("no longer available") || message.includes("model") && message.includes("unavailable");
   }
 
-  private async generateDeterministicBrief(repositoryId: string, windowStart: Date, windowEnd: Date, payload: any, userId?: string) {
+  private async generateDeterministicBrief(
+    repositoryId: string,
+    windowStart: Date,
+    windowEnd: Date,
+    payload: any,
+    userId?: string,
+    generationError?: unknown,
+    modelName = env.GEMINI_MODEL,
+    durationMs: number | null = null
+  ) {
     // Deterministic rules based on payload
     const metrics = payload.metrics;
     let summary = "Weekly sync completed. Data indicates standard team activity.";
@@ -122,8 +152,45 @@ Payload data: ${JSON.stringify(payload)}`;
       JSON.stringify(fallbackBriefData, null, 2)
     );
     const fallbackBrief = await AiBrief.create(fallbackBriefData);
+    await this.createPromptLog({
+      briefId: fallbackBrief._id,
+      promptPayload: payload,
+      responsePayload: {
+        fallback: true,
+        error: generationError instanceof Error
+          ? generationError.message
+          : String(generationError ?? "AI generation was not attempted"),
+      },
+      modelName,
+      durationMs,
+    });
 
     return fallbackBrief;
+  }
+
+  /**
+   * Prompt logging is audit-only: a logging failure must not turn a successfully
+   * generated brief into a fallback or prevent a fallback brief from returning.
+   */
+  private async createPromptLog(options: {
+    briefId: mongoose.Types.ObjectId;
+    promptPayload: Record<string, unknown>;
+    responsePayload: Record<string, unknown>;
+    modelName: string;
+    durationMs: number | null;
+  }): Promise<void> {
+    try {
+      await AiPromptLog.create({
+        ...options,
+        wasRedacted: true,
+        provider: "gemini",
+      });
+    } catch (error) {
+      console.error(
+        "[BriefService] Failed to persist AI prompt log:",
+        error instanceof Error ? error.message : error
+      );
+    }
   }
 
   public async getBriefs(repositoryId: string, includeDrafts: boolean) {

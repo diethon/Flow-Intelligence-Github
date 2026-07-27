@@ -2,6 +2,7 @@ export { authenticate, optionalAuthenticate } from './authenticate';
 export {
   canViewWeeklyBrief,
   requireGlobalAdmin,
+  requireRepositoryContributor,
   requireRepositoryLeader,
 } from './repositoryAuthorization';
 export type {

@@ -8,8 +8,10 @@ import { briefApi } from "../api/briefApi";
 import { getPermissionErrorMessage } from "../utils/modulePermissions";
 import { LoadingState } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
+import { useAuth } from "../hooks/useAuth";
 
 export function PrivacyPage() {
+  const { user } = useAuth();
   const [repos, setRepos] = useState<Repository[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState("");
   const [settings, setSettings] = useState<PrivacySettingsData | null>(null);
@@ -27,6 +29,14 @@ export function PrivacyPage() {
   const [scheduleDay, setScheduleDay] = useState("FRIDAY");
   const [scheduleTime, setScheduleTime] = useState("17:00");
   const [testingNotification, setTestingNotification] = useState(false);
+  const selectedRepository = repos.find(repo => repo._id === selectedRepoId);
+  const canViewAutomatedDelivery =
+    selectedRepository?.role === "leader" ||
+    selectedRepository?.role === "dev";
+  const canSendSummary =
+    selectedRepository?.role === "leader" ||
+    selectedRepository?.role === "dev" ||
+    (user?.role === "admin" && selectedRepository?.isOwner === true);
 
   useEffect(() => {
     fetchDashboardRepositories()
@@ -169,7 +179,8 @@ export function PrivacyPage() {
       {!loading && !error && settings && (
         <div className="space-y-8 max-w-4xl">
           {/* Notification Schedule & Slack Integration Card */}
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
+          {canViewAutomatedDelivery && (
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
             <SectionHeading
               title="💬 Automated Delivery & Slack Integration"
               subtitle="Configure your team's preferred day, time, and Slack Webhook for Weekly AI Brief delivery."
@@ -250,16 +261,19 @@ export function PrivacyPage() {
                   <PrimaryBtn onClick={handleSave} disabled={saving || loading}>
                     {saving ? "Saving..." : "💾 Save Settings"}
                   </PrimaryBtn>
-                  <GhostBtn onClick={handleTestNotification} disabled={testingNotification}>
-                    {testingNotification ? "Sending..." : "🧪 Send Summary Report"}
-                  </GhostBtn>
+                  {canSendSummary && (
+                    <GhostBtn onClick={handleTestNotification} disabled={testingNotification}>
+                      {testingNotification ? "Sending..." : "🧪 Send Summary Report"}
+                    </GhostBtn>
+                  )}
                 </div>
                 <p className="text-xs text-slate-500 mt-2">
                   Scheduled reports will be sent automatically to the connected project owner email and Slack channel (if Webhook URL is provided).
                 </p>
               </div>
             </div>
-          </section>
+            </section>
+          )}
 
           {/* AI Privacy Settings Card */}
           <section className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">

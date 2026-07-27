@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
+import { GitHubConnection } from "../models/GitHubConnection";
 import { Repository } from "../models/Repository";
 import { RepositoryRole } from "../models/RepositoryRole";
 import { User } from "../models/User";
@@ -13,6 +14,7 @@ export interface RepositoryAuthorization {
     isPrivate: boolean;
   };
   isGlobalAdmin: boolean;
+  isRepositoryOwner: boolean;
   repositoryRole: ResolvedRepositoryRole;
   canManage: boolean;
 }
@@ -53,12 +55,15 @@ async function resolveAuthorization(req: AuthorizedRepositoryRequest): Promise<R
     throw new AppError("Repository not found", 404, "REPOSITORY_NOT_FOUND");
   }
 
-  const repository = await Repository.findById(repositoryId).select("_id isPrivate").lean();
+  const repository = await Repository.findById(repositoryId)
+    .select("_id isPrivate connectionId")
+    .lean();
   if (!repository) {
     throw new AppError("Repository not found", 404, "REPOSITORY_NOT_FOUND");
   }
 
   let isGlobalAdmin = false;
+  let isRepositoryOwner = false;
   let repositoryRole: ResolvedRepositoryRole = "viewer";
 
   if (req.userId) {
@@ -66,7 +71,7 @@ async function resolveAuthorization(req: AuthorizedRepositoryRequest): Promise<R
       throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
     }
 
-    const [user, membership] = await Promise.all([
+    const [user, membership, connection] = await Promise.all([
       User.findById(req.userId).select("role").lean(),
       RepositoryRole.findOne({
         repositoryId: repository._id,
@@ -74,6 +79,9 @@ async function resolveAuthorization(req: AuthorizedRepositoryRequest): Promise<R
       })
         .select("role")
         .lean(),
+      repository.connectionId
+        ? GitHubConnection.findById(repository.connectionId).select("userId").lean()
+        : null,
     ]);
 
     if (!user) {
@@ -81,6 +89,10 @@ async function resolveAuthorization(req: AuthorizedRepositoryRequest): Promise<R
     }
 
     isGlobalAdmin = user.role === "admin";
+    isRepositoryOwner = Boolean(
+      connection?.userId &&
+      connection.userId.toString() === req.userId
+    );
     if (membership) {
       repositoryRole = membership.role;
     }
@@ -92,6 +104,7 @@ async function resolveAuthorization(req: AuthorizedRepositoryRequest): Promise<R
       isPrivate: repository.isPrivate,
     },
     isGlobalAdmin,
+    isRepositoryOwner,
     repositoryRole,
     canManage: isGlobalAdmin || repositoryRole === "leader",
   };
@@ -114,6 +127,14 @@ const authorize =
 
 /** Global Admins and GitHub repository admins (Repository Leaders). */
 export const requireRepositoryLeader = authorize(({ canManage }) => canManage);
+
+/** Repository Leaders, Developers, and a Global Admin who owns the repository connection. */
+export const requireRepositoryContributor = authorize(
+  ({ isGlobalAdmin, isRepositoryOwner, repositoryRole }) =>
+    repositoryRole === "leader" ||
+    repositoryRole === "dev" ||
+    (isGlobalAdmin && isRepositoryOwner)
+);
 
 /**
  * Drafts are returned only to managers by the controller. Developers may read

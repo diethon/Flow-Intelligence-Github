@@ -6,6 +6,8 @@ export interface Repository {
   name: string;
   fullName: string;
   lastSyncedAt: string | null;
+  role?: "leader" | "dev" | "viewer";
+  isOwner?: boolean;
 }
 
 // ─── UC-10 Review and CI Metrics ─────────────────────────────────────────────

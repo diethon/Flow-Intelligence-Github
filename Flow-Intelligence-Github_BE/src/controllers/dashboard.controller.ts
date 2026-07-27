@@ -33,7 +33,8 @@ export class DashboardController {
 
       const reposWithRole = repos.map(repo => ({
         ...repo,
-        role: roleMap.get(repo._id.toString()) || 'viewer' // mặc định là viewer
+        role: roleMap.get(repo._id.toString()) || 'viewer', // mặc định là viewer
+        isOwner: true,
       }));
 
       res.json({ success: true, data: reposWithRole });

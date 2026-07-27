@@ -3,6 +3,7 @@ import { BriefController } from "../controllers/brief.controller";
 import { authenticate, optionalAuthenticate } from "../middlewares/authenticate";
 import {
   canViewWeeklyBrief,
+  requireRepositoryContributor,
   requireRepositoryLeader,
 } from "../middlewares/repositoryAuthorization";
 
@@ -13,7 +14,7 @@ export const createBriefRoutes = (controller: BriefController): Router => {
   router.post("/:id/briefs/generate", authenticate, requireRepositoryLeader, controller.generateBrief);
   router.post("/:id/briefs/:briefId/retry", authenticate, requireRepositoryLeader, controller.retryBrief);
   router.patch("/:id/briefs/:briefId/publish", authenticate, requireRepositoryLeader, controller.publishBrief);
-  router.post("/:id/briefs/send-notification", authenticate, requireRepositoryLeader, controller.sendBriefNotification);
+  router.post("/:id/briefs/send-notification", authenticate, requireRepositoryContributor, controller.sendBriefNotification);
   router.patch("/:id/notification-settings", authenticate, requireRepositoryLeader, controller.updateNotificationSettings);
 
   return router;
