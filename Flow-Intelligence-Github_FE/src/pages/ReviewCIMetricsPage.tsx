@@ -1,20 +1,32 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Repository, UC10MetricsResult } from "../types/metrics.js";
-import { fetchRepositories, fetchReviewCIMetrics, calculateAndPersistMetrics } from "../api/metricsApi.js";
-import { MetricCard }      from "../components/MetricCard.js";
-import { ReviewLoadChart } from "../components/ReviewLoadChart.js";
-import { CheckRunsChart }  from "../components/CheckRunsChart.js";
-import { PRPickupTable }   from "../components/PRPickupTable.js";
 import {
-  PageShell, Tabs, SectionHeading,
-  PrimaryBtn, ErrorAlert, EmptyState,
+  fetchRepositories,
+  fetchReviewCIMetrics,
+  calculateAndPersistMetrics,
+} from "../api/metricsApi.js";
+import { MetricCard } from "../components/MetricCard.js";
+import { ReviewLoadChart } from "../components/ReviewLoadChart.js";
+import { CheckRunsChart } from "../components/CheckRunsChart.js";
+import { PRPickupTable } from "../components/PRPickupTable.js";
+import {
+  PageShell,
+  Tabs,
+  SectionHeading,
+  PrimaryBtn,
+  ErrorAlert,
+  EmptyState,
   RepoSelect,
 } from "../components/PageShell.js";
 
 type Tab = "metrics" | "charts" | "prdetails";
 
-function getTrend(value: number | null, thresholds: { good: number; warn: number }, lowerIsBetter = true) {
+function getTrend(
+  value: number | null,
+  thresholds: { good: number; warn: number },
+  lowerIsBetter = true,
+) {
   if (value === null) return "neutral" as const;
   if (lowerIsBetter) {
     if (value <= thresholds.good) return "good" as const;
@@ -31,31 +43,46 @@ function getTrend(value: number | null, thresholds: { good: number; warn: number
 function RiskSignals({ metrics }: { metrics: UC10MetricsResult }) {
   const signals = [
     {
-      rule: "R2", icon: "⏱️",
+      rule: "R2",
+      icon: "⏱️",
       label: "Review Pickup Risk",
       triggered: (metrics.reviewPickup.avgHours ?? 0) > 12,
-      detail: metrics.reviewPickup.avgHours !== null
-        ? `Avg pickup: ${metrics.reviewPickup.avgHours.toFixed(1)}h (threshold: 12h)`
-        : "Insufficient data",
-      severity: (metrics.reviewPickup.avgHours ?? 0) > 24 ? "high" : "medium" as "high" | "medium",
+      detail:
+        metrics.reviewPickup.avgHours !== null
+          ? `Avg pickup: ${metrics.reviewPickup.avgHours.toFixed(1)}h (threshold: 12h)`
+          : "Insufficient data",
+      severity:
+        (metrics.reviewPickup.avgHours ?? 0) > 24
+          ? "high"
+          : ("medium" as "high" | "medium"),
     },
     {
-      rule: "R3", icon: "👤",
+      rule: "R3",
+      icon: "👤",
       label: "Reviewer Concentration",
       triggered: (metrics.reviewLoadConcentration.topReviewerPct ?? 0) > 50,
-      detail: metrics.reviewLoadConcentration.topReviewerPct !== null
-        ? `Top reviewer: ${metrics.reviewLoadConcentration.topReviewerPct.toFixed(1)}% (threshold: 50%)`
-        : "Insufficient data",
-      severity: (metrics.reviewLoadConcentration.topReviewerPct ?? 0) > 70 ? "high" : "medium" as "high" | "medium",
+      detail:
+        metrics.reviewLoadConcentration.topReviewerPct !== null
+          ? `Top reviewer: ${metrics.reviewLoadConcentration.topReviewerPct.toFixed(1)}% (threshold: 50%)`
+          : "Insufficient data",
+      severity:
+        (metrics.reviewLoadConcentration.topReviewerPct ?? 0) > 70
+          ? "high"
+          : ("medium" as "high" | "medium"),
     },
     {
-      rule: "R4", icon: "🔴",
+      rule: "R4",
+      icon: "🔴",
       label: "CI Friction Risk",
       triggered: (metrics.failedCheckRate.failedRatePct ?? 0) > 25,
-      detail: metrics.failedCheckRate.failedRatePct !== null
-        ? `Failed checks: ${metrics.failedCheckRate.failedRatePct.toFixed(1)}% (threshold: 25%)`
-        : "Insufficient data",
-      severity: (metrics.failedCheckRate.failedRatePct ?? 0) > 40 ? "high" : "medium" as "high" | "medium",
+      detail:
+        metrics.failedCheckRate.failedRatePct !== null
+          ? `Failed checks: ${metrics.failedCheckRate.failedRatePct.toFixed(1)}% (threshold: 25%)`
+          : "Insufficient data",
+      severity:
+        (metrics.failedCheckRate.failedRatePct ?? 0) > 40
+          ? "high"
+          : ("medium" as "high" | "medium"),
     },
   ];
 
@@ -66,36 +93,55 @@ function RiskSignals({ metrics }: { metrics: UC10MetricsResult }) {
       <SectionHeading
         title="Flow Risk Signals"
         right={
-          triggered.length > 0
-            ? <span className="text-sm font-bold bg-rose-50 text-rose-700 border border-rose-200 px-3 py-1.5 rounded-lg">{triggered.length} triggered</span>
-            : <span className="text-sm font-bold bg-emerald-50 text-emerald-700 border border-emerald-250 px-3 py-1.5 rounded-lg">All clear ✓</span>
+          triggered.length > 0 ? (
+            <span className="text-sm font-bold bg-rose-50 text-rose-700 border border-rose-200 px-3 py-1.5 rounded-lg">
+              {triggered.length} triggered
+            </span>
+          ) : (
+            <span className="text-sm font-bold bg-emerald-50 text-emerald-700 border border-emerald-250 px-3 py-1.5 rounded-lg">
+              All clear ✓
+            </span>
+          )
         }
       />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {signals.map((s) => (
-          <div key={s.rule} className={`rounded-2xl border p-6 ${
-            s.triggered
-              ? s.severity === "high" ? "bg-rose-50/50 border-rose-200 shadow-sm" : "bg-amber-50/50 border-amber-200 shadow-sm"
-              : "bg-white border-slate-200 shadow-sm"
-          }`}>
+          <div
+            key={s.rule}
+            className={`rounded-2xl border p-6 ${
+              s.triggered
+                ? s.severity === "high"
+                  ? "bg-rose-50/50 border-rose-200 shadow-sm"
+                  : "bg-amber-50/50 border-amber-200 shadow-sm"
+                : "bg-white border-slate-200 shadow-sm"
+            }`}
+          >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <span className="text-2xl">{s.icon}</span>
                 <div>
-                  <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded border ${s.triggered ? "bg-rose-100 text-rose-700 border-rose-200/60" : "bg-slate-100 text-slate-600 border-slate-200"}`}>
+                  <span
+                    className={`text-xs font-bold font-mono px-2 py-0.5 rounded border ${s.triggered ? "bg-rose-100 text-rose-700 border-rose-200/60" : "bg-slate-100 text-slate-600 border-slate-200"}`}
+                  >
                     {s.rule}
                   </span>
                 </div>
               </div>
-              <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${
-                s.triggered
-                  ? s.severity === "high" ? "bg-rose-100 text-rose-700 border-rose-250" : "bg-amber-100 text-amber-700 border-amber-250"
-                  : "bg-emerald-100 text-emerald-700 border-emerald-250"
-              }`}>
+              <span
+                className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${
+                  s.triggered
+                    ? s.severity === "high"
+                      ? "bg-rose-100 text-rose-700 border-rose-250"
+                      : "bg-amber-100 text-amber-700 border-amber-250"
+                    : "bg-emerald-100 text-emerald-700 border-emerald-250"
+                }`}
+              >
                 {s.triggered ? s.severity.toUpperCase() : "OK"}
               </span>
             </div>
-            <p className="text-base font-semibold text-slate-800 mb-2">{s.label}</p>
+            <p className="text-base font-semibold text-slate-800 mb-2">
+              {s.label}
+            </p>
             <p className="text-sm text-slate-500 leading-relaxed">{s.detail}</p>
           </div>
         ))}
@@ -107,9 +153,9 @@ function RiskSignals({ metrics }: { metrics: UC10MetricsResult }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function ReviewCIMetricsPage() {
-  const [repos, setRepos]               = useState<Repository[]>([]);
+  const [repos, setRepos] = useState<Repository[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState("");
-  const [windowDays]     = useState(() => {
+  const [windowDays] = useState(() => {
     const cached = localStorage.getItem("selectedWindowDays");
     return cached ? parseInt(cached, 10) : 7;
   });
@@ -131,12 +177,12 @@ export function ReviewCIMetricsPage() {
     return val;
   });
   const navigate = useNavigate();
-  const [metrics, setMetrics]           = useState<UC10MetricsResult | null>(null);
-  const [loading, setLoading]           = useState(false);
-  const [calculating, setCalculating]   = useState(false);
-  const [error, setError]               = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated]   = useState<Date | null>(null);
-  const [tab, setTab]                   = useState<Tab>("metrics");
+  const [metrics, setMetrics] = useState<UC10MetricsResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [calculating, setCalculating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [tab, setTab] = useState<Tab>("metrics");
 
   useEffect(() => {
     fetchRepositories()
@@ -161,57 +207,78 @@ export function ReviewCIMetricsPage() {
 
   const loadMetrics = useCallback(async () => {
     if (!selectedRepoId) return;
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const data = await fetchReviewCIMetrics(
         selectedRepoId,
         windowDays,
         startDate || undefined,
-        endDate || undefined
+        endDate || undefined,
       );
-      setMetrics(data); setLastUpdated(new Date());
+      setMetrics(data);
+      setLastUpdated(new Date());
     } catch (err: any) {
       if (err.response?.status === 403) {
-        setError("You do not have permission to view or calculate metrics for this repository.");
+        setError(
+          "You do not have permission to view or calculate metrics for this repository.",
+        );
       } else {
         setError("Failed to load metrics. Make sure the backend is running.");
       }
       setMetrics(null);
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }, [selectedRepoId, windowDays, startDate, endDate]);
 
-  useEffect(() => { if (selectedRepoId) loadMetrics(); }, [selectedRepoId, windowDays, startDate, endDate, loadMetrics]);
-
+  useEffect(() => {
+    if (selectedRepoId) loadMetrics();
+  }, [selectedRepoId, windowDays, startDate, endDate, loadMetrics]);
 
   const handleCalculate = async () => {
     if (!selectedRepoId) return;
-    setCalculating(true); setError(null);
+    setCalculating(true);
+    setError(null);
     try {
       const data = await calculateAndPersistMetrics(
         selectedRepoId,
         windowDays,
         startDate || undefined,
-        endDate || undefined
+        endDate || undefined,
       );
-      setMetrics(data); setLastUpdated(new Date());
+      setMetrics(data);
+      setLastUpdated(new Date());
     } catch (err: any) {
       if (err.response?.status === 403) {
-        setError("You do not have permission to run calculation for this repository.");
+        setError(
+          "You do not have permission to run calculation for this repository.",
+        );
       } else {
         setError("Failed to calculate and persist metrics.");
       }
+    } finally {
+      setCalculating(false);
     }
-    finally { setCalculating(false); }
   };
 
   return (
     <PageShell
       title="Review & CI Metrics"
-
       actions={
         <>
-          <RepoSelect repos={repos} value={selectedRepoId} onChange={handleSelectRepo} />
-          <PrimaryBtn onClick={handleCalculate} disabled={!selectedRepoId} loading={calculating}>⚡ Calculate</PrimaryBtn>
+          <RepoSelect
+            repos={repos}
+            value={selectedRepoId}
+            onChange={handleSelectRepo}
+          />
+          <PrimaryBtn
+            onClick={handleCalculate}
+            disabled={!selectedRepoId}
+            loading={calculating}
+          >
+            ⚡ Calculate
+          </PrimaryBtn>
         </>
       }
     >
@@ -222,7 +289,11 @@ export function ReviewCIMetricsPage() {
           icon="🚀"
           title="No repositories yet"
           description="Connect a GitHub repository to start analyzing."
-          action={<PrimaryBtn onClick={() => navigate("/repositories/connect")}>🔌 Connect Repository</PrimaryBtn>}
+          action={
+            <PrimaryBtn onClick={() => navigate("/repositories/connect")}>
+              🔌 Connect Repository
+            </PrimaryBtn>
+          }
         />
       )}
 
@@ -231,9 +302,9 @@ export function ReviewCIMetricsPage() {
           {/* Tabs */}
           <Tabs<Tab>
             tabs={[
-              { id: "metrics",   label: "Metrics Overview", icon: "📊" },
-              { id: "charts",    label: "Charts",           icon: "📈" },
-              { id: "prdetails", label: "PR Details",       icon: "🔀" },
+              { id: "metrics", label: "Metrics Overview", icon: "📊" },
+              { id: "charts", label: "Charts", icon: "📈" },
+              { id: "prdetails", label: "PR Details", icon: "🔀" },
             ]}
             active={tab}
             onChange={setTab}
@@ -246,53 +317,96 @@ export function ReviewCIMetricsPage() {
                 <SectionHeading
                   title="Key Performance Indicators"
                   subtitle={
-                    windowDays === 0 
-                      ? (startDate && endDate ? `From ${startDate} to ${endDate}` : "All Time")
+                    windowDays === 0
+                      ? startDate && endDate
+                        ? `From ${startDate} to ${endDate}`
+                        : "All Time"
                       : lastUpdated
-                      ? `Computed at ${lastUpdated.toLocaleTimeString()}`
-                      : `Last ${windowDays} days`
+                        ? `Computed at ${lastUpdated.toLocaleTimeString()}`
+                        : `Last ${windowDays} days`
                   }
                   right={
-                    <button onClick={loadMetrics} disabled={!selectedRepoId || loading}
-                      className="text-sm text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-350 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40">
+                    <button
+                      onClick={loadMetrics}
+                      disabled={!selectedRepoId || loading}
+                      className="text-sm text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-350 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
+                    >
                       {loading ? "Loading…" : "↻ Refresh"}
                     </button>
                   }
                 />
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                   <MetricCard
-                    title="Review Pickup Time" icon="⏱️"
-                    value={metrics?.reviewPickup.avgHours ?? null} unit="hrs avg"
-                    subtitle={metrics ? `Median ${metrics.reviewPickup.medianHours?.toFixed(1) ?? "—"}h · ${metrics.reviewPickup.sampleSize} PRs` : undefined}
+                    title="Review Pickup Time"
+                    icon="⏱️"
+                    value={metrics?.reviewPickup.avgHours ?? null}
+                    unit="hrs avg"
+                    subtitle={
+                      metrics
+                        ? `Median ${metrics.reviewPickup.medianHours?.toFixed(1) ?? "—"}h · ${metrics.reviewPickup.sampleSize} PRs`
+                        : undefined
+                    }
                     status={metrics?.reviewPickup.dataStatus ?? "ok"}
-                    trend={getTrend(metrics?.reviewPickup.avgHours ?? null, { good: 4, warn: 12 })}
+                    trend={getTrend(metrics?.reviewPickup.avgHours ?? null, {
+                      good: 4,
+                      warn: 12,
+                    })}
                     description="Time from PR opened to first review. Under 4 hrs is healthy."
                     isLoading={loading}
                   />
                   <MetricCard
-                    title="Review Turnaround" icon="🔄"
-                    value={metrics?.reviewTurnaround.avgHours ?? null} unit="hrs avg"
-                    subtitle={metrics ? `Median ${metrics.reviewTurnaround.medianHours?.toFixed(1) ?? "—"}h · ${metrics.reviewTurnaround.sampleSize} PRs` : undefined}
+                    title="Review Turnaround"
+                    icon="🔄"
+                    value={metrics?.reviewTurnaround.avgHours ?? null}
+                    unit="hrs avg"
+                    subtitle={
+                      metrics
+                        ? `Median ${metrics.reviewTurnaround.medianHours?.toFixed(1) ?? "—"}h · ${metrics.reviewTurnaround.sampleSize} PRs`
+                        : undefined
+                    }
                     status={metrics?.reviewTurnaround.dataStatus ?? "ok"}
-                    trend={getTrend(metrics?.reviewTurnaround.avgHours ?? null, { good: 8, warn: 24 })}
+                    trend={getTrend(
+                      metrics?.reviewTurnaround.avgHours ?? null,
+                      { good: 8, warn: 24 },
+                    )}
                     description="Time from review request to final submission."
                     isLoading={loading}
                   />
                   <MetricCard
-                    title="Load Concentration" icon="👤"
-                    value={metrics?.reviewLoadConcentration.topReviewerPct ?? null} unit="% top reviewer"
-                    subtitle={metrics ? `${metrics.reviewLoadConcentration.reviewerBreakdown.length} reviewers · ${metrics.reviewLoadConcentration.totalReviews} total` : undefined}
+                    title="Load Concentration"
+                    icon="👤"
+                    value={
+                      metrics?.reviewLoadConcentration.topReviewerPct ?? null
+                    }
+                    unit="% top reviewer"
+                    subtitle={
+                      metrics
+                        ? `${metrics.reviewLoadConcentration.reviewerBreakdown.length} reviewers · ${metrics.reviewLoadConcentration.totalReviews} total`
+                        : undefined
+                    }
                     status={metrics?.reviewLoadConcentration.dataStatus ?? "ok"}
-                    trend={getTrend(metrics?.reviewLoadConcentration.topReviewerPct ?? null, { good: 30, warn: 50 })}
+                    trend={getTrend(
+                      metrics?.reviewLoadConcentration.topReviewerPct ?? null,
+                      { good: 30, warn: 50 },
+                    )}
                     description="Over 50% → bottleneck risk (R3)."
                     isLoading={loading}
                   />
                   <MetricCard
-                    title="Failed Check Rate" icon="🔴"
-                    value={metrics?.failedCheckRate.failedRatePct ?? null} unit="%"
-                    subtitle={metrics ? `${metrics.failedCheckRate.failedRuns} failed / ${metrics.failedCheckRate.totalRuns} total` : undefined}
+                    title="Failed Check Rate"
+                    icon="🔴"
+                    value={metrics?.failedCheckRate.failedRatePct ?? null}
+                    unit="%"
+                    subtitle={
+                      metrics
+                        ? `${metrics.failedCheckRate.failedRuns} failed / ${metrics.failedCheckRate.totalRuns} total`
+                        : undefined
+                    }
                     status={metrics?.failedCheckRate.dataStatus ?? "ok"}
-                    trend={getTrend(metrics?.failedCheckRate.failedRatePct ?? null, { good: 10, warn: 25 })}
+                    trend={getTrend(
+                      metrics?.failedCheckRate.failedRatePct ?? null,
+                      { good: 10, warn: 25 },
+                    )}
                     description="Over 25% → CI Friction Risk (R4)."
                     isLoading={loading}
                   />
@@ -307,14 +421,29 @@ export function ReviewCIMetricsPage() {
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-6 py-4">
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
                     {[
-                      { label: "Window",   value: `${metrics.windowDays} days` },
-                      { label: "From",     value: new Date(metrics.windowStart).toLocaleDateString() },
-                      { label: "To",       value: new Date(metrics.windowEnd).toLocaleDateString()   },
-                      { label: "Computed", value: new Date(metrics.computedAt).toLocaleTimeString()   },
+                      { label: "Window", value: `${metrics.windowDays} days` },
+                      {
+                        label: "From",
+                        value: new Date(
+                          metrics.windowStart,
+                        ).toLocaleDateString(),
+                      },
+                      {
+                        label: "To",
+                        value: new Date(metrics.windowEnd).toLocaleDateString(),
+                      },
+                      {
+                        label: "Computed",
+                        value: new Date(
+                          metrics.computedAt,
+                        ).toLocaleTimeString(),
+                      },
                     ].map((m) => (
                       <div key={m.label}>
                         <p className="text-xs text-slate-500 mb-1">{m.label}</p>
-                        <p className="text-sm font-semibold text-slate-850">{m.value}</p>
+                        <p className="text-sm font-semibold text-slate-850">
+                          {m.value}
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -333,15 +462,27 @@ export function ReviewCIMetricsPage() {
                     data={metrics.reviewLoadConcentration.reviewerBreakdown}
                     totalReviews={metrics.reviewLoadConcentration.totalReviews}
                   />
-                  {metrics.reviewLoadConcentration.concentrationIndex !== null && (
+                  {metrics.reviewLoadConcentration.concentrationIndex !==
+                    null && (
                     <div className="mt-4 pt-4 border-t border-slate-200 flex items-center justify-between">
-                      <span className="text-sm text-slate-500">Concentration Index (HHI)</span>
-                      <span className={`text-base font-bold tabular-nums ${
-                        metrics.reviewLoadConcentration.concentrationIndex > 50 ? "text-rose-600"
-                        : metrics.reviewLoadConcentration.concentrationIndex > 30 ? "text-amber-600"
-                        : "text-emerald-600"
-                      }`}>
-                        {metrics.reviewLoadConcentration.concentrationIndex.toFixed(1)}%
+                      <span className="text-sm text-slate-500">
+                        Concentration Index (HHI)
+                      </span>
+                      <span
+                        className={`text-base font-bold tabular-nums ${
+                          metrics.reviewLoadConcentration.concentrationIndex >
+                          50
+                            ? "text-rose-600"
+                            : metrics.reviewLoadConcentration
+                                  .concentrationIndex > 30
+                              ? "text-amber-600"
+                              : "text-emerald-600"
+                        }`}
+                      >
+                        {metrics.reviewLoadConcentration.concentrationIndex.toFixed(
+                          1,
+                        )}
+                        %
                       </span>
                     </div>
                   )}
@@ -365,9 +506,18 @@ export function ReviewCIMetricsPage() {
                 subtitle="Time from PR opened to first review · sorted slowest first"
                 right={
                   <div className="flex items-center gap-4 text-xs text-slate-600">
-                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />Fast ≤4h</span>
-                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" />Moderate ≤12h</span>
-                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" />Slow &gt;12h</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
+                      Fast ≤4h
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" />
+                      Moderate ≤12h
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" />
+                      Slow &gt;12h
+                    </span>
                   </div>
                 }
               />
@@ -378,9 +528,15 @@ export function ReviewCIMetricsPage() {
           )}
 
           {/* Empty chart/pr states */}
-          {(tab === "charts" || tab === "prdetails") && !metrics && !loading && (
-            <EmptyState icon="📊" title="No data yet" description="Go to Metrics Overview tab and click Calculate to compute metrics first." />
-          )}
+          {(tab === "charts" || tab === "prdetails") &&
+            !metrics &&
+            !loading && (
+              <EmptyState
+                icon="📊"
+                title="No data yet"
+                description="Go to Metrics Overview tab and click Calculate to compute metrics first."
+              />
+            )}
         </>
       )}
     </PageShell>

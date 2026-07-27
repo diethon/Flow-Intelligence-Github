@@ -66,7 +66,7 @@ export function PredictionCard({ prediction, prNumber, prTitle, onClick }: Predi
   const highPct = highVal.toFixed(1);
 
   return (
-    <div 
+    <div
       onClick={onClick}
       className={`rounded-2xl border p-5 shadow-sm transition-all duration-300 ${onClick ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : ''} ${theme.border} ${theme.bg}`}
     >
@@ -86,7 +86,7 @@ export function PredictionCard({ prediction, prNumber, prTitle, onClick }: Predi
           {prediction.riskLabel} Risk
         </div>
       </div>
-      
+
       <div className="space-y-3">
         <div className="flex justify-between items-baseline">
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Delay Risk Breakdown</span>
@@ -111,24 +111,24 @@ export function PredictionCard({ prediction, prNumber, prTitle, onClick }: Predi
 
         {/* Segmented Bar */}
         <div className="h-2.5 w-full bg-white rounded-full overflow-hidden flex border border-slate-200/70 p-0.5">
-          <div 
-            style={{ width: `${lowPct}%` }} 
-            className="h-full bg-emerald-500 rounded-l-full transition-all duration-700" 
-            title={`Low Risk: ${lowPct}%`} 
+          <div
+            style={{ width: `${lowPct}%` }}
+            className="h-full bg-emerald-500 rounded-l-full transition-all duration-700"
+            title={`Low Risk: ${lowPct}%`}
           />
-          <div 
-            style={{ width: `${medPct}%` }} 
-            className="h-full bg-amber-500 transition-all duration-700" 
-            title={`Medium Risk: ${medPct}%`} 
+          <div
+            style={{ width: `${medPct}%` }}
+            className="h-full bg-amber-500 transition-all duration-700"
+            title={`Medium Risk: ${medPct}%`}
           />
-          <div 
-            style={{ width: `${highPct}%` }} 
-            className="h-full bg-rose-500 rounded-r-full transition-all duration-700" 
-            title={`High Risk: ${highPct}%`} 
+          <div
+            style={{ width: `${highPct}%` }}
+            className="h-full bg-rose-500 rounded-r-full transition-all duration-700"
+            title={`High Risk: ${highPct}%`}
           />
         </div>
       </div>
-      
+
       <p className="text-xs text-slate-500 mt-4 pt-3 border-t border-slate-200/50">
         Predicted {new Date(prediction.predictedAt).toLocaleDateString()}
       </p>

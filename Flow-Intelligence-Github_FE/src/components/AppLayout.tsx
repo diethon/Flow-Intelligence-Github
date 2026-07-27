@@ -260,7 +260,10 @@ function useSelectedRepoRole() {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("repoChanged", handleStorageChange);
       window.removeEventListener("selectedRepoChanged", handleStorageChange);
-      window.removeEventListener("selectedRepositoryChanged", handleStorageChange);
+      window.removeEventListener(
+        "selectedRepositoryChanged",
+        handleStorageChange,
+      );
     };
   }, []);
 
@@ -294,7 +297,7 @@ function useSelectedRepoRole() {
 export function DesktopSidebar() {
   const { user } = useAuth();
 
-  const displayRole = user?.role ?? '';
+  const displayRole = user?.role ?? "";
 
   return (
     <aside className="hidden lg:flex flex-col w-60 min-h-screen bg-white border-r border-slate-200 fixed left-0 top-0 bottom-0 z-30">
@@ -337,7 +340,7 @@ export function DesktopSidebar() {
 export function MobileNav() {
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
-  const displayRole = user?.role ?? '';
+  const displayRole = user?.role ?? "";
 
   return (
     <>

@@ -10,7 +10,7 @@ export function PredictionDetails({ prediction }: PredictionDetailsProps) {
     typeof prediction.modelVersionId === "object"
       ? prediction.modelVersionId.version || prediction.modelVersionId.algorithm || "unknown"
       : prediction.modelVersionId || prediction.modelVersion?.version || "baseline-rf-v1";
-  
+
   const featureList = [
     { key: "changed_files", label: "Changed Files", icon: "📄" },
     { key: "additions", label: "Lines Added", icon: "➕", color: "text-emerald-600" },
@@ -23,7 +23,7 @@ export function PredictionDetails({ prediction }: PredictionDetailsProps) {
       <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
         <span>🤖</span> ML Prediction Details
       </h3>
-      
+
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         {featureList.map(({ key, label, icon, color }) => {
           const val = features[key];

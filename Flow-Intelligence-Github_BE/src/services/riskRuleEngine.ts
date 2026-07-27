@@ -574,6 +574,28 @@ export class RiskEvaluationService {
       });
     }
 
+    for (const rule of activeRules) {
+      if (!seenRules.has(rule.ruleCode)) {
+        dtos.push({
+          id: `tmp-${rule.ruleCode}`,
+          ruleCode: rule.ruleCode,
+          ruleName: rule.name,
+          ruleDescription: rule.description,
+          severity: "low",
+          status: "insufficient_data",
+          metricValue: 0,
+          metricLabel: METRIC_LABELS[rule.ruleCode] ?? rule.ruleCode,
+          thresholdValue: rule.threshold,
+          thresholdUnit: rule.thresholdUnit,
+          isTriggered: false,
+          windowStart: start.toISOString(),
+          windowEnd: end.toISOString(),
+          evidenceCard: null,
+          createdAt: new Date().toISOString(),
+        });
+      }
+    }
+
     dtos.sort((a, b) => {
       if (a.isTriggered !== b.isTriggered) return a.isTriggered ? -1 : 1;
       const sOrd: Record<string, number> = { high: 0, medium: 1, low: 2 };
