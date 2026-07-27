@@ -34,10 +34,17 @@ export function useSelectedRepositoryPermissions() {
     };
 
     void load();
-    window.addEventListener("selectedRepositoryChanged", load);
+    const handleEvent = () => { void load(); };
+    window.addEventListener("repoChanged", handleEvent);
+    window.addEventListener("selectedRepoChanged", handleEvent);
+    window.addEventListener("selectedRepositoryChanged", handleEvent);
+    window.addEventListener("storage", handleEvent);
     return () => {
       active = false;
-      window.removeEventListener("selectedRepositoryChanged", load);
+      window.removeEventListener("repoChanged", handleEvent);
+      window.removeEventListener("selectedRepoChanged", handleEvent);
+      window.removeEventListener("selectedRepositoryChanged", handleEvent);
+      window.removeEventListener("storage", handleEvent);
     };
   }, [user?.role]);
 
