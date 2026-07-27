@@ -180,52 +180,12 @@ function LogoutButton() {
   );
 }
 
-import { useEffect } from "react";
-
-function useSelectedRepoRole() {
-  const [repoId, setRepoId] = useState(() => localStorage.getItem("selectedRepositoryId"));
-  const [role, setRole] = useState<string | null>(null);
-
-  useEffect(() => {
-    const handleStorageChange = () => {
-      setRepoId(localStorage.getItem("selectedRepositoryId"));
-    };
-    window.addEventListener("storage", handleStorageChange);
-    window.addEventListener("repoChanged", handleStorageChange);
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("repoChanged", handleStorageChange);
-    };
-  }, []);
-
-  useEffect(() => {
-    // Fetch the role for this repo silently
-    apiClient.get(`/dashboard/repositories`).then(res => {
-      const repos = res.data.data;
-      const effectiveRepoId = repoId || (repos.length > 0 ? repos[0]._id : null);
-      if (!effectiveRepoId) {
-        setRole(null);
-        return;
-      }
-      const repo = repos.find((r: any) => r._id === effectiveRepoId);
-      if (repo && repo.role) {
-        setRole(repo.role);
-      } else {
-        setRole('viewer');
-      }
-    }).catch(() => setRole(null));
-  }, [repoId]);
-
-  return role;
-}
-
 // ─── Desktop Sidebar ──────────────────────────────────────────────────────────
 
 export function DesktopSidebar() {
   const { user } = useAuth();
 
-  const repoRole = useSelectedRepoRole();
-  const displayRole = user?.role === 'admin' ? 'admin' : (repoRole || '');
+  const displayRole = user?.role ?? '';
 
   return (
     <aside className="hidden lg:flex flex-col w-60 min-h-screen bg-white border-r border-slate-200 fixed left-0 top-0 bottom-0 z-30">
@@ -260,8 +220,7 @@ export function DesktopSidebar() {
 export function MobileNav() {
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
-  const repoRole = useSelectedRepoRole();
-  const displayRole = user?.role === 'admin' ? 'admin' : (repoRole || '');
+  const displayRole = user?.role ?? '';
 
   return (
     <>
