@@ -111,16 +111,6 @@ app.use("/api/admin", authenticate, checkGlobalAdmin, createAdminRoutes(adminCon
 app.use("/api/chat", chatRouter);
 
 // Manual notification trigger endpoint (for testing/admin)
-app.post("/api/notifications/trigger-weekly", async (_req: Request, res: Response) => {
-  const result = await schedulerService.runWeeklyBriefJob();
-  res.json({
-    success: true,
-    message: "Weekly AI Brief notification job triggered manually.",
-    result,
-  });
-});
-
-// Manual notification trigger endpoint (for testing/admin)
 app.post("/api/notifications/trigger-weekly", authenticate, requireGlobalAdmin, async (_req: Request, res: Response) => {
   const result = await schedulerService.runWeeklyBriefJob();
   res.json({

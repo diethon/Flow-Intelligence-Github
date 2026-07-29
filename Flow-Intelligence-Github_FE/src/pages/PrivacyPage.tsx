@@ -23,7 +23,7 @@ export function PrivacyPage() {
   const [settings, setSettings] = useState<PrivacySettingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const deleting = false;
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState(
@@ -180,13 +180,27 @@ export function PrivacyPage() {
     }
   };
 
-  const handleDeleteData = () => {
-    if (
-      confirm(
-        "Are you sure you want to request data deletion? This will anonymize or purge all records associated with this repository.",
-      )
-    ) {
-      alert("Data deletion request submitted.");
+  const handleDeleteData = async () => {
+    if (!selectedRepoId || deleting) return;
+
+    const confirmed = confirm(
+      "Permanently delete all synced records, predictions, AI briefs, and analytics for this repository? This action cannot be undone.",
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setError(null);
+    try {
+      const message = await privacyApi.deleteData(selectedRepoId);
+      setToastMessage(message);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 4000);
+    } catch (err: unknown) {
+      setError(
+        getPermissionErrorMessage(err, "Failed to delete repository data"),
+      );
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -459,8 +473,10 @@ export function PrivacyPage() {
                   analytics for this repository.
                 </p>
               </div>
-              <GhostBtn onClick={handleDeleteData}>
-                <span className="text-rose-600">🗑️ Delete Data</span>
+              <GhostBtn onClick={handleDeleteData} disabled={deleting}>
+                <span className="text-rose-600">
+                  {deleting ? "Deleting..." : "🗑️ Delete Data"}
+                </span>
               </GhostBtn>
             </div>
           </section>
